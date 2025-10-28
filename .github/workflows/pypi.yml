@@ -1,27 +1,53 @@
-name: Publish to PyPI (reusable)
+name: Publish to PyPI
 
 on:
+  repository_dispatch:
+    types: [new-release-created]
+  workflow_dispatch:
   workflow_call:
-    inputs:
-      tag:
-        required: false
-        type: string
 
 jobs:
-  publish:
+  build:
+    name: Build distribution 📦
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+    - name: Install pypa/build
+      run: >-
+        python3 -m
+        pip install
+        uv
+    - name: Build a binary wheel and a source tarball
+      run: uv build --sdist --wheel --out-dir dist
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
+  publish-to-pypi:
+    name: Publish Python 🐍 distribution 📦 to PyPI
+    needs:
+    - build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/confkit
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
 
-      - name: Publish using uv
-        env:
-          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          # Publish the current repository distribution to PyPI. Expects PYPI_API_TOKEN secret.
-          uv publish --non-interactive
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
