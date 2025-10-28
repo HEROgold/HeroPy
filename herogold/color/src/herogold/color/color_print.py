@@ -1,6 +1,7 @@
 
 from herogold.sentinel import MISSING
 
+
 class Ansi:
     class Regular:
         Black="\033[0;30m"
