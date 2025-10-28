@@ -35,6 +35,19 @@ tree = [
     "tree",
 ]
 
+# Convenience extras: install all optional groups
+all = [
+    "backup",
+    "color",
+    "config",
+    "examples",
+    "log",
+    "progress",
+    "rainbow",
+    "sentinel",
+    "tree",
+]
+
 [tool.uv.workspace]
 members = [
     "herogold/*",
