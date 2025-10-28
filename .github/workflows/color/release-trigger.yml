@@ -1,0 +1,35 @@
+name: Trigger color release on version bump
+
+on:
+  push:
+    paths:
+      - 'herogold/color/pyproject.toml'
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Get previous file (if exists)
+        id: get-prev
+        run: |
+          if git cat-file -e ${{ github.event.before }}:herogold/color/pyproject.toml; then
+            git show ${{ github.event.before }}:herogold/color/pyproject.toml > /tmp/prev_pyproject.toml
+          else
+            echo "" > /tmp/prev_pyproject.toml
+          fi
+
+      - name: Compare versions
+        id: check
+        run: |
+          python ./scripts/compare_version.py herogold/color/pyproject.toml ${{ github.event.before }}
+
+  build:
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'
+    uses: ./.github/workflows/color/release.yml
