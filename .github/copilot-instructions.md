@@ -41,6 +41,8 @@ Coding style and quality
   and testable.
 - Add or update unit tests (pytest) for any new behavior. Put tests under
   `tests/` or inside each package's `tests/` folder. Use small, fast tests.
+- Always use typehinting. use `ruff check` and `ty check` to confirm these cases.
+  `ty check` is alpha, so just to be sure, also use `mypy`
 
 When generating code
 --------------------
