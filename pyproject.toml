@@ -16,7 +16,7 @@ color = [
 config = [
     "config",
 ]
-example = [
+examples = [
     "examples",
 ]
 log = [
