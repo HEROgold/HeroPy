@@ -1,19 +1,10 @@
-from typing import Any
+"""Backward-compat shim: re-export from herogold.sentinel.
 
+Older code may import the top-level `sentinel` package. Keep a
+lightweight shim so both `import sentinel` and `import herogold.sentinel`
+work.
+"""
 
-class _MissingSentinel:
-    __slots__ = ()
+from herogold.sentinel import MISSING
 
-    def __eq__(self, other: object) -> bool:
-        return False
-
-    def __bool__(self) -> bool:
-        return False
-
-    def __hash__(self) -> int:
-        return 0
-
-    def __repr__(self) -> str:
-        return "MISSING"
-
-MISSING: Any = _MissingSentinel()
+__all__ = ["MISSING"]
