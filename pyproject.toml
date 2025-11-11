@@ -1,7 +1,23 @@
 [project]
 name = "herogold"
 version = "0.1.1"
-description = "Add your description here"
+description = "A single package containing personal utilities. Installed using optional-dependencies"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
+
+[project.optional-dependencies]
+# Optional extras mapping: install with `pip install herogold[<extra>]`.
+# Each extra corresponds to a subpackage under `src/herogold`.
+backup = []
+color = []
+config = []
+examples = []
+log = []
+progress = []
+sentinel = []
+random = ["herogold[sentinel]"]
+
+[build-system]
+requires = ["hatchling>=1"]
+build-backend = "hatchling.build"

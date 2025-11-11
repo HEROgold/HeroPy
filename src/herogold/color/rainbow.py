@@ -1,3 +1,5 @@
+"""Module that contains a rainbow color palette."""
+
 RAINBOW = [
     0xff0000,
     0xff0100,

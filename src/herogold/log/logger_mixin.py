@@ -5,6 +5,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from .formats import formatter
+
 
 def ensure_log_directory(directory: str = "logs") -> str:
     """Ensure that the log directory exists and return its path."""
@@ -21,8 +23,7 @@ class LoggerMixin:
     __furthest_child_name = None  # Track the name of the furthest child class
     __global_logger: logging.Logger | None = None
     __log_directory: str = ensure_log_directory()
-    __log_format = "<%(asctime)s> | [%(name)s | %(levelname)s] : %(message)s"
-    __date_format = "%Y-%m-%d %H:%M:%S"
+    __formatter = formatter
 
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
         """Initialize any subclass, setting up the logger. Uses a hierarchical naming convention."""
@@ -57,13 +58,10 @@ class LoggerMixin:
         global_logger = logging.getLogger()
         global_logger.setLevel(logging.DEBUG)
 
-        # Create formatter
-        formatter = logging.Formatter(cls.__log_format, cls.__date_format)
-
         # Create global file handler
         global_log_file = Path(cls.__log_directory) / "global.log"
         file_handler = logging.FileHandler(global_log_file)
-        file_handler.setFormatter(formatter)
+        file_handler.setFormatter(cls.__formatter)
         file_handler.setLevel(logging.INFO)
 
         # Add handler to root logger
@@ -77,13 +75,10 @@ class LoggerMixin:
         """Set up a logger specific to a class."""
         logger.setLevel(logging.DEBUG)
 
-        # Create formatter
-        formatter = logging.Formatter(cls.__log_format, cls.__date_format)
-
         # Create class-specific file handler
         class_log_file = Path(cls.__log_directory) / f"{class_name}.log"
         file_handler = logging.FileHandler(class_log_file)
-        file_handler.setFormatter(formatter)
+        file_handler.setFormatter(cls.__formatter)
         file_handler.setLevel(logging.DEBUG)
 
         # Add handler to logger
@@ -111,7 +106,6 @@ class LoggerMixin:
         cls.__log_directory = ensure_log_directory(directory)
 
     @classmethod
-    def set_log_format(cls, log_format: str, date_format: str = "%Y-%m-%d %H:%M:%S") -> None:
+    def set_log_format(cls, formatter: logging.Formatter) -> None:
         """Change the log format."""
-        cls.__log_format = log_format
-        cls.__date_format = date_format
+        cls.__formatter = formatter
