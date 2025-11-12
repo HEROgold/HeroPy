@@ -1,7 +1,7 @@
 [project]
 name = "herogold"
 version = "0.2.1"
-description = "A single package containing personal utilities. Installed using optional-dependencies"
+description = "A single package containing personal utilities."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
@@ -13,18 +13,6 @@ Homepage = "https://github.com/HEROgold/HeroPy"
 Repository = "https://github.com/HEROgold/HeroPy.git"
 Documentation = "https://github.com/HEROgold/HeroPy#readme"
 Issues = "https://github.com/HEROgold/HeroPy/issues"
-
-[project.optional-dependencies]
-# Optional extras mapping: install with `pip install herogold[<extra>]`.
-# Each extra corresponds to a subpackage under `src/herogold`.
-backup = []
-color = []
-config = []
-examples = []
-log = []
-progress = []
-sentinel = []
-random = ["herogold[sentinel]"]
 
 [build-system]
 requires = ["hatchling>=1"]
