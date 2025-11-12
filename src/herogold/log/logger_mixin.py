@@ -83,13 +83,29 @@ class LoggerMixin:
 
         # Add handler to logger
         logger.addHandler(file_handler)
+        logger.addHandler(logging.StreamHandler())
 
     @property
     def logger(self) -> logging.Logger:
         """Return the logger instance for the class."""
-        if not hasattr(self, "__logger"):
-            msg = "LoggerMixin has not been initialized properly."
-            raise AttributeError(msg)
+        if LoggerMixin.__global_logger is None:
+            LoggerMixin.__setup_global_logger()
+
+        if not hasattr(self, "_LoggerMixin__logger"):
+            class_name = type(self).__name__
+            logger_name = f"{type(self).__module__}.{class_name}"
+            logger = logging.getLogger(logger_name)
+
+            # Attach a file handler if one matching this class hasn't been added.
+            # (Avoid duplicating handlers on repeated lazy initializations.)
+            expected_log_filename = f"{class_name}.log"
+            has_handler = any(
+                isinstance(h, logging.FileHandler) and h.baseFilename.endswith(expected_log_filename)
+                for h in logger.handlers
+            )
+            if not has_handler:
+                self.__setup_class_logger(logger, class_name)
+            self.__logger = logger
         return self.__logger
 
     @logger.setter
