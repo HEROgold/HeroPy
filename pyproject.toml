@@ -5,6 +5,14 @@ description = "A single package containing personal utilities. Installed using o
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []
+authors = [{ name = "HEROgold" }]
+license = { text = "MIT" }
+
+[project.urls]
+Homepage = "https://github.com/HEROgold/HeroPy"
+Repository = "https://github.com/HEROgold/HeroPy.git"
+Documentation = "https://github.com/HEROgold/HeroPy#readme"
+Issues = "https://github.com/HEROgold/HeroPy/issues"
 
 [project.optional-dependencies]
 # Optional extras mapping: install with `pip install herogold[<extra>]`.
