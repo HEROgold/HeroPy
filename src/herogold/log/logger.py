@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from string.templatelib import Template
 
+__all__ = ["Logger"]
 
 NO_ARG = create_sentinel()
 """Special sentinel value indicating no argument."""

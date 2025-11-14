@@ -7,6 +7,7 @@ from typing import Any
 
 from .formats import formatter
 
+__all__ = ["LoggerMixin"]
 
 def ensure_log_directory(directory: str = "logs") -> str:
     """Ensure that the log directory exists and return its path."""
