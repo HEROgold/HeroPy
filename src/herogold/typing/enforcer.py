@@ -14,7 +14,6 @@ from asyncio import iscoroutinefunction
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Literal,
     ParamSpec,
     TypeVar,
@@ -22,7 +21,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
 # Generic type variables used for typing the wrapper signatures
 F = TypeVar("F")
@@ -119,7 +118,7 @@ def type_check(args: Sequence[Any] | dict[str, Any], annotations: dict[str, type
         # For sequences (positional args) iterate over positional parameter
         # annotations only (skip the special 'return' annotation if present).
         param_annotations = [v for k, v in annotations.items() if k != "return"]
-        for value, annotation in zip(args, param_annotations):
+        for value, annotation in zip(args, param_annotations, strict=False):
             check_annotation(value, annotation)
     return True
 
