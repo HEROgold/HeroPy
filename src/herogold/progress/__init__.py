@@ -108,11 +108,7 @@ class PreciseProgressBar(ProgressBar):
         """Get the fractional part of the current progress, rounded to the specified precision."""
         return round(self.current % 1, self.precision)
 
-    @ProgressBar.current.getter
-    def current(self) -> float:
-        return self._current
-
-    @current.setter
+    @ProgressBar.current.setter
     def current(self, value: float) -> None:
         """Set the current progress value, rounding to the specified precision."""
         self._current = round(value, self.precision)
