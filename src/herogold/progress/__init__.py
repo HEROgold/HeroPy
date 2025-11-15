@@ -104,31 +104,31 @@ class PreciseProgressBar(ProgressBar):
         """Set the current progress value, rounding to the specified precision."""
         self._current = round(value, self.precision)
 
-    def get_partial_bar(self, fraction: float) -> str:
+    def get_partial_bar(self) -> str:
         """Get the appropriate partial bar character based on the fractional progress."""
-        bars_count = len(self.partial_bars)
-        fraction_per_bar = 1 / bars_count
-        index_target = fraction / fraction_per_bar
-        index = min(int(index_target), bars_count - 1)
+        bar_area = self.calculate_bar_area()
+        bar_count = self.calculate_bar_count(bar_area)
+        frac = bar_count % 1
+
+        index = min(
+            int(frac * len(self.partial_bars)),
+            len(self.partial_bars) - 1,
+        )
         return self.partial_bars[index]
 
     @override
     def update(self, current: float) -> None:
         super().update(current)
-        self.partial_bar = self.get_partial_bar(self.fraction)
+        self.partial_bar = self.get_partial_bar()
 
     @override
     def generate_bar(self, bar_count: int) -> str:
-        # if self.keep_full:
-        #     return super().generate_bar(bar_count)
-        return super().generate_bar(bar_count - 1) + self.partial_bar
-
+        return super().generate_bar(bar_count) + self.partial_bar
 
 
 def main() -> None:
     while True:
         state = PreciseProgressBar(100)
-        # state = ProgressBar(100)
         for i in range(10000):
             state.update(i / 100)
             print(state, end="\r")
