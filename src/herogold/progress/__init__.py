@@ -1,3 +1,5 @@
+"""A simple progress bar for terminal output."""
+
 import math
 from datetime import UTC, datetime, timedelta
 from os import get_terminal_size
@@ -7,6 +9,8 @@ from typing import ClassVar, override
 
 # https://youtu.be/idHR0xu_xmA for braille char
 class ProgressBar:
+    """A simple progress bar for terminal output."""
+
     # Editable
     space = " "
     message = "Progress:"
@@ -94,6 +98,8 @@ class ProgressBar:
         self._start_time = datetime.now(tz=UTC)
 
 class PreciseProgressBar(ProgressBar):
+    """A progress bar that supports fractional progress with specified precision."""
+
     precision = 2
     arrow = ""
     bar = "⠿"
@@ -127,11 +133,12 @@ class PreciseProgressBar(ProgressBar):
 
 
 def main() -> None:
+    """Demonstrate the progress bar functionality."""
     while True:
         state = PreciseProgressBar(100)
         for i in range(10000):
             state.update(i / 100)
-            print(state, end="\r")
+            print(state, end="\r")  # noqa: T201
             sleep(0.01)
 
 
