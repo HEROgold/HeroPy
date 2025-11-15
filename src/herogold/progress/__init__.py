@@ -110,12 +110,8 @@ class PreciseProgressBar(ProgressBar):
         """Set the current progress value, rounding to the specified precision."""
         self._current = round(value, self.precision)
 
-    @property
-    def partial_bar(self) -> str:
-        return self._partial_bar
-
-    @partial_bar.setter
-    def partial_bar(self, fraction: float) -> None:
+    def get_partial_bar(self, fraction: float) -> str:
+        """Get the appropriate partial bar character based on the fractional progress."""
         bars_count = len(self.partial_bars)
         target = 1 / bars_count
         index = min(int(fraction / target), bars_count - 1)
@@ -132,19 +128,7 @@ class PreciseProgressBar(ProgressBar):
     @override
     def update(self, current: float) -> None:
         super().update(current)
-        self.partial_bar = self.fraction
-
-    # @property
-    # def keep_full(self) -> bool:
-    #     # TODO: Find out why 0.25 is super close to working as intended.
-    #     # TODO: 0.25 needs to be calculated or based on a variable somewhere.
-    #     # return self.current % 1 < (self.fraction/(1/len(self.partial_bars))) # (0.25)
-    #     a = self.current % 1
-    #     b = self.fraction
-    #     c = 1 / len(self.partial_bars)
-    #     d = b / c
-    #     e = d % 1
-    #     return a < e
+        self.partial_bar = self.get_partial_bar(self.fraction)
 
     @override
     def generate_bar(self, bar_count: int) -> str:
