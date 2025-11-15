@@ -2,7 +2,7 @@ import math
 from datetime import UTC, datetime, timedelta
 from os import get_terminal_size
 from time import sleep
-from typing import override
+from typing import ClassVar, override
 
 
 # https://youtu.be/idHR0xu_xmA for braille char
