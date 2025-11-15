@@ -42,7 +42,6 @@ class ProgressBar:
 
     def __str__(self) -> str:
         """Return the string representation of the progress bar."""
-        self.columns = get_terminal_size().columns
         bar_area = self.calculate_bar_area()
 
         bar_count = self.calculate_bar_count(bar_area)
@@ -70,7 +69,7 @@ class ProgressBar:
     def calculate_bar_area(self) -> int:
         """Calculate the available width for the progress bar."""
         return (
-            self.columns
+            get_terminal_size().columns
             - len(self.message)
             - len(self.start)
             - len(self.arrow)
