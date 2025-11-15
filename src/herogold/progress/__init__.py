@@ -98,10 +98,7 @@ class PreciseProgressBar(ProgressBar):
     precision = 2
     arrow = ""
     bar = "⠿"
-
-    def __init__(self, total: int) -> None:
-        super().__init__(total)
-        self.partial_bars = ["⠄","⠆","⠇","⠧","⠷","⠿"]
+    partial_bars: ClassVar[list[str]] = ["⠄","⠆","⠇","⠧","⠷","⠿"]
 
     @property
     def fraction(self) -> float:
