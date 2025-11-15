@@ -144,6 +144,7 @@ def main() -> None:
         # state = ProgressBar(100)
         for i in range(10000):
             state.update(i / 100)
+            print(state, end="\r")
             sleep(0.01)
 
 
