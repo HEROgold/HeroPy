@@ -45,7 +45,7 @@ class ProgressBar:
         bar_area = self.calculate_bar_area()
 
         bar_count = self.calculate_bar_count(bar_area)
-        bar = self.generate_bar(bar_count)
+        bar = self.generate_bar(int(bar_count))
 
         space_count = self.calculate_space_count(bar_area, bar)
         space = self.space * space_count
@@ -58,9 +58,9 @@ class ProgressBar:
         """Build and return the complete progress bar string."""
         return f"{self.message}{self.start}{bar}{self.arrow}{space}{end}"
 
-    def calculate_bar_count(self, bar_area: int) -> int:
+    def calculate_bar_count(self, bar_area: int) -> float:
         """Calculate the number of characters to use for the progress bar based on the current scale."""
-        return int(bar_area * self.scale)
+        return bar_area * self.scale
 
     def calculate_space_count(self, bar_area: int, bar: str) -> int:
         """Calculate the number of spaces to use in the progress bar."""
@@ -98,11 +98,6 @@ class PreciseProgressBar(ProgressBar):
     arrow = ""
     bar = "⠿"
     partial_bars: ClassVar[list[str]] = ["⠄","⠆","⠇","⠧","⠷","⠿"]
-
-    @property
-    def fraction(self) -> float:
-        """Get the fractional part of the current progress, rounded to the specified precision."""
-        return round(self.current % 1, self.precision)
 
     @ProgressBar.current.setter
     def current(self, value: float) -> None:
