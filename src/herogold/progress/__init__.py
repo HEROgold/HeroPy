@@ -69,7 +69,7 @@ class ProgressBar:
 
     def build_progress_bar(self, bar: str, space: str) -> str:
         """Build and return the complete progress bar string."""
-        return f"{self.message}{self.start}{bar}{self.arrow}{space}{end}"
+        return f"{self.message}{self.start}{bar}{self.arrow}{space}{self.end}"
 
     def calculate_bar_count(self, bar_area: int) -> float:
         """Calculate the number of characters to use for the progress bar based on the current scale."""
@@ -121,6 +121,9 @@ class PreciseProgressBar(ProgressBar):
 
     def get_partial_bar(self) -> str:
         """Get the appropriate partial bar character based on the fractional progress."""
+        if self.current >= self.total:
+            return ""
+
         bar_area = self.calculate_bar_area()
         bar_count = self.calculate_bar_count(bar_area)
         frac = bar_count % 1
