@@ -65,11 +65,9 @@ class ProgressBar:
         space_count = self.calculate_space_count(bar_area, bar)
         space = self.space * space_count
 
-        # if scale == 0, make sure the len our return is the same as any other scale
-        end = self.end + self.space if int(self.scale) != 0 else self.end
-        return self.build_progress_bar(bar, space, end)
+        return self.build_progress_bar(bar, space)
 
-    def build_progress_bar(self, bar: str, space: str, end: str) -> str:
+    def build_progress_bar(self, bar: str, space: str) -> str:
         """Build and return the complete progress bar string."""
         return f"{self.message}{self.start}{bar}{self.arrow}{space}{end}"
 
