@@ -113,17 +113,10 @@ class PreciseProgressBar(ProgressBar):
     def get_partial_bar(self, fraction: float) -> str:
         """Get the appropriate partial bar character based on the fractional progress."""
         bars_count = len(self.partial_bars)
-        target = 1 / bars_count
-        index = min(int(fraction / target), bars_count - 1)
-        self._partial_bar = self.partial_bars[index]
-
-    @property
-    def partial_bars(self) -> list[str]:
-        return self._partial_bars
-
-    @partial_bars.setter
-    def partial_bars(self, value: list[str]) -> None:
-        self._partial_bars = [*value]
+        fraction_per_bar = 1 / bars_count
+        index_target = fraction / fraction_per_bar
+        index = min(int(index_target), bars_count - 1)
+        return self.partial_bars[index]
 
     @override
     def update(self, current: float) -> None:
