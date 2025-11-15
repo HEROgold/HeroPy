@@ -79,11 +79,11 @@ class ProgressBar:
 
     def generate_bar(self, bar_count: int) -> str:
         """Generate the progress bar string based on the number of characters."""
-        return self.bar * (bar_count // len(self.bar))
+        return self.bar * bar_count
 
     def update(self, current: float) -> None:
         """Update the current progress value."""
-        self.current = current
+        self._current = current
 
     @property
     def elapsed_time(self) -> timedelta:
