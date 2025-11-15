@@ -95,7 +95,7 @@ class ProgressBar:
         self._start_time = datetime.now(tz=UTC)
 
 class PreciseProgressBar(ProgressBar):
-    _precision = 2
+    precision = 2
     arrow = ""
     bar = "⠿"
 
@@ -105,7 +105,8 @@ class PreciseProgressBar(ProgressBar):
 
     @property
     def fraction(self) -> float:
-        return round(self.current % 1, self._precision)
+        """Get the fractional part of the current progress, rounded to the specified precision."""
+        return round(self.current % 1, self.precision)
 
     @ProgressBar.current.getter
     def current(self) -> float:
@@ -113,7 +114,8 @@ class PreciseProgressBar(ProgressBar):
 
     @current.setter
     def current(self, value: float) -> None:
-        self._current = round(value, self._precision)
+        """Set the current progress value, rounding to the specified precision."""
+        self._current = round(value, self.precision)
 
     @property
     def partial_bar(self) -> str:
