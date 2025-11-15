@@ -12,8 +12,9 @@ class ProgressBar:
     """A simple progress bar for terminal output."""
 
     # Editable
+    precision = 2
     space = " "
-    message = "Progress:"
+    prefix = "Progress:"
     start = "["
     end = "]"
     arrow = ">"
@@ -24,6 +25,16 @@ class ProgressBar:
         self._total = total
         self._current = 0
         self._start_time = datetime.now(tz=UTC)
+
+    @property
+    def progress_percent(self) -> str:
+        """Return the current progress as a percentage."""
+        return f"{(self.current / self.total):.{self.precision}%}"
+
+    @property
+    def message(self) -> str:
+        """Return the progress message prefix."""
+        return f"{self.prefix} {self.progress_percent} "
 
     @property
     def total(self) -> int:
@@ -64,7 +75,8 @@ class ProgressBar:
 
     def calculate_bar_count(self, bar_area: int) -> float:
         """Calculate the number of characters to use for the progress bar based on the current scale."""
-        return bar_area * self.scale
+        # Clamp scale between 0 and 1. Avoiding over/under flow.
+        return bar_area * max(min(1, self.scale), 0)
 
     def calculate_space_count(self, bar_area: int, bar: str) -> int:
         """Calculate the number of spaces to use in the progress bar."""
@@ -100,7 +112,6 @@ class ProgressBar:
 class PreciseProgressBar(ProgressBar):
     """A progress bar that supports fractional progress with specified precision."""
 
-    precision = 2
     arrow = ""
     bar = "⠿"
     partial_bars: ClassVar[list[str]] = ["⠄","⠆","⠇","⠧","⠷","⠿"]
@@ -137,9 +148,9 @@ def main() -> None:
     while True:
         state = PreciseProgressBar(100)
         for i in range(10000):
-            state.update(i / 100)
+            state.update(i)
             print(state, end="\r")  # noqa: T201
-            sleep(0.01)
+            sleep(0.1)
 
 
 if __name__ == "__main__":
