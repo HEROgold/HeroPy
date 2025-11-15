@@ -83,7 +83,7 @@ class ProgressBar:
 
     def update(self, current: float) -> None:
         """Update the current progress value."""
-        self._current = current
+        self.current = current
 
     @property
     def elapsed_time(self) -> timedelta:
