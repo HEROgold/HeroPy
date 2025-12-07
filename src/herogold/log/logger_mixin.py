@@ -60,7 +60,7 @@ class LoggerMixin:
         global_logger.setLevel(logging.DEBUG)
 
         # Create global file handler
-        global_log_file = Path(cls.__log_directory) / "global.log"
+        global_log_file = Path(cls.__log_directory) / "_global.log"
         file_handler = logging.FileHandler(global_log_file)
         file_handler.setFormatter(cls.__formatter)
         file_handler.setLevel(logging.INFO)
