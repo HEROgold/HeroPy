@@ -1,5 +1,6 @@
 
-from typing import cast
+from types import NoneType
+from typing import Any, cast
 
 
 class InvalidSubTypeError(Exception):
@@ -16,10 +17,16 @@ def is_sub_type(cls: object, target: object) -> bool:
 
     # Extract type arguments from the generic base
     for base in orig_bases:
+        if base is NoneType and cls is None:
+            return True # Both are None, considered a match
         if hasattr(base, "__args__"):
             type_args = cast("tuple[type, ...]", base.__args__)
             if type_args:
                 for type_arg in type_args:
+                    if type_arg in (None, type(None)) and cls is None:
+                        return True
+                    if type_arg is Any:
+                        return True
                     if hasattr(type_arg, "__origin__"):
                         # For parameterized generics, check against the origin type
                         if isinstance(cls, type_arg.__origin__):
