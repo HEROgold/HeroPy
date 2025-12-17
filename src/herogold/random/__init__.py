@@ -1,10 +1,7 @@
 import random
-from typing import TYPE_CHECKING
 
 from herogold.sentinel import MISSING
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
+from collections.abc import Sequence
 
 
 def recursive_rolls(target: float, rolls: int = 1) -> int:
