@@ -25,3 +25,6 @@ build-backend = "hatchling.build"
 test = [
     "pytest>=9.0.2",
 ]
+
+[tool.ty.src]
+exclude = ["tests/*"]
