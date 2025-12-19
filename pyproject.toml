@@ -27,4 +27,4 @@ test = [
 ]
 
 [tool.ty.src]
-exclude = ["tests/*"]
+exclude = ["tests"]
