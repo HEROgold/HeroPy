@@ -3,6 +3,9 @@ name: Auto-release
 on:
   workflow_run:
     workflows: ["Test"]
+    branches: [master]
+    types:
+      - completed
   workflow_dispatch:
 
 jobs:
