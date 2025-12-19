@@ -8,7 +8,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 from tempfile import mkdtemp
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -36,7 +36,7 @@ class TempFile:
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: TracebackType | None,
-    ) -> None | False:
+    ) -> None | Literal[False]:
         """On exit, if no exception occurred, replace the original file with the temp file."""
         if exc_type or exc_value or traceback:
             if exc_value:

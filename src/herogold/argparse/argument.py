@@ -4,7 +4,7 @@ from collections.abc import Callable
 from enum import Enum
 from typing import Generic, TypeVar
 
-from herogold.src.herogold.sentinel import MISSING
+from herogold.sentinel import MISSING
 
 # Prefer to use later versions. For typevar support defaults.
 # Better yet, switch to 3.14+

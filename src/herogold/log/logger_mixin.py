@@ -51,7 +51,7 @@ class LoggerMixin:
                 if not logger.handlers:
                     cls.__setup_class_logger(logger, base.__name__)
 
-                base.logger = logger
+                base.logger = logger # ty:ignore[invalid-assignment]
 
     @classmethod
     def __setup_global_logger(cls) -> None:
