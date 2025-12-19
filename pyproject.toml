@@ -8,6 +8,9 @@ dependencies = []
 authors = [{ name = "HEROgold" }]
 license = { text = "MIT" }
 
+[project.optional-dependencies]
+test = ["pytest>=8.3"]
+
 [project.urls]
 Homepage = "https://github.com/HEROgold/HeroPy"
 Repository = "https://github.com/HEROgold/HeroPy.git"
@@ -17,3 +20,8 @@ Issues = "https://github.com/HEROgold/HeroPy/issues"
 [build-system]
 requires = ["hatchling>=1"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+test = [
+    "pytest>=9.0.2",
+]
