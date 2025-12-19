@@ -4,7 +4,6 @@ on:
   pull_request:
     branches: [ master ]
   workflow_dispatch:
-  workflow_call:
 
 concurrency: test-${{ github.sha }}
 
@@ -19,6 +18,9 @@ jobs:
       uses: astral-sh/setup-uv@v4
       with:
         version: "latest"
+
+    - name: Install dependencies
+      run: uv sync --group test
 
     - name: Run ruff check
       run: uvx ruff check .
