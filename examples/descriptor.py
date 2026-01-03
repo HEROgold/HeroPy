@@ -4,7 +4,7 @@ from typing import cast
 
 
 class Descriptor[VT]:
-    """A descriptor for config values, preserving type information."""
+    """A descriptor that manages an attribute with a default value."""
 
     def __init__(self, default: VT | None = None) -> None:
         """Initialize the descriptor with a default value."""
