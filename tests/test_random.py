@@ -6,9 +6,9 @@ import herogold.random as random_module
 
 
 def test_recursive_rolls_rejects_out_of_range_target() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Target must be between 0 and 1."):
         random_module.recursive_rolls(-0.1)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Target must be between 0 and 1."):
         random_module.recursive_rolls(1.1)
 
 

@@ -1,3 +1,5 @@
+"""Argument descriptor for argparse integration."""
+
 import sys
 from argparse import ArgumentParser
 from collections.abc import Callable
@@ -8,7 +10,7 @@ from herogold.sentinel import MISSING
 
 # Prefer to use later versions. For typevar support defaults.
 # Better yet, switch to 3.14+
-if sys.version_info > (3, 13):
+if sys.version_info >= (3, 14):
     T = TypeVar("T", default=str)
 else:
     T = TypeVar("T")
@@ -36,6 +38,7 @@ ArgumentType = Callable[[str], T]
 
 class Argument(Generic[T]):
     """Helper to define arguments with argparse."""
+
     internal_prefix = "_ARGUMENT_"
 
     def __init__(
@@ -45,7 +48,7 @@ class Argument(Generic[T]):
         action: Actions = Actions.STORE,
         default: T | None = None,
         default_factory: Callable[[], T] | None = None,
-        help: str = "",
+        help: str = "",  # noqa: A002
     ) -> None:
         """Initialize argument."""
         default = self.resolve_default(default, default_factory)
@@ -58,20 +61,31 @@ class Argument(Generic[T]):
         self.help = help
 
         if self.action is Actions.STORE_BOOL:
-            self.type = bool 
+            self.type = bool
 
     def resolve_default(self, default: T | None, default_factory: Callable[[], T] | None) -> T:
+        """Resolve the default value for the argument.
+
+        Given either a default value or a default factory, return the appropriate default value.
+        If both are provided, the default value takes precedence.
+        """
         if default is None and default_factory is not None:
             return default_factory()
         if default is not None:
             return default
-        raise ValueError("Either default or default_factory must be provided.")
+        msg = "Either default or default_factory must be provided."
+        raise ValueError(msg)
 
     def resolve_type(self, type_: ArgumentType[T], action: Actions) -> ArgumentType[T] | type:
+        """Resolve the type for the argument.
+
+        If the action is STORE_TRUE, STORE_FALSE, or STORE_BOOL, the type is bool.
+        If the type is MISSING, the type is str. Otherwise, return the provided type.
+        """
         if action in (
             Actions.STORE_TRUE,
             Actions.STORE_FALSE,
-            Actions.STORE_BOOL
+            Actions.STORE_BOOL,
         ):
             return bool
         if type_ is MISSING:

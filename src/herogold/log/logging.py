@@ -50,7 +50,7 @@ from logging import (
 from .formats import message, prefix
 
 # Patch logging for Python 3.14+
-if sys.version_info >= (3, 14):  # noqa: UP036
+if sys.version_info >= (3, 14):
     from .logger import Logger
     logger = Logger("root")
     debug = logger.debug

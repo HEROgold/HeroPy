@@ -1,5 +1,6 @@
 """Helpers for printing colored text to the terminal using ANSI codes."""
 from __future__ import annotations
+
 from enum import StrEnum
 
 

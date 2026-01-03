@@ -1,7 +1,9 @@
+"""Random utilities for rolling and selection based on probabilities."""
+
 import random
+from collections.abc import Sequence
 
 from herogold.sentinel import MISSING
-from collections.abc import Sequence
 
 
 def recursive_rolls(target: float, rolls: int = 1) -> int:

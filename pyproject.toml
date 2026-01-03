@@ -3,7 +3,7 @@ name = "herogold"
 version = "1.0.0"
 description = "A single package containing personal utilities."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = []
 authors = [{ name = "HEROgold" }]
 license = { text = "MIT" }

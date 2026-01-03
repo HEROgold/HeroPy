@@ -1,16 +1,19 @@
 indent-width = 4
 line-length = 128
-target-version = "py314"
+target-version = "py312"
 unsafe-fixes = true
 preview=false
 
 [lint]
 exclude = ["build", "dist", "venv"]
-# select = ["ALL"]
+select = ["ALL"]
 ignore = [
     "E701"
 ]
 
+[lint.per-file-ignores]
+"tests/**/*.py" = ["D", "S101", "PLR", "INP", "ANN", "ARG", "SLF"]
+"examples/**/*.py" = ["D", "UP", "T"]
 
 [format]
 indent-style = "space"
