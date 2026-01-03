@@ -1,4 +1,4 @@
-from herogold.color.color_print import Regular, colorize
+from herogold.colors import Regular, colorize
 
 def test_colorize_wraps_text_with_reset() -> None:
     output = colorize(Regular.Green, "hello")
