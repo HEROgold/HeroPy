@@ -94,7 +94,7 @@ class Argument(Generic[T]):
 
     def __set_name__(self, owner: type, name: str) -> None:
         """Set the name of the attribute to the name of the descriptor."""
-        self.setup_parser_argument(name)
+        self._setup_parser_argument(name)
         self.name = name
         self.private_name = f"{self.internal_prefix}{name}"
 
@@ -106,7 +106,7 @@ class Argument(Generic[T]):
         """Set the value of the attribute."""
         setattr(obj, self.private_name, value)
 
-    def setup_parser_argument(self, name: str) -> None:
+    def _setup_parser_argument(self, name: str) -> None:
         """Set up the argument in the parser."""
         help_ = f"{self.help} - {self.type.__name__}" if self.help else f"{self.type.__name__}"  # ty:ignore[possibly-missing-attribute]  # noqa: E501
         for i in self.names:
