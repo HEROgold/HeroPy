@@ -112,7 +112,7 @@ class LoggerMixin:
     @logger.setter
     def logger(self, value: logging.Logger) -> None:
         """Set the logger instance for the class."""
-        if not isinstance(value, logging.Logger): # type: ignore[reportUnnecessaryIsInstance] # ensure robustness.
+        if not isinstance(value, logging.Logger): # ensure robustness.
             msg = "Logger must be an instance of logging.Logger"
             raise TypeError(msg)
         self.__logger = value
