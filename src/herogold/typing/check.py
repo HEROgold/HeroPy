@@ -1,3 +1,4 @@
+"""runtime Type checking utilities."""
 
 from types import NoneType, get_original_bases
 from typing import Any, get_args, get_origin
@@ -5,7 +6,6 @@ from typing import Any, get_args, get_origin
 
 class InvalidSubTypeError(Exception):
     """Exception raised when a value does not match the expected type."""
-    pass
 
 # Given: Haystack[TypeArg1[X], TypeArg2[Y]]
 # Contains:
@@ -42,4 +42,5 @@ def is_sub_type(needle: object, haystack: object) -> bool:
                 return is_sub_type(needle, type_arg)
             msg = f"Value {needle} is not any of {type_args}."
             raise InvalidSubTypeError(msg)
-    raise RuntimeError("Type validation failed due to unexpected error. Report this with logs and code `DTV-I-001`")
+    msg = "Type validation failed due to unexpected error. Report this with logs and code `DTV-I-001`"
+    raise RuntimeError(msg)
