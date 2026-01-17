@@ -1,46 +1,35 @@
 """runtime Type checking utilities."""
-
 from types import NoneType, get_original_bases
 from typing import Any, get_args, get_origin
 
+from typing_extensions import deprecated  # Remove dependency when minimum Python version is 3.12
 
-class InvalidSubTypeError(Exception):
-    """Exception raised when a value does not match the expected type."""
+NONE = (None, type(None), NoneType)
 
-# Given: Haystack[TypeArg1[X], TypeArg2[Y]]
-# Contains:
-# orig_bases = TypeArg1[X], TypeArg2[Y]
-# type_args = X or Y (depending on which base we're looking at)
+def contains_sub_type(needle: object, haystack: object) -> bool:
+    """Check if a subtype exists somewhere in the expected type."""
+    bases = list(get_original_bases(type(haystack)))
 
-
-# TODO: rename is_sub_type to something that's more accurate
-def is_sub_type(needle: object, haystack: object) -> bool:
-    """Validate that a subtype exists in the expected type."""
-    orig_bases = get_original_bases(type(haystack))
-
-    if not orig_bases:
-        msg = "No type information available for validation."
-        raise InvalidSubTypeError(msg)
-
-    # Extract type arguments from the generic base
-    for base in orig_bases:
-        if base is NoneType and needle is None:
-            return True # Both are None, considered a match
+    flat_bases = []
+    while bases:
+        base = bases.pop()
         if type_args := get_args(base):
-            for type_arg in type_args:
-                if type_arg in (None, type(None)) and needle is None:
-                    return True
-                if type_arg is Any:
-                    return True
-                if needle is type_arg:
-                    return True
-                if origin := get_origin(type_arg):
-                    # Handle cases like Container[int] where needle is of type Container
-                    # TODO: De we remove this check? as Container is not a subtype of Container[int]
-                    # only int is a subtype of Container[int]
-                    return isinstance(needle, origin)
-                return is_sub_type(needle, type_arg)
-            msg = f"Value {needle} is not any of {type_args}."
-            raise InvalidSubTypeError(msg)
-    msg = "Type validation failed due to unexpected error. Report this with logs and code `DTV-I-001`"
-    raise RuntimeError(msg)
+            flat_bases.extend(type_args)
+        else:
+            flat_bases.append(base)
+        if get_origin(base):
+            bases.extend(get_args(base))
+
+    if needle is None or needle in NONE:
+        return any(base in NONE for base in flat_bases)
+    if any(base is Any for base in flat_bases):
+        return True
+    return any(needle is base for base in flat_bases)
+
+# Aliases
+has_sub_type = contains_sub_type
+
+
+@deprecated("Use 'contains_sub_type' or 'has_sub_type' instead. Removed in 2.0")
+def is_sub_type(needle: object, haystack: object) -> bool:  # noqa: D103
+    return contains_sub_type(needle, haystack)
