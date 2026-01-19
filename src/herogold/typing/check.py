@@ -2,8 +2,6 @@
 from types import NoneType, get_original_bases
 from typing import Any, get_args, get_origin
 
-from typing_extensions import deprecated  # Remove dependency when minimum Python version is 3.12
-
 NONE = (None, type(None), NoneType)
 
 def contains_sub_type(needle: object, haystack: object) -> bool:
