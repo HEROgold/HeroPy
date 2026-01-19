@@ -1,4 +1,4 @@
-"""runtime Type checking utilities."""
+"""runtime Type checking utilities."""  # noqa: INP001  Avoids `from typing` imports.
 from types import NoneType, get_original_bases
 from typing import Any, get_args, get_origin
 
