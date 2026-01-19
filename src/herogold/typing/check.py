@@ -28,8 +28,4 @@ def contains_sub_type(needle: object, haystack: object) -> bool:
 
 # Aliases
 has_sub_type = contains_sub_type
-
-
-@deprecated("Use 'contains_sub_type' or 'has_sub_type' instead. Removed in 2.0")
-def is_sub_type(needle: object, haystack: object) -> bool:  # noqa: D103
-    return contains_sub_type(needle, haystack)
+is_sub_type = contains_sub_type
