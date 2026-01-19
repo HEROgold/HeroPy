@@ -1,5 +1,4 @@
 """A simple progress bar for terminal output."""
-
 import math
 from datetime import UTC, datetime, timedelta
 from os import get_terminal_size
@@ -143,14 +142,31 @@ class PreciseProgressBar(ProgressBar):
     def generate_bar(self, bar_count: int) -> str:
         return super().generate_bar(bar_count) + self.partial_bar
 
+class MultiProgress(list[ProgressBar]):
+    """A class to manage multiple progress bars."""
+
+    UP = "\033[F"
+
+    def __init__(self, bars: list[ProgressBar]) -> None:
+        """Create a MultiProgress instance with a list of ProgressBar instances."""
+        self.bars = bars
+
+    def __str__(self) -> str:
+        """Return the string representation of all progress bars."""
+        msg = "\n".join(str(bar) for bar in self.bars)
+        msg += self.UP * (len(self.bars) - 1)
+        return msg
 
 def main() -> None:
     """Demonstrate the progress bar functionality."""
     while True:
-        state = PreciseProgressBar(100)
+        _1 = PreciseProgressBar(100)
+        _2 = ProgressBar(100)
+        bars = MultiProgress([_1, _2])
         for i in range(10000):
-            state.update(i)
-            print(state, end="\r")  # noqa: T201
+            _1.update(i/100)
+            _2.update(i/100)
+            print(bars, end="\r")  # noqa: T201
             sleep(0.1)
 
 
