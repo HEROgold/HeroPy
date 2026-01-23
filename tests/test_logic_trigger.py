@@ -21,7 +21,8 @@ def test_trigger_runs_action_when_condition_true() -> None:
 
 def test_trigger_returns_sentinel_when_condition_false() -> None:
     def do_nothing() -> int:
-        raise RuntimeError("should not run")
+        msg = "should not run"
+        raise RuntimeError(msg)
 
     action = Action(do_nothing)
     condition = Predicate(lambda: False)

@@ -4,7 +4,7 @@ import sys
 from argparse import ArgumentParser
 from collections.abc import Callable
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from herogold.sentinel import MISSING
 
@@ -36,7 +36,7 @@ class Actions(Enum):
 ArgumentType = Callable[[str], T]
 
 
-class Argument(Generic[T]):
+class Argument[T]:
     """Helper to define arguments with argparse."""
 
     internal_prefix = "_ARGUMENT_"

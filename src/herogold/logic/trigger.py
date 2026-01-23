@@ -1,5 +1,5 @@
 """Module defining the Trigger class for conditional action execution."""
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from herogold.logic.action import Action
 from herogold.logic.predicate import Predicate
@@ -8,7 +8,7 @@ from herogold.sentinel import create_sentinel
 T = TypeVar("T")
 DidNotRun = create_sentinel() # Sentinel value indicating the action did not run
 
-class Trigger(Generic[T]):
+class Trigger[T]:
     """A trigger that activates an action based on a condition."""
 
     __slots__ = ("action", "condition")

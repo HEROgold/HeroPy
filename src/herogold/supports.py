@@ -19,7 +19,7 @@ class SupportsLE(Protocol):
     def __le__(self, other: object, /) -> bool: ...
 
 @runtime_checkable
-class SupportsEq(Protocol):
+class SupportsEq(Protocol):  # noqa: PLW1641
     def __eq__(self, other: object, /) -> bool: ...
 
 @runtime_checkable
@@ -27,7 +27,7 @@ class SupportsNe(Protocol):
     def __ne__(self, other: object, /) -> bool: ...
 
 @runtime_checkable
-class SupportsComparison(Protocol):
+class SupportsComparison(Protocol):  # noqa: PLW1641
     """A protocol for rich comparison methods."""
 
     def __gt__(self, other: object, /) -> bool: ...

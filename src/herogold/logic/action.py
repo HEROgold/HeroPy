@@ -1,11 +1,11 @@
 """Defines an Action class and a decorator to create actions from functions."""
 from collections.abc import Callable
-from typing import Generic, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar
 
 P = ParamSpec("P")
 T = TypeVar("T")
 
-class Action(Generic[T]):
+class Action[T]:
     """An action to be executed."""
 
     __slots__ = ("func",)
@@ -19,6 +19,6 @@ class Action(Generic[T]):
         return self.func()
 
 
-def action(func: Callable[P, T]) -> Action[T]:
+def action[**P, T](func: Callable[P, T]) -> Action[T]:
     """Decorate a method to create an Action instance from it."""
     return Action(func)

@@ -1,12 +1,9 @@
 """Predicate logic for combining boolean conditions."""
 from collections.abc import Callable
 from functools import wraps
-from typing import Generic, ParamSpec
-
-P = ParamSpec("P")
 
 
-class Predicate(Generic[P]):
+class Predicate[**P]:
     """A predicate that evaluates to True or False."""
 
     __slots__ = ("args", "func", "kwargs")
@@ -37,7 +34,7 @@ class Predicate(Generic[P]):
         """Return a string representation of the predicate."""
         return f"Predicate({self.func!r}, args={self.args!r}, kwargs={self.kwargs!r})"
 
-def predicate(*args1: P.args, **kwargs1: P.kwargs) -> Callable[[Callable[P, bool]], Callable[P, Predicate[P]]]:
+def predicate[**P](*args1: P.args, **kwargs1: P.kwargs) -> Callable[[Callable[P, bool]], Callable[P, Predicate[P]]]:
     """Decorate a method to create a Predicate instance from it.
 
     All arguments provided to the decorator are merged with those provided
