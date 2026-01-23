@@ -12,7 +12,7 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
-"tests/**/*.py" = ["D", "S101", "PLR", "INP", "ANN", "ARG", "SLF"]
+"tests/**/*.py" = ["D", "S101", "PLR", "INP", "ANN", "ARG", "SLF", "PLW1641"]
 "examples/**/*.py" = ["D", "UP", "T"]
 
 [format]
