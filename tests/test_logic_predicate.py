@@ -53,3 +53,39 @@ def test_predicate_decorator_merges_args_kwargs() -> None:
     assert isinstance(p, Predicate)
     # args merged: earlier 2 then 1 -> function receives (2, 1)
     assert p() is True
+
+def test_combining_predicates():
+    p1 = Predicate(lambda: True)
+    p2 = Predicate(lambda: False)
+
+    p_and = p1 & p2
+    p_or = p1 | p2
+    p_not = ~p2
+
+    assert isinstance(p_and, Predicate)
+    assert isinstance(p_or, Predicate)
+    assert isinstance(p_not, Predicate)
+
+    assert p_and() is False
+    assert p_or() is True
+    assert p_not() is True
+
+def test_combining_predicate_wrappers():
+    @predicate(3)
+    def greater_than(x: int, y: int = 0) -> bool:
+        return x > y
+
+    p1 = greater_than(2)  # 3 > 2 -> True
+    p2 = greater_than(4)  # 3 > 4 -> False
+
+    p_and = p1 & p2
+    p_or = p1 | p2
+    p_not = ~p2
+
+    assert isinstance(p_and, Predicate)
+    assert isinstance(p_or, Predicate)
+    assert isinstance(p_not, Predicate)
+
+    assert p_and() is False
+    assert p_or() is True
+    assert p_not() is True
