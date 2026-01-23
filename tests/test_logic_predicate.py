@@ -8,7 +8,8 @@ def test_predicate_call_and_repr() -> None:
     p = Predicate(is_even, 4)
     assert p() is True
     r = repr(p)
-    assert "Predicate(" in r and "is_even" in r
+    assert "Predicate(" in r
+    assert "is_even" in r
 
 
 def test_predicate_combinators_and_not() -> None:
