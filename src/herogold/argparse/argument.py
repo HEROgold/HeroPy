@@ -108,7 +108,10 @@ class Argument[T]:
 
     def _setup_parser_argument(self, name: str) -> None:
         """Set up the argument in the parser."""
-        help_ = f"{self.help} - {self.type.__name__}" if self.help else f"{self.type.__name__}"  # ty:ignore[possibly-missing-attribute]  # noqa: E501
+        if not isinstance(self.type, type):
+            self.type = type(self.type)
+
+        help_ = f"{self.help} - {self.type.__name__}" if self.help else f"{self.type.__name__}"
         for i in self.names:
             if self.action is Actions.STORE_BOOL:
                 parser.add_argument(
