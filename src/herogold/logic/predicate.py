@@ -38,7 +38,22 @@ class Predicate(Generic[P]):
         return f"Predicate({self.func!r}, args={self.args!r}, kwargs={self.kwargs!r})"
 
 def predicate(*args1: P.args, **kwargs1: P.kwargs) -> Callable[[Callable[P, bool]], Callable[P, Predicate[P]]]:
-    """Decorate a method to create a Predicate instance from it."""
+    """Decorate a method to create a Predicate instance from it.
+
+    All arguments provided to the decorator are merged with those provided
+    when the resulting factory is called.
+
+    Example:
+    ```python
+        @predicate(2)
+        def greater_than(x: int, y: int = 0) -> bool:
+            return x > y
+
+        p = greater_than(1)  # Creates Predicate with args (2, 1)
+        assert p() is True
+    ```
+
+    """
     def wrapper(func: Callable[P, bool]) -> Callable[P, Predicate[P]]:
         @wraps(func)
         def inner(*args2: P.args, **kwargs2: P.kwargs) -> Predicate[P]:
