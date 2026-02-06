@@ -54,7 +54,7 @@ def test_predicate_decorator_merges_args_kwargs() -> None:
     # args merged: earlier 2 then 1 -> function receives (2, 1)
     assert p() is True
 
-def test_combining_predicates():
+def test_combining_predicates() -> None:
     p1 = Predicate(lambda: True)
     p2 = Predicate(lambda: False)
 
@@ -70,7 +70,7 @@ def test_combining_predicates():
     assert p_or() is True
     assert p_not() is True
 
-def test_combining_predicate_wrappers():
+def test_combining_predicate_wrappers() -> None:
     @predicate(3)
     def greater_than(x: int, y: int = 0) -> bool:
         return x > y
