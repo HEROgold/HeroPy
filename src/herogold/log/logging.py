@@ -31,7 +31,7 @@ from logging import (
     fatal,
     getHandlerByName,
     getHandlerNames,
-    getLevelName,
+    getLevelName,  # pyright: ignore[reportDeprecated]
     getLevelNamesMapping,
     getLogger,
     getLoggerClass,

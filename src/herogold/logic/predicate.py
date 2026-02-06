@@ -28,7 +28,7 @@ class Predicate[**P]:
 
     def __invert__(self) -> "Predicate[P]":
         """Negate the predicate with logical NOT."""
-        return Predicate(lambda: not self())
+        return Predicate(lambda: not self()) # pyright: ignore[reportReturnType]
 
     def __repr__(self) -> str:
         """Return a string representation of the predicate."""
@@ -54,6 +54,6 @@ def predicate[**P](*args1: P.args, **kwargs1: P.kwargs) -> Callable[[Callable[P,
     def wrapper(func: Callable[P, bool]) -> Callable[P, Predicate[P]]:
         @wraps(func)
         def inner(*args2: P.args, **kwargs2: P.kwargs) -> Predicate[P]:
-            return Predicate(func, *args1, *args2, **{**kwargs1, **kwargs2})
+            return Predicate(func, *args1, *args2, **{**kwargs1, **kwargs2}) # pyright: ignore[reportCallIssue]
         return inner
     return wrapper
