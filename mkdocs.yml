@@ -1,0 +1,78 @@
+site_name: HeroPy
+site_url: https://HEROgold.github.io/HeroPy
+site_author: HEROgold
+site_description: Personal utilities package with type-safe configuration, ORM helpers, and more
+
+repo_name: HEROgold/HeroPy
+repo_url: https://github.com/HEROgold/HeroPy
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Usage: usage.md
+  - Examples:
+      - examples/index.md
+      - Argument Parsing: examples/arguments.md
+      - Subcommands: examples/subcommands.md
+      - Migrations: examples/migrations.md
+      - Logic System: examples/logic.md
+  - Reference:
+      - reference/index.md
+      - Argparse: reference/argparse.md
+      - ORM: reference/orm.md
+      - Logic: reference/logic.md
+      - Utilities: reference/utilities.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/HEROgold/HeroPy

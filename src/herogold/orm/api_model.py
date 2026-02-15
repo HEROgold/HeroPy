@@ -6,9 +6,9 @@ try:
     from fastapi import APIRouter, status
 except ImportError as e:
     msg = (
-        "Failed to import required dependencies for the orm[api] package. "
-        "Please ensure that 'api' extra is installed. "
-        "You can install them using 'herogold[orm-api]'."
+        "Failed to import required dependencies for the ORM API package. "
+        "Please ensure that 'orm-api' extra is installed. "
+        "You can install them using 'pip install herogold[orm-api]'."
     )
     raise ImportError(msg) from e
 

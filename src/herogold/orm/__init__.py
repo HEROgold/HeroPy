@@ -11,7 +11,13 @@ except ImportError as e:
     )
     raise ImportError(msg) from e
 
+from .migrations import Migration, MigrationManager, MigrationRecord, create_migration
+
 __all__ = [
+    "Migration",
+    "MigrationManager",
+    "MigrationRecord",
     "confkit",
+    "create_migration",
     "sqlmodel",
 ]

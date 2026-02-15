@@ -1,0 +1,76 @@
+error[invalid-return-type]: Return type does not match returned value
+  --> examples\wrappers.py:14:50
+   |
+12 |     def wrapper(func: Callable[P, F]) -> Callable[P, F]:
+13 |         @wraps(func)
+14 |         def inner(*_: P.args, **__: P.kwargs) -> F:
+   |                                                  - Expected `F@inner` because of return type
+15 |             return func(*args, **kwargs)
+   |                    ^^^^^^^^^^^^^^^^^^^^^ expected `F@inner`, found `F@wrapper`
+16 |         return inner
+17 |     return wrapper
+   |
+info: rule `invalid-return-type` is enabled by default
+
+error[invalid-return-type]: Return type does not match returned value
+  --> examples\wrappers.py:12:42
+   |
+11 | def decorator_factory[**P, F](*args: P.args, **kwargs: P.kwargs) -> Callable[[Callable[P, F]], Callable[P, F]]:
+12 |     def wrapper(func: Callable[P, F]) -> Callable[P, F]:
+   |                                          -------------- Expected `(**P@decorator_factory) -> F@wrapper` because of return type
+13 |         @wraps(func)
+14 |         def inner(*_: P.args, **__: P.kwargs) -> F:
+15 |             return func(*args, **kwargs)
+16 |         return inner
+   |                ^^^^^ expected `(**P@decorator_factory) -> F@wrapper`, found `_Wrapped[P@decorator_factory, F@wrapper, P@decorator_factory, F@inner]`
+17 |     return wrapper
+   |
+info: rule `invalid-return-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `__init__` is incorrect
+  --> src\herogold\logic\predicate.py:57:52
+   |
+55 |         @wraps(func)
+56 |         def inner(*args2: P.args, **kwargs2: P.kwargs) -> Predicate[P]:
+57 |             return Predicate(func, *args1, *args2, **{**kwargs1, **kwargs2}) # pyright: ignore[reportCallIssue]
+   |                                                    ^^^^^^^^^^^^^^^^^^^^^^^^ Expected `P@predicate.kwargs`, found `object`
+58 |         return inner
+59 |     return wrapper
+   |
+info: Method defined here
+  --> src\herogold\logic\predicate.py:11:9
+   |
+ 9 |     __slots__ = ("args", "func", "kwargs")
+10 |
+11 |     def __init__(self, func: Callable[P, bool], *args: P.args, **kwargs: P.kwargs) -> None:
+   |         ^^^^^^^^                                               ------------------ Parameter declared here
+12 |         """Initialize the predicate with a callable function."""
+13 |         self.func = func
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[unresolved-attribute]: Object of type `int` has no attribute `asc`
+   --> src\herogold\orm\migrations.py:109:13
+    |
+107 |         """
+108 |         statement = select(MigrationRecord).order_by(
+109 |             MigrationRecord.batch.asc(), MigrationRecord.name.asc()
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^
+110 |         )
+111 |         return list(self.session.exec(statement).all())
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `str` has no attribute `asc`
+   --> src\herogold\orm\migrations.py:109:42
+    |
+107 |         """
+108 |         statement = select(MigrationRecord).order_by(
+109 |             MigrationRecord.batch.asc(), MigrationRecord.name.asc()
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^
+110 |         )
+111 |         return list(self.session.exec(statement).all())
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+Found 5 diagnostics

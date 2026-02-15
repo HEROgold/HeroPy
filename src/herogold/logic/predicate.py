@@ -54,6 +54,6 @@ def predicate[**P](*args1: P.args, **kwargs1: P.kwargs) -> Callable[[Callable[P,
     def wrapper(func: Callable[P, bool]) -> Callable[P, Predicate[P]]:
         @wraps(func)
         def inner(*args2: P.args, **kwargs2: P.kwargs) -> Predicate[P]:
-            return Predicate(func, *args1, *args2, **{**kwargs1, **kwargs2}) # pyright: ignore[reportCallIssue]
+            return Predicate(func, *args1, *args2, **{**kwargs1, **kwargs2})  # type: ignore[arg-type]
         return inner
     return wrapper

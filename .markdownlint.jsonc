@@ -1,0 +1,33 @@
+// Configuration for markdownlint
+// See: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+{
+  // Enable all rules by default
+  "default": true,
+
+  // MD003: Heading style - use ATX style (# headers)
+  "MD003": { "style": "atx" },
+
+  // MD007: Unordered list indentation - 2 spaces
+  "MD007": { "indent": 2 },
+
+  // MD013: Line length - disable for now (can be adjusted per project needs)
+  "MD013": false,
+
+  // MD024: Multiple headings with the same content - allow if not siblings
+  "MD024": { "siblings_only": true },
+
+  // MD033: Inline HTML - allow for complex formatting needs
+  "MD033": false,
+
+  // MD034: Bare URL - allow bare URLs without angle brackets
+  "MD034": false,
+
+  // MD041: First line in file should be a top level heading
+  "MD041": false,
+
+  // MD046: Code block style - use fenced (```)
+  "MD046": { "style": "fenced" },
+
+  // Disable hard tabs rule (some tools use tabs)
+  "no-hard-tabs": false
+}

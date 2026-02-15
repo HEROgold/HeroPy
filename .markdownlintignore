@@ -1,0 +1,27 @@
+# Ignore patterns for markdownlint
+# See: https://git-scm.com/docs/gitignore
+
+# Node modules
+node_modules/
+
+# Build outputs
+site/
+dist/
+build/
+*.egg-info/
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# Generated documentation (if applicable)
+docs/api/

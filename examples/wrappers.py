@@ -12,6 +12,6 @@ def decorator_factory[**P, F](*args: P.args, **kwargs: P.kwargs) -> Callable[[Ca
     def wrapper(func: Callable[P, F]) -> Callable[P, F]:
         @wraps(func)
         def inner(*_: P.args, **__: P.kwargs) -> F:
-            return func(*args, **kwargs)
-        return inner
+            return func(*args, **kwargs)  # type: ignore[return-value]
+        return inner  # type: ignore[return-value]
     return wrapper
