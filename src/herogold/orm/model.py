@@ -10,7 +10,7 @@ from types import NoneType
 from typing import ClassVar, Self, Unpack
 
 from pydantic import ConfigDict
-from sqlalchemy import BigInteger, Column, DateTime, ScalarResult
+from sqlalchemy import BigInteger, ScalarResult
 from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Session, select
 from sqlmodel import SQLModel as BaseSQLModel
