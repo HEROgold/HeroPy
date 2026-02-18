@@ -12,8 +12,13 @@ Complexity:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 
-def has_alternative_bit(number: int) -> bool:
+if TYPE_CHECKING:
+    from herogold.supports import SupportsBitwise
+
+
+def has_alternative_bit(number: SupportsBitwise) -> bool:
     """Check for alternating bits by scanning each pair of adjacent bits.
 
     Args:

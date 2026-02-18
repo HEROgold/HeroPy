@@ -11,8 +11,10 @@ Complexity:
 
 from __future__ import annotations
 
+from typing import Literal
 
-def insert_one_bit(number: int, bit: int, position: int) -> int:
+
+def insert_one_bit(number: int, bit: Literal[0, 1], position: int) -> int:
     """Insert a single bit at a specific position in an integer.
 
     Splits the number at *position*, shifts the upper part left by one

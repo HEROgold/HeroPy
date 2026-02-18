@@ -12,8 +12,13 @@ Complexity:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 
-def get_bit(number: int, position: int) -> int:
+if TYPE_CHECKING:
+    from herogold.supports import SupportsAnd, SupportsOr, SupportsRLShift
+
+
+def get_bit(number: SupportsAnd, position: SupportsRLShift) -> int | bool:
     """Get the bit value at a specific position.
 
     Shifts 1 over by *position* bits and ANDs with *number* to isolate
@@ -35,8 +40,7 @@ def get_bit(number: int, position: int) -> int:
     """
     return (number & (1 << position)) != 0
 
-
-def set_bit(number: int, position: int) -> int:
+def set_bit(number: SupportsOr, position: SupportsRLShift) -> int:
     """Set the bit at a specific position to 1.
 
     Shifts 1 over by *position* bits and ORs with *number* so that only
@@ -57,7 +61,7 @@ def set_bit(number: int, position: int) -> int:
     return number | (1 << position)
 
 
-def clear_bit(number: int, position: int) -> int:
+def clear_bit(number: SupportsAnd, position: SupportsRLShift) -> int:
     """Clear the bit at a specific position to 0.
 
     Creates a mask with all bits set except at *position*, then ANDs
@@ -79,7 +83,7 @@ def clear_bit(number: int, position: int) -> int:
     return number & mask
 
 
-def update_bit(number: int, position: int, bit: int) -> int:
+def update_bit(number: int, position: int , bit: int) -> int:
     """Update the bit at a specific position to a given value.
 
     First clears the bit at *position*, then ORs in the new *bit* value

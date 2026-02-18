@@ -38,7 +38,7 @@ class Graph:
     directed: bool = True
 
     @classmethod
-    def unweighted(cls, adj: dict[str, list[str]], directed: bool = True) -> Graph:
+    def unweighted(cls, adj: dict[str, list[str]], *, directed: bool = True) -> Graph:
         """Create a graph from an unweighted adjacency list.
 
         Args:
@@ -55,7 +55,7 @@ class Graph:
 
         """
         weighted = {
-            node: dict.fromkeys(neighbors, 1)
+            node: dict.fromkeys(neighbors, 1.0)
             for node, neighbors in adj.items()
         }
         return cls(adj=weighted, directed=directed)

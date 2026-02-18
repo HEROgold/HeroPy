@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class ListNode:
+class ListNode[T]:
     """A node in a singly linked list.
 
     Attributes:
@@ -28,5 +28,5 @@ class ListNode:
 
     """
 
-    val: int = 0
-    next: ListNode | None = None
+    val: T
+    next: ListNode[T] | None = None

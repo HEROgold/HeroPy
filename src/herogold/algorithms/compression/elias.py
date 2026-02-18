@@ -14,6 +14,10 @@ Complexity:
 from __future__ import annotations
 
 from math import log2
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def _log2(x: float) -> float:
@@ -58,10 +62,10 @@ def _unary(x: int) -> str:
 
 
 def _elias_generic(
-    length_encoding: callable,
+    length_encoding: Callable[[int], str],
     x: int,
 ) -> str:
-    """Generic Elias encoding using a pluggable length-encoding function.
+    """Elias encoding using a pluggable length-encoding function.
 
     Args:
         length_encoding: A function to encode the length prefix.

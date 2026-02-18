@@ -12,8 +12,10 @@ Complexity:
 
 from __future__ import annotations
 
+from herogold.supports import SupportsBitwise
 
-def add_bitwise_operator(first: int, second: int) -> int:
+
+def add_bitwise_operator[T: SupportsBitwise](first: T, second: T) -> T:
     """Add two non-negative integers using only bitwise operations.
 
     Args:

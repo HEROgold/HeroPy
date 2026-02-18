@@ -8,8 +8,13 @@ Inspired by PR #932 (Simranstha045).
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 
-def gray_code(n: int) -> list[int]:
+if TYPE_CHECKING:
+    from herogold.supports import SupportsRLShift
+
+
+def gray_code(n: SupportsRLShift) -> list[int]:
     """Return the n-bit Gray code sequence as a list of integers.
 
     Uses the reflection (mirror) construction:

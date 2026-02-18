@@ -13,7 +13,7 @@ Complexity:
 from __future__ import annotations
 
 
-def subsets(nums: list[int]) -> set[tuple[int, ...]]:
+def subsets[T](items: list[T]) -> set[tuple[T, ...]]:
     """Return all subsets of the given list as a set of tuples.
 
     Uses bitmask enumeration: for each number from 0 to 2^n - 1, the
@@ -30,13 +30,13 @@ def subsets(nums: list[int]) -> set[tuple[int, ...]]:
         [(), (1,), (1, 2), (1, 2, 3), (1, 3), (2,), (2, 3), (3,)]
 
     """
-    length = len(nums)
+    length = len(items)
     total = 1 << length
-    result: set[tuple[int, ...]] = set()
+    result: set[tuple[T, ...]] = set()
 
     for mask in range(total):
         subset = tuple(
-            number for bit_index, number in enumerate(nums) if mask & 1 << bit_index
+            number for bit_index, number in enumerate(items) if mask & 1 << bit_index
         )
         result.add(subset)
 
