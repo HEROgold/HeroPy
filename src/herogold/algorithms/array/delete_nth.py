@@ -17,9 +17,6 @@ Complexity:
 from __future__ import annotations
 
 import collections
-from typing import TypeVar
-
-T = TypeVar("T")
 
 
 def delete_nth_naive[T](array: list[T], n: int) -> list[T]:

@@ -12,12 +12,10 @@ Complexity:
 
 from __future__ import annotations
 
-from typing import SupportsGE, SupportsLE, TypeVar
-
-T = TypeVar("T", bound=SupportsGE | SupportsLE)
+from herogold.supports import SupportsComparison
 
 
-def limit(
+def limit[T: SupportsComparison](
     array: list[T],
     min_lim: T | None = None,
     max_lim: T | None = None,

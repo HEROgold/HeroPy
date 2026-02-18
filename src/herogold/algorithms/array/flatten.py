@@ -13,12 +13,9 @@ Complexity:
 from __future__ import annotations
 
 from collections.abc import Generator, Iterable
-from typing import Any, TypeVar
-
-T = TypeVar("T")
 
 
-def flatten[T](input_arr: Iterable[T], output_arr: list[T] | None = None) -> list[T]:
+def flatten[T](input_arr: Iterable[T | Iterable[T]], output_arr: list[T] | None = None) -> list[T]:
     """Recursively flatten a nested iterable into a single list.
 
     Args:
@@ -36,14 +33,14 @@ def flatten[T](input_arr: Iterable[T], output_arr: list[T] | None = None) -> lis
     if output_arr is None:
         output_arr = []
     for element in input_arr:
-        if not isinstance(element, str) and isinstance(element, Iterable):
-            flatten(element, output_arr)
-        else:
+        if not isinstance(element, Iterable):
             output_arr.append(element)
+        else:
+            flatten(element, output_arr)
     return output_arr
 
 
-def flatten_iter(iterable: Iterable[Any]) -> Generator[Any, None, None]:
+def flatten_iter[T](iterable: Iterable[T | Iterable[T]]) -> Generator[T]:
     """Lazily flatten a nested iterable, yielding one element at a time.
 
     Args:
@@ -58,7 +55,7 @@ def flatten_iter(iterable: Iterable[Any]) -> Generator[Any, None, None]:
 
     """
     for element in iterable:
-        if not isinstance(element, str) and isinstance(element, Iterable):
-            yield from flatten_iter(element)
-        else:
+        if not isinstance(element, Iterable):
             yield element
+        else:
+            yield from flatten_iter(element)

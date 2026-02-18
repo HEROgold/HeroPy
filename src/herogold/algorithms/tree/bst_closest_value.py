@@ -10,10 +10,10 @@ that is closest to the target.
 
 
 from herogold.algorithms import TreeNode
-from herogold.supports import SupportsNumericComparison
+from herogold.supports import SupportsNumeric
 
 
-def closest_value[T: SupportsNumericComparison](root: TreeNode[T] | None, target: SupportsNumericComparison) -> T:
+def closest_value[T: SupportsNumeric](root: TreeNode[T] | None, target: SupportsNumeric) -> T:
     """Find the value in the BST that is closest to the target."""
     if not root:
         msg = "BST must be non-empty"

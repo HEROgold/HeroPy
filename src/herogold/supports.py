@@ -49,7 +49,17 @@ class SupportsMultiplication(Protocol):
 class SupportsSubtraction(Protocol):
     def __sub__[T](self, other: T, /) -> T: ...
 
+@runtime_checkable
+class SupportsMin(Protocol):
+    def __min__[T](self, other: T, /) -> T: ...
 
 @runtime_checkable
-class SupportsNumericComparison(SupportsAddition, SupportsMultiplication, SupportsComparison, SupportsSubtraction, SupportsAbs, Protocol):
-    """A protocol for numeric types that support comparison and subtraction."""
+class SupportsMax(Protocol):
+    def __max__[T](self, other: T, /) -> T: ...
+
+@runtime_checkable
+class SupportsNumeric(
+    SupportsAddition, SupportsMultiplication, SupportsComparison,
+    SupportsSubtraction, SupportsAbs, SupportsMin, SupportsMax,
+    Protocol):
+    """A protocol for numeric types that support all operations."""

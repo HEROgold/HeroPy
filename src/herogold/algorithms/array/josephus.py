@@ -12,13 +12,13 @@ Complexity:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
 
-def josephus(items: list[Any], skip: int) -> Generator[Any, None, None]:
+def josephus[T](items: list[T], skip: int) -> Generator[T]:
     """Yield elements eliminated in Josephus-problem order.
 
     Args:

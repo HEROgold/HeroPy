@@ -27,9 +27,7 @@ def longest_non_repeat_v1(string: str) -> int:
         3
 
     """
-    if string is None:
-        return 0
-    char_index = {}
+    char_index: dict[str, int] = {}
     max_length = 0
     start = 0
     for index in range(len(string)):
@@ -54,10 +52,8 @@ def longest_non_repeat_v2(string: str) -> int:
         3
 
     """
-    if string is None:
-        return 0
     start, max_length = 0, 0
-    used_char = {}
+    used_char: dict[str, int] = {}
     for index, char in enumerate(string):
         if char in used_char and start <= used_char[char]:
             start = used_char[char] + 1
@@ -81,10 +77,8 @@ def get_longest_non_repeat_v1(string: str) -> tuple[int, str]:
         (3, 'abc')
 
     """
-    if string is None:
-        return 0, ""
     substring = ""
-    char_index = {}
+    char_index: dict[str, int] = {}
     max_length = 0
     start = 0
     for index in range(len(string)):
@@ -111,11 +105,9 @@ def get_longest_non_repeat_v2(string: str) -> tuple[int, str]:
         (3, 'abc')
 
     """
-    if string is None:
-        return 0, ""
     substring = ""
     start, max_length = 0, 0
-    used_char = {}
+    used_char: dict[str, int] = {}
     for index, char in enumerate(string):
         if char in used_char and start <= used_char[char]:
             start = used_char[char] + 1
@@ -149,4 +141,4 @@ def get_longest_non_repeat_v3(string: str) -> tuple[int, str]:
             start_index += 1
         seen.add(string[i])
         longest_substring = max(longest_substring, string[start_index : i + 1], key=len)
-    return len(longest_substring), longest_substring
+    return len(longest_substring), str(longest_substring)

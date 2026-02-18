@@ -38,10 +38,13 @@ Another valid answer is [5,2,6,null,4,null,7].
 
 """
 from herogold.algorithms import TreeNode
-from herogold.supports import SupportsNumericComparison
+from herogold.supports import SupportsEq, SupportsGT
 
 
-def delete_node[T: SupportsNumericComparison](root: TreeNode[T] | None, key: T) -> TreeNode[T] | None:
+class X(SupportsEq, SupportsGT):
+    """A protocol for types that support equality and greater-than comparisons."""
+
+def delete_node[T: X](root: TreeNode[T] | None, key: T) -> TreeNode[T] | None:
     """Delete the node with the given key in the BST and return the root node reference."""
     if not root:
         return None
