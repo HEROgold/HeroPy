@@ -27,7 +27,7 @@ models: set[type["BaseModel"]] = set()
 class ModelLogger(LoggerMixin):
     """Polymorphic logger for model, on cls level methods.
 
-    Avoids the issue of cls.logger raising AttributeError, property has no property `xxx`
+    Avoids the issue of cls.logger raising AttributeError, property has no attribute `xxx`
     """
 
 
@@ -80,9 +80,11 @@ class BaseModel(BaseSQLModel):
         cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
         session = cls._get_session(session)
 
-        if known := session.exec(
-            select(cls).where(cls.id == id_).with_for_update() if with_for_update else select(cls).where(cls.id == id_),
-        ).first():
+        query = select(cls).where(cls.id == id_)
+        if with_for_update:
+            query = query.with_for_update()
+
+        if known := session.exec(query).first():
             return known
         msg = f"Record with {cls.__name__}.id={id_} not found."
         raise NotFoundError(msg)
