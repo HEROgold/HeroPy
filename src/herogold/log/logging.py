@@ -53,6 +53,7 @@ from .formats import message, prefix
 if sys.version_info >= (3, 14):
     from .logger import Logger
     logger = Logger("root")
+    getLogger = logger.getChild  # noqa: N816
     debug = logger.debug
     info = logger.info
     warning = logger.warning
