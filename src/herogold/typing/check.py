@@ -8,7 +8,7 @@ def contains_sub_type(needle: object, haystack: object) -> bool:
     """Check if a subtype exists somewhere in the expected type."""
     bases = list(get_original_bases(type(haystack)))
 
-    flat_bases = []
+    flat_bases: list[object] = []
     while bases:
         base = bases.pop()
         if type_args := get_args(base):
