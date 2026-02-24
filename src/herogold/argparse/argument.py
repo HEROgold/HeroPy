@@ -112,6 +112,7 @@ class Argument[T]:
             self.type = type(self.type)
 
         help_ = f"{self.help} - {self.type.__name__}" if self.help else f"{self.type.__name__}"
+        # TD: Handle subparsers and groups
         for i in self.names:
             if self.action is Actions.STORE_BOOL:
                 parser.add_argument(
