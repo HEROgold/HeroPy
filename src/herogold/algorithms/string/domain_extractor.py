@@ -48,4 +48,4 @@ def domain_name_2(url: str) -> str:
         'google'
 
     """
-    return url.rsplit("//", maxsplit=1)[-1].split("www.")[-1].split(".")[0]
+    return url.rsplit("//", maxsplit=1)[-1].rsplit("www.", maxsplit=1)[-1].split(".", maxsplit=1)[0]
