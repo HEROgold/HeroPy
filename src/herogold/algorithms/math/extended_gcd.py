@@ -35,7 +35,7 @@ def extended_gcd(num1: int, num2: int) -> tuple[int, int, int]:
     old_r, r = num1, num2
 
     while r != 0:
-        quotient = old_r / r
+        quotient = old_r // r
 
         old_r, r = r, old_r - quotient * r
         old_s, s = s, old_s - quotient * s

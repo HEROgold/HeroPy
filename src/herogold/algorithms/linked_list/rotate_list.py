@@ -13,7 +13,15 @@ Complexity:
 from __future__ import annotations
 
 
-def rotate_right(head: object | None, k: int) -> object | None:
+class ListNode:
+    def __init__(self, val: int, next_: ListNode | None = None) -> None:
+        self.val = val
+        self.next: ListNode | None = next_
+
+    def __repr__(self) -> str:
+        return f"ListNode(val={self.val}, next={self.next!r})"
+
+def rotate_right(head: ListNode | None, k: int) -> ListNode | None:
     """Rotate a linked list to the right by k positions.
 
     Args:
@@ -39,6 +47,6 @@ def rotate_right(head: object | None, k: int) -> object | None:
     k = k % length
     for _ in range(length - k):
         current = current.next
-    head = current.next
+    new_head = current.next
     current.next = None
-    return head
+    return new_head

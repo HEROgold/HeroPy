@@ -12,6 +12,8 @@ Complexity:
 
 from __future__ import annotations
 
+from typing import Any
+
 
 def is_valid_sudoku(board: list[list[str]]) -> bool:
     """Check whether a Sudoku board configuration is valid.
@@ -27,9 +29,9 @@ def is_valid_sudoku(board: list[list[str]]) -> bool:
         True
 
     """
-    seen: list[tuple[str, ...]] = []
+    seen: list[Any] = []
     for i, row in enumerate(board):
         for j, cell in enumerate(row):
             if cell != ".":
-                seen += [(cell, j), (i, cell), (i // 3, j // 3, cell)]
+                seen.extend([(cell, j), (i, cell), (i // 3, j // 3, cell)])
     return len(seen) == len(set(seen))
