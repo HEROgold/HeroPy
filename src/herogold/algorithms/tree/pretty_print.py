@@ -13,7 +13,7 @@ Complexity:
 from __future__ import annotations
 
 
-def tree_print(tree: dict) -> list[str]:
+def tree_print(tree: dict[str, list[object]]) -> list[str]:
     """Format a dictionary tree as a list of readable strings.
 
     Each top-level key maps to a list of sub-elements. The output
@@ -31,10 +31,8 @@ def tree_print(tree: dict) -> list[str]:
 
     """
     lines: list[str] = []
-    for key in tree:
+    for key, value in tree.items():
         parts = [str(key)]
-        tree_element = tree[key]
-        for sub_elem in tree_element:
-            parts.append(str(sub_elem))
+        parts.extend(str(sub_elem) for sub_elem in value)
         lines.append(" -> ".join(parts))
     return lines

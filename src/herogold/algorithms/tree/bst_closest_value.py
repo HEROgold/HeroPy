@@ -6,7 +6,7 @@ Given target value is a floating point.
 You are guaranteed to have only one unique value in the BST
 that is closest to the target.
 
-"""  # noqa: D205
+"""
 
 
 from herogold.algorithms import TreeNode

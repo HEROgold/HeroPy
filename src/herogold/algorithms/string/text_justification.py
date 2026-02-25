@@ -14,6 +14,29 @@ Complexity:
 from __future__ import annotations
 
 
+def _format_row(
+    row_words: list[str], max_width: int, row_length: int, *, is_last_row: bool,
+) -> str:
+    """Helper to format a single row for text justification."""
+    if is_last_row:
+        row = " ".join(row_words)
+        row += " " * (max_width - len(row))
+        return row
+    if len(row_words) == 1:
+        return row_words[0] + " " * (max_width - len(row_words[0]))
+    extra_spaces = max_width - row_length
+    spaces_per_gap = extra_spaces // (len(row_words) - 1)
+    remaining_spaces = extra_spaces - spaces_per_gap * (len(row_words) - 1)
+    row = ""
+    for word_index, word in enumerate(row_words):
+        row += word
+        if word_index != len(row_words) - 1:
+            row += " " * (1 + spaces_per_gap)
+            if remaining_spaces > 0:
+                row += " "
+                remaining_spaces -= 1
+    return row
+
 def text_justification(words: list[str], max_width: int) -> list[str]:
     """Justify text to a fixed width with evenly distributed spaces.
 
@@ -42,9 +65,7 @@ def text_justification(words: list[str], max_width: int) -> list[str]:
         while row_length <= max_width and index < len(words):
             if len(words[index]) > max_width:
                 msg = "there exists word whose length is larger than max_width"
-                raise ValueError(
-                    msg,
-                )
+                raise ValueError(msg)
             tentative_length = row_length
             row_words.append(words[index])
             tentative_length += len(words[index])
@@ -55,31 +76,11 @@ def text_justification(words: list[str], max_width: int) -> list[str]:
                 break
             row_length = tentative_length
             index += 1
-            is_first_word = False
-
-        row = ""
-        if index == len(words):
-            for word in row_words:
-                row += word + " "
-            row = row[:-1]
-            row += " " * (max_width - len(row))
-        elif len(row_words) != 1:
-            extra_spaces = max_width - row_length
-            spaces_per_gap = extra_spaces // (len(row_words) - 1)
-            remaining_spaces = extra_spaces - spaces_per_gap * (len(row_words) - 1)
-            for word_index in range(len(row_words)):
-                row += row_words[word_index]
-                if word_index != len(row_words) - 1:
-                    row += " " * (1 + spaces_per_gap)
-                if remaining_spaces > 0:
-                    row += " "
-                    remaining_spaces -= 1
-        else:
-            row += row_words[0]
-            row += " " * (max_width - len(row))
-
-        result.append(row)
+        is_last_row = index == len(words)
+        result.append(_format_row(row_words, max_width, row_length, is_last_row=is_last_row))
         row_length = 0
+        row_words = []
+        is_first_word = True
         row_words = []
         is_first_word = True
 

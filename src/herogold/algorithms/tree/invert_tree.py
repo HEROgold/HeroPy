@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from herogold.algorithms.tree.tree import TreeNode
+    from herogold.algorithms.tree import TreeNode
 
 
 def reverse(root: TreeNode | None) -> None:

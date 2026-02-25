@@ -31,8 +31,8 @@ class TreeNode:
         self.left = left
         self.right = right
 
-
-pre_index = 0
+class State:
+    pre_index = 0
 
 
 def construct_tree_util(
@@ -58,23 +58,21 @@ def construct_tree_util(
         True
 
     """
-    global pre_index
+    if State.pre_index == -1:
+        State.pre_index = 0
 
-    if pre_index == -1:
-        pre_index = 0
-
-    if pre_index >= size or low > high:
+    if State.pre_index >= size or low > high:
         return None
 
-    root = TreeNode(pre[pre_index])
-    pre_index += 1
+    root = TreeNode(pre[State.pre_index])
+    State.pre_index += 1
 
-    if low == high or pre_index >= size:
+    if low == high or State.pre_index >= size:
         return root
 
     i = low
     while i <= high:
-        if pre[pre_index] == post[i]:
+        if pre[State.pre_index] == post[i]:
             break
         i += 1
 

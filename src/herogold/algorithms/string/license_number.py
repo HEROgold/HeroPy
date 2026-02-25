@@ -29,10 +29,7 @@ def license_number(key: str, group_size: int) -> str:
 
     """
     result: list[str] = []
-    alphanumeric: list[str] = []
-    for char in key:
-        if char != "-":
-            alphanumeric.append(char)
+    alphanumeric: list[str] = [char for char in key if char != "-"]
     for index, char in enumerate(reversed(alphanumeric)):
         result.append(char)
         if (index + 1) % group_size == 0 and index != len(alphanumeric) - 1:

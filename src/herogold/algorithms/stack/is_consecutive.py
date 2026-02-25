@@ -43,8 +43,7 @@ def first_is_consecutive(stack: list[int]) -> bool:
         stack.append(second_value)
         storage_stack.append(first_value)
 
-    for _ in range(len(storage_stack)):
-        stack.append(storage_stack.pop())
+    stack.extend(reversed([storage_stack.pop() for _ in range(len(storage_stack))]))
     return True
 
 
@@ -75,11 +74,8 @@ def second_is_consecutive(stack: list[int]) -> bool:
         stack.append(second_value)
         queue.append(first_value)
 
-    for _ in range(len(queue)):
-        stack.append(queue.pop())
-    for _ in range(len(stack)):
-        queue.append(stack.pop())
-    for _ in range(len(queue)):
-        stack.append(queue.pop())
+    stack.extend(reversed([queue.pop() for _ in range(len(queue))]))
+    queue.extend([stack.pop() for _ in range(len(stack))])
+    stack.extend(reversed([queue.pop() for _ in range(len(queue))]))
 
     return True

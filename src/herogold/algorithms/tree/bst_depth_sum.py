@@ -20,7 +20,7 @@ import unittest
 from bst import bst
 
 
-def depth_sum(root, n: int):
+def depth_sum(root, _: int):
     if root:
         return recur_depth_sum(root, 1)
     return None

@@ -51,9 +51,9 @@ class Monomial:
             self.coeff = Monomial._rationalize_if_possible(coeff)
             return
 
-        for i in variables:
-            if variables[i] != 0:
-                self.variables[i] = variables[i]
+        for i, power in variables.items():
+            if power != 0:
+                self.variables[i] = power
         self.coeff = Monomial._rationalize_if_possible(coeff)
 
     @staticmethod
@@ -369,6 +369,10 @@ class Monomial:
 
 class Polynomial:
     """A polynomial represented as a set of Monomial terms."""
+
+    def __hash__(self) -> int:
+        """Hash based on the set of monomials."""
+        return hash(frozenset(self.all_monomials()))
 
     def __init__(
         self, monomials: Iterable[int | float | Fraction | Monomial],

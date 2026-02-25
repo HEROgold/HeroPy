@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from herogold.algorithms.tree.tree import TreeNode
+    from herogold.algorithms.tree import TreeNode
 
 
 def longest_consecutive(root: TreeNode | None) -> int:

@@ -119,10 +119,8 @@ def is_palindrome_stack(text: str) -> bool:
         True
 
     """
-    stack: list[str] = []
     text = _remove_punctuation(text)
-    for index in range(len(text) // 2, len(text)):
-        stack.append(text[index])
+    stack: list[str] = [text[index] for index in range(len(text) // 2, len(text))]
     return all(text[index] == stack.pop() for index in range(len(text) // 2))
 
 

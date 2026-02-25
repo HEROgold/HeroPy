@@ -31,6 +31,9 @@ class Interval:
         self.start = start
         self.end = end
 
+    def __hash__(self) -> int:
+        return hash((self.start, self.end))
+
     def __repr__(self) -> str:
         return f"Interval ({self.start}, {self.end})"
 

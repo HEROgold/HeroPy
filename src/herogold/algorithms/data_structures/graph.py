@@ -70,6 +70,9 @@ class DirectedEdge:
             return obj.source == self.source and obj.target == self.target
         return False
 
+    def __hash__(self) -> int:
+        return hash((self.source, self.target))
+
     def __repr__(self) -> str:
         return f"({self.source} -> {self.target})"
 

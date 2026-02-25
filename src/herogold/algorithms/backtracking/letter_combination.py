@@ -43,7 +43,6 @@ def letter_combinations(digits: str) -> list[str]:
     for digit in digits:
         expanded: list[str] = []
         for existing in combinations:
-            for char in keypad_map[digit]:
-                expanded.append(existing + char)
+            expanded.extend([existing + char for char in keypad_map[digit]])
         combinations = expanded
     return combinations

@@ -15,15 +15,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from herogold.algorithms.tree.tree import TreeNode
+    from herogold.algorithms.tree import TreeNode
 
 
-def path_sum(root: TreeNode | None, sum: int) -> list[list[int]]:
+def path_sum(root: TreeNode | None, sum_: int) -> list[list[int]]:
     """Find all root-to-leaf paths with the given sum (recursive DFS).
 
     Args:
         root: The root of the binary tree.
-        sum: The target sum.
+        sum_: The target sum.
 
     Returns:
         A list of paths, where each path is a list of node values.
@@ -36,11 +36,11 @@ def path_sum(root: TreeNode | None, sum: int) -> list[list[int]]:
     if root is None:
         return []
     result: list[list[int]] = []
-    _dfs(root, sum, [], result)
+    _dfs(root, sum_, [], result)
     return result
 
 
-def _dfs(root: TreeNode, sum: int, path: list[int], result: list[list[int]]) -> None:
+def _dfs(root: TreeNode, sum_: int, path: list[int], result: list[list[int]]) -> None:
     """Recursively collect paths that sum to the target value.
 
     Args:
@@ -50,13 +50,13 @@ def _dfs(root: TreeNode, sum: int, path: list[int], result: list[list[int]]) -> 
         result: The list accumulating valid paths.
 
     """
-    if root.left is None and root.right is None and root.val == sum:
+    if root.left is None and root.right is None and root.val == sum_:
         path.append(root.val)
         result.append(path)
     if root.left is not None:
-        _dfs(root.left, sum - root.val, [*path, root.val], result)
+        _dfs(root.left, sum_ - root.val, [*path, root.val], result)
     if root.right is not None:
-        _dfs(root.right, sum - root.val, [*path, root.val], result)
+        _dfs(root.right, sum_ - root.val, [*path, root.val], result)
 
 
 def path_sum2(root: TreeNode | None, target: int) -> list[list[int]]:
@@ -89,12 +89,12 @@ def path_sum2(root: TreeNode | None, target: int) -> list[list[int]]:
     return result
 
 
-def path_sum3(root: TreeNode | None, sum: int) -> list[list[int]]:
+def path_sum3(root: TreeNode | None, sum_: int) -> list[list[int]]:
     """Find all root-to-leaf paths with the given sum (BFS with queue).
 
     Args:
         root: The root of the binary tree.
-        sum: The target sum.
+        sum_: The target sum.
 
     Returns:
         A list of paths, where each path is a list of node values.
@@ -110,7 +110,7 @@ def path_sum3(root: TreeNode | None, sum: int) -> list[list[int]]:
     queue: list[tuple[TreeNode, int, list[int]]] = [(root, root.val, [root.val])]
     while queue:
         node, val, path = queue.pop(0)
-        if node.left is None and node.right is None and val == sum:
+        if node.left is None and node.right is None and val == sum_:
             result.append(path)
         if node.left is not None:
             queue.append((node.left, val + node.left.val, [*path, node.left.val]))

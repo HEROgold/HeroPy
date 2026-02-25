@@ -206,7 +206,7 @@ class RBTree:
                 # node is left node
                 node_brother = node.parent.right
 
-                # case 1: node's red, can not get black node
+                # _case 1: node's red, can not get black node
                 # set brother is black and parent is red
                 if node_brother.color == 1:
                     node_brother.color = 0
@@ -214,14 +214,14 @@ class RBTree:
                     self.left_rotate(node.parent)
                     node_brother = node.parent.right
 
-                # case 2: brother node is black, and its children node is both black
+                # _case 2: brother node is black, and its children node is both black
                 if (node_brother.left is None or node_brother.left.color == 0) and (
                     node_brother.right is None or node_brother.right.color == 0
                 ):
                     node_brother.color = 1
                     node = node.parent
                 else:
-                    # case 3: brother node is black, and its
+                    # _case 3: brother node is black, and its
                     # left child node is red and right is black
                     if node_brother.right is None or node_brother.right.color == 0:
                         node_brother.color = 1
@@ -229,7 +229,7 @@ class RBTree:
                         self.right_rotate(node_brother)
                         node_brother = node.parent.right
 
-                    # case 4: brother node is black, and right
+                    # _case 4: brother node is black, and right
                     # is red, and left is any color
                     node_brother.color = node.parent.color
                     node.parent.color = 0

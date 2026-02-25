@@ -16,10 +16,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from herogold.algorithms.tree.tree import TreeNode
+    from herogold.algorithms.tree import TreeNode
 
 
-def has_path_sum(root: TreeNode | None, sum: int) -> bool:
+def has_path_sum(root: TreeNode | None, sum_: int) -> bool:
     """Check if a root-to-leaf path with the given sum exists (recursive).
 
     Args:
@@ -36,13 +36,13 @@ def has_path_sum(root: TreeNode | None, sum: int) -> bool:
     """
     if root is None:
         return False
-    if root.left is None and root.right is None and root.val == sum:
+    if root.left is None and root.right is None and root.val == sum_:
         return True
-    sum -= root.val
-    return has_path_sum(root.left, sum) or has_path_sum(root.right, sum)
+    sum_ -= root.val
+    return has_path_sum(root.left, sum_) or has_path_sum(root.right, sum_)
 
 
-def has_path_sum2(root: TreeNode | None, sum: int) -> bool:
+def has_path_sum2(root: TreeNode | None, sum_: int) -> bool:
     """Check if a root-to-leaf path with the given sum exists (DFS with stack).
 
     Args:
@@ -62,7 +62,7 @@ def has_path_sum2(root: TreeNode | None, sum: int) -> bool:
     stack: list[tuple[TreeNode, int]] = [(root, root.val)]
     while stack:
         node, val = stack.pop()
-        if node.left is None and node.right is None and val == sum:
+        if node.left is None and node.right is None and val == sum_:
             return True
         if node.left is not None:
             stack.append((node.left, val + node.left.val))
@@ -71,7 +71,7 @@ def has_path_sum2(root: TreeNode | None, sum: int) -> bool:
     return False
 
 
-def has_path_sum3(root: TreeNode | None, sum: int) -> bool:
+def has_path_sum3(root: TreeNode | None, sum_: int) -> bool:
     """Check if a root-to-leaf path with the given sum exists (BFS with queue).
 
     Args:
@@ -88,7 +88,7 @@ def has_path_sum3(root: TreeNode | None, sum: int) -> bool:
     """
     if root is None:
         return False
-    queue: list[tuple[TreeNode, int]] = [(root, sum - root.val)]
+    queue: list[tuple[TreeNode, int]] = [(root, sum_ - root.val)]
     while queue:
         node, val = queue.pop(0)
         if node.left is None and node.right is None and val == 0:

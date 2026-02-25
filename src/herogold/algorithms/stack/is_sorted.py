@@ -42,7 +42,6 @@ def is_sorted(stack: list[int]) -> bool:
         storage_stack.append(first_val)
         stack.append(second_val)
 
-    for _ in range(len(storage_stack)):
-        stack.append(storage_stack.pop())
+    stack.extend(reversed(storage_stack))
 
     return True

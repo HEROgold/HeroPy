@@ -29,9 +29,7 @@ def first_stutter(stack: list[int]) -> list[int]:
         [3, 3, 7, 7, 1, 1, 14, 14, 9, 9]
 
     """
-    storage_stack: list[int] = []
-    for _ in range(len(stack)):
-        storage_stack.append(stack.pop())
+    storage_stack: list[int] = [stack.pop() for _ in range(len(stack))]
     for _ in range(len(storage_stack)):
         val = storage_stack.pop()
         stack.append(val)
@@ -57,8 +55,8 @@ def second_stutter(stack: list[int]) -> list[int]:
     queue: collections.deque[int] = collections.deque()
     for _ in range(len(stack)):
         queue.append(stack.pop())
-    for _ in range(len(queue)):
-        stack.append(queue.pop())
+    stack.extend(reversed(queue))
+    queue.clear()
     for _ in range(len(stack)):
         queue.append(stack.pop())
     for _ in range(len(queue)):

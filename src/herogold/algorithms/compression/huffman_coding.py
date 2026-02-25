@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import heapq
 from collections import defaultdict, deque
+from pathlib import Path
 
 
 class Node:
@@ -24,24 +25,32 @@ class Node:
         self,
         frequency: int = 0,
         sign: int | None = None,
-        left: Node | None = None,
-        right: Node | None = None,
+        left: "Node" | None = None,
+        right: "Node" | None = None,
     ) -> None:
         self.frequency = frequency
         self.sign = sign
         self.left = left
         self.right = right
 
-    def __lt__(self, other: Node) -> bool:
+    def __lt__(self, other: "Node") -> bool:
         return self.frequency < other.frequency
 
-    def __gt__(self, other: Node) -> bool:
+    def __gt__(self, other: "Node") -> bool:
         return self.frequency > other.frequency
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Node):
             return NotImplemented
-        return self.frequency == other.frequency
+        return (
+            self.frequency == other.frequency
+            and self.sign == other.sign
+            and self.left == other.left
+            and self.right == other.right
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.frequency, self.sign, id(self.left), id(self.right)))
 
     def __str__(self) -> str:
         return f"<ch: {self.sign}: {self.frequency}>"
@@ -295,7 +304,7 @@ class HuffmanCoding:
         pass
 
     @staticmethod
-    def decode_file(file_in_name: str, file_out_name: str) -> None:
+    def decode_file(file_in_name: Path, file_out_name: Path) -> None:
         """Decode a Huffman-encoded file.
 
         Args:
@@ -303,7 +312,8 @@ class HuffmanCoding:
             file_out_name: Path to the decoded output file.
 
         """
-        with open(file_in_name, "rb") as file_in, open(file_out_name, "wb") as file_out:
+
+        with file_in_name.open("rb") as file_in, file_out_name.open("wb") as file_out:
             reader = HuffmanReader(file_in)
             additional_bits = reader.get_number_of_additional_bits_in_the_last_byte()
             tree = reader.load_tree()
@@ -345,7 +355,7 @@ class HuffmanCoding:
                         file.write(bytes([tree_finder.found]))
 
     @staticmethod
-    def encode_file(file_in_name: str, file_out_name: str) -> None:
+    def encode_file(file_in_name: str | Path, file_out_name: str | Path) -> None:
         """Encode a file using Huffman coding.
 
         Args:
@@ -353,9 +363,12 @@ class HuffmanCoding:
             file_out_name: Path to the encoded output file.
 
         """
+
+        file_in_path = Path(file_in_name)
+        file_out_path = Path(file_out_name)
         with (
-            open(file_in_name, "rb") as file_in,
-            open(file_out_name, mode="wb+") as file_out,
+            file_in_path.open("rb") as file_in,
+            file_out_path.open("wb+") as file_out,
         ):
             signs_frequency = HuffmanCoding._get_char_frequency(file_in)
             file_in.seek(0)

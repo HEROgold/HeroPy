@@ -192,7 +192,7 @@ def bob_shared_key(a_pu_k: int, b_pr_k: int, p: int) -> int:
     return pow(a_pu_k, b_pr_k) % p
 
 
-def diffie_hellman_key_exchange(a: int, p: int, option: int | None = None) -> bool:
+def diffie_hellman_key_exchange(a: int, p: int) -> bool:
     """Perform Diffie-Hellman key exchange and verify shared keys match.
 
     Args:

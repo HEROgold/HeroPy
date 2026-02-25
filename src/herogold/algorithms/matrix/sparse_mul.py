@@ -14,6 +14,10 @@ Complexity:
 from __future__ import annotations
 
 
+class MatrixMultiplicationError(Exception):
+    """Raised when matrix multiplication dimensions are incompatible."""
+
+
 def sparse_multiply(
     mat_a: list[list[int]], mat_b: list[list[int]],
 ) -> list[list[int]] | None:
@@ -27,7 +31,7 @@ def sparse_multiply(
         Product matrix of size m x p, or None if either input is None.
 
     Raises:
-        Exception: If the matrices have incompatible dimensions.
+        MatrixMultiplicationError: If the matrices have incompatible dimensions.
 
     Examples:
         >>> sparse_multiply([[1, 0, 0], [-1, 0, 3]], [[7, 0, 0], [0, 0, 0], [0, 0, 1]])
@@ -40,7 +44,7 @@ def sparse_multiply(
     cols_b = len(mat_b[0])
     if len(mat_b) != cols_a:
         msg = "A's column number must be equal to B's row number."
-        raise Exception(msg)
+        raise MatrixMultiplicationError(msg)
     result = [[0] * cols_b for _ in range(rows_a)]
     for i, row in enumerate(mat_a):
         for k, elem_a in enumerate(row):

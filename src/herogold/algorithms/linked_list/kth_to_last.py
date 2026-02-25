@@ -42,7 +42,7 @@ def kth_to_last_eval(head: Node, k: int) -> Node | bool:
     seeker = f"head.{nexts}"
 
     while head:
-        if eval(seeker) is None:  # noqa: S307
+        if eval(seeker) is None:
             return head
         head = head.next
 

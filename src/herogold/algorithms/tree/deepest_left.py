@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from herogold.algorithms.tree.tree import TreeNode
+    from herogold.algorithms import TreeNode
 
 
 class DeepestLeft:
@@ -34,25 +34,28 @@ class DeepestLeft:
 
 
 def find_deepest_left(
-    root: TreeNode | None, is_left: bool, depth: int, res: DeepestLeft,
+    root: TreeNode | None, depth: int, res: DeepestLeft,
 ) -> None:
     """Recursively find the deepest left child in a binary tree.
 
     Args:
         root: The current node being examined.
-        is_left: Whether the current node is a left child.
         depth: The current depth in the tree.
         res: A DeepestLeft instance tracking the best result so far.
 
     Examples:
         >>> res = DeepestLeft()
-        >>> find_deepest_left(None, True, 1, res)
+        >>> find_deepest_left(None, 1, res)
 
     """
     if not root:
         return
-    if is_left and depth > res.depth:
-        res.depth = depth
-        res.Node = root
-    find_deepest_left(root.left, True, depth + 1, res)
-    find_deepest_left(root.right, False, depth + 1, res)
+    # Check left child
+    if root.left:
+        if depth + 1 > res.depth:
+            res.depth = depth + 1
+            res.Node = root.left
+        find_deepest_left(root.left, depth + 1, res)
+    # Continue with right child
+    if root.right:
+        find_deepest_left(root.right, depth + 1, res)

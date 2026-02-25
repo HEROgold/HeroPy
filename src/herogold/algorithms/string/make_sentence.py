@@ -12,7 +12,9 @@ Complexity:
 
 from __future__ import annotations
 
-count = 0
+
+class State:
+    count = 0
 
 
 def make_sentence(text_piece: str, dictionaries: list[str]) -> bool:
@@ -32,7 +34,6 @@ def make_sentence(text_piece: str, dictionaries: list[str]) -> bool:
         True
 
     """
-    global count
     if len(text_piece) == 0:
         return True
     for index in range(len(text_piece)):
@@ -40,5 +41,5 @@ def make_sentence(text_piece: str, dictionaries: list[str]) -> bool:
         if (prefix in dictionaries
                 and (suffix in dictionaries
                      or make_sentence(suffix, dictionaries))):
-                count += 1
+                State.count += 1
     return True
