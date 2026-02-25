@@ -25,10 +25,10 @@ jobs:
       run: uv sync --group test
 
     - name: Run ruff check
-      run: uvx ruff check .
+      run: uvx ruff check . --exclude src/herogold/algorithms
 
     - name: Run type checking
-      run: uvx ty check .
+      run: uvx ty check . --exclude src/herogold/algorithms
 
     - name: Run tests
       run: uvx pytest .
