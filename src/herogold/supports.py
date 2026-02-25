@@ -61,9 +61,9 @@ class SupportsMax(Protocol):
     def __max__[T](self, other: T, /) -> T: ...
 
 @runtime_checkable
-class SupportsNumeric(
+class SupportsNumeric[T](
     SupportsAddition, SupportsMultiplication, SupportsComparison,
-    SupportsSubtraction, SupportsAbs, SupportsMin, SupportsMax,
+    SupportsSubtraction, SupportsAbs[T], SupportsMin, SupportsMax,
     Protocol):
     """A protocol for numeric types that support all operations."""
 
@@ -110,7 +110,7 @@ class SupportsBitwise(
     """A protocol for bitwise operations."""
 
 @runtime_checkable
-class SupportsBitNumeric(SupportsNumeric, SupportsBitwise, Protocol):
+class SupportsBitNumeric[T](SupportsNumeric[T], SupportsBitwise, Protocol):
     """A protocol for types that support both numeric and bitwise operations."""
 
 @runtime_checkable

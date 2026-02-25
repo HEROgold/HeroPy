@@ -18,17 +18,23 @@ class Predicate[**P]:
         """Evaluate the predicate with the given arguments."""
         return self.func(*self.args, **self.kwargs)
 
-    def __and__(self, other: "Predicate") -> "Predicate":
+    def __and__(self, other: "Predicate[P]") -> "Predicate[P]":
         """Combine two predicates with logical AND."""
-        return Predicate(lambda: self() and other())
+        def and_func(*args: P.args, **kwargs: P.kwargs) -> bool:
+            return self.func(*args, **kwargs) and other.func(*args, **kwargs)
+        return Predicate(and_func, *self.args, **self.kwargs)
 
-    def __or__(self, other: "Predicate") -> "Predicate":
+    def __or__(self, other: "Predicate[P]") -> "Predicate[P]":
         """Combine two predicates with logical OR."""
-        return Predicate(lambda: self() or other())
+        def or_func(*args: P.args, **kwargs: P.kwargs) -> bool:
+            return self.func(*args, **kwargs) or other.func(*args, **kwargs)
+        return Predicate(or_func, *self.args, **self.kwargs)
 
     def __invert__(self) -> "Predicate[P]":
         """Negate the predicate with logical NOT."""
-        return Predicate(lambda: not self()) # pyright: ignore[reportReturnType]
+        def not_func(*args: P.args, **kwargs: P.kwargs) -> bool:
+            return not self.func(*args, **kwargs)
+        return Predicate(not_func, *self.args, **self.kwargs)
 
     def __repr__(self) -> str:
         """Return a string representation of the predicate."""
@@ -54,6 +60,6 @@ def predicate[**P](*args1: P.args, **kwargs1: P.kwargs) -> Callable[[Callable[P,
     def wrapper(func: Callable[P, bool]) -> Callable[P, Predicate[P]]:
         @wraps(func)
         def inner(*args2: P.args, **kwargs2: P.kwargs) -> Predicate[P]:
-            return Predicate(func, *args1, *args2, **kwargs1, **kwargs2)
+            return Predicate(func, *args1, *args2, **kwargs1, **kwargs2) # pyright: ignore[reportCallIssue]
         return inner
     return wrapper

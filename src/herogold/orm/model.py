@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from functools import partial
 from types import NoneType
-from typing import ClassVar, Self, Unpack
+from typing import Any, ClassVar, Self, Unpack
 
 from pydantic import ConfigDict
 from sqlalchemy import BigInteger, ScalarResult
@@ -129,7 +129,7 @@ class BaseModel(BaseSQLModel):
             if name == "id":
                 continue
             value = getattr(self, name)
-            value_type: type = type(value)
+            value_type: type[Any] = type(value)
             if info.annotation is None or value_type is NoneType:
                 # Filter out fields without type annotations. Filters out optional fields too.
                 continue

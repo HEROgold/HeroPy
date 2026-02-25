@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from argparse import Namespace
-from typing import Sequence
+from typing import TYPE_CHECKING
 
 from herogold.argparse import Actions, Argument, parser
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class DeployOptions(Namespace):
