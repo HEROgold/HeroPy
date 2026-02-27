@@ -145,6 +145,7 @@ class BaseModel(BaseSQLModel):
             if value_type is info.annotation or contains_sub_type(info, info.annotation):
                 # Set the actual value from the instance, not from field info
                 setattr(known, name, value)
+        known.updated_at = self.__cur_utc()
         session.add(known)
         session.commit()
 
