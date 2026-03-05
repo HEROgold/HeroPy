@@ -10,9 +10,9 @@ from types import NoneType
 from typing import Any, ClassVar, Self, Unpack
 
 from pydantic import ConfigDict
-from sqlalchemy import BigInteger, ScalarResult
+from sqlalchemy import BigInteger, ScalarResult, func
 from sqlalchemy.orm import Mapped
-from sqlmodel import Field, Session, select
+from sqlmodel import Field, Session, col, select
 from sqlmodel import SQLModel as BaseSQLModel
 
 from herogold.log import LoggerMixin
@@ -51,6 +51,18 @@ class BaseModel(BaseSQLModel):
 
     session: ClassVar[Session] = db_session
     logger: ClassVar[logging.Logger] = ModelLogger().logger
+    __count: ClassVar[int | None] = None
+    """Cached count of records. avoiding excessive queries."""
+
+    @classmethod
+    def count(cls) -> int:
+        """Return the total count of records in the model."""
+        if not cls.__count or cls.session.identity_map.check_modified():
+            cls.__count = cls.session.exec(
+                select(func.count(col(cls.id)))
+                .where(cls.deleted_at == None),  # noqa: E711
+            ).one()
+        return cls.__count
 
     def __init_subclass__(cls, **kwargs: Unpack[ConfigDict]) -> None:
         """Register subclass in models set."""

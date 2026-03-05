@@ -1,7 +1,8 @@
 """Module that provides a base APIModel class for API interactions with SQLModel instances."""
-
 import logging
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
+
+from sqlmodel import select
 
 try:
     from fastapi import APIRouter, status
@@ -16,6 +17,53 @@ except ImportError as e:
 
 from herogold.orm.model import BaseModel
 
+
+class PaginatedResponse[T: type[BaseModel]]:
+    """A simple wrapper for paginated responses."""
+
+    base_url: str = "/"
+    size = 100
+
+    def __init__(self, model: T, page: int = 1) -> None:
+        """Initialize the PaginatedResponse with page, size, and total items."""
+        self.model = model
+        self.page = page
+
+    @property
+    def total_pages(self) -> int:
+        """Calculate the total number of pages based on total items and page size."""
+        return (self.model.count() + self.size - 1) // self.size
+
+    @property
+    def url(self) -> str:
+        """Generate the URL for the current page."""
+        return f"{self.base_url}?page={self.page}&size={self.size}"
+
+    @property
+    def next(self) -> "PaginatedResponse"[T] | None: # pyright: ignore[reportIndexIssue]
+        """Generate the URL for the next page if it exists."""
+        if self.page < self.total_pages:
+            return PaginatedResponse[T](self.model, self.page + 1)
+        return None
+
+    @property
+    def meta(self) -> dict[str, int | str | None]:
+        """Return metadata about the pagination."""
+        return {
+            "page": self.page,
+            "size": self.size,
+            "total_pages": self.total_pages,
+            "total_items": self.model.count(),
+            "next": self.next.url if self.next else None,
+        }
+
+    def __iter__(self) -> Generator[T]:
+        """Iterate over the items for the current page."""
+        offset = (self.page - 1) * self.size
+        yield from self.model.session.exec(
+            select(self.model).offset(offset).limit(self.size),
+        ).all()
+        yield from self.next or []
 
 class APIModel[T: type[BaseModel]]:
     """Base APIModel class with custom methods for API interactions."""
@@ -34,7 +82,7 @@ class APIModel[T: type[BaseModel]]:
             "/",
             self.get_all,
             methods=["GET"],
-            response_model=Sequence[T],
+            response_model=Generator[T],
             responses=default_responses,
         )
         router.add_api_route(
@@ -67,25 +115,24 @@ class APIModel[T: type[BaseModel]]:
             responses=default_responses,
         )
 
-    def get_all(self) -> Sequence[T]:
-        """Get all records."""
-        self.model.logger = logging.getLogger(self.model.__name__)
-        return self.model.get_all()
+    def get_all(self) -> Generator[T]:
+        """Get all records, paginated."""
+        offset = 0
+        while self.model.count() > offset * PaginatedResponse.size:
+            yield from PaginatedResponse(self.model, page=offset)
+            offset += 1
 
     def get(self, _id: int) -> T | int:
         """Get a record by ID."""
-        self.model.logger = logging.getLogger(self.model.__name__)
         return self.model.get(_id) or status.HTTP_404_NOT_FOUND
 
     def create(self, item: T) -> T:
         """Create a new record."""
-        self.model.logger = logging.getLogger(self.model.__name__)
         self.model.add(item)
         return item
 
     def update(self, item: T) -> None | int:
         """Update an existing record."""
-        self.model.logger = logging.getLogger(self.model.__name__)
         if not item.id or not self.model.get(item.id):
             return status.HTTP_404_NOT_FOUND
         self.model.update(item)
@@ -95,7 +142,6 @@ class APIModel[T: type[BaseModel]]:
         """Delete a record by ID."""
         if not self.model.get(_id):
             return status.HTTP_404_NOT_FOUND
-        self.model.logger = logging.getLogger(self.model.__name__)
         inst = self.model.get(_id)
         self.model.delete(inst)
         return None
