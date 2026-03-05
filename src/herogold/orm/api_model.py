@@ -1,8 +1,9 @@
 """Module that provides a base APIModel class for API interactions with SQLModel instances."""
-import logging
-from collections.abc import Generator, Sequence
+from collections.abc import Generator
+from typing import Literal
 
-from sqlmodel import select
+from sqlmodel import col, select
+from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 try:
     from fastapi import APIRouter, status
@@ -22,12 +23,12 @@ class PaginatedResponse[T: type[BaseModel]]:
     """A simple wrapper for paginated responses."""
 
     base_url: str = "/"
-    size = 100
 
-    def __init__(self, model: T, page: int = 1) -> None:
+    def __init__(self, model: T, page: int = 1, size: int = 100) -> None:
         """Initialize the PaginatedResponse with page, size, and total items."""
         self.model = model
         self.page = page
+        self.size = size
 
     @property
     def total_pages(self) -> int:
@@ -115,12 +116,34 @@ class APIModel[T: type[BaseModel]]:
             responses=default_responses,
         )
 
-    def get_all(self) -> Generator[T]:
-        """Get all records, paginated."""
-        offset = 0
-        while self.model.count() > offset * PaginatedResponse.size:
-            yield from PaginatedResponse(self.model, page=offset)
-            offset += 1
+    def _param_builder(self, query_params: dict[str, str]) -> dict[str, str]:
+        """Build query parameters for filtering."""
+        return {key: value for key, value in query_params.items() if hasattr(self.model, key)}
+
+    def _build_filtered_query(self, query_params: dict[str, str]) -> SelectOfScalar[BaseModel]:
+        """Build SQLModel filters based on query parameters."""
+        q = select(self.model)
+        for key, value in self._param_builder(query_params).items():
+            q = q.where(getattr(self.model, key) == value)
+        return q
+
+    def get_all(
+        self,
+        sort: str | None = None,
+        order: Literal["asc", "desc"] = "asc",
+        page: int = 1,
+        limit: int = 100,
+        **kwargs: str, # Allows for dynamic fieldname filtering based on query parameters
+    ) -> Generator[T]:
+        """Get all records with optional sorting, pagination, and filtering."""
+        q = self._build_filtered_query(kwargs)
+
+        if sort and hasattr(self.model, sort):
+            sort_col = col(getattr(self.model, sort))
+            sort_order = sort_col.desc() if order.lower() == "desc" else sort_col.asc()
+            q = q.order_by(sort_order)
+
+        yield from PaginatedResponse(self.model, page, size=limit)
 
     def get(self, _id: int) -> T | int:
         """Get a record by ID."""
