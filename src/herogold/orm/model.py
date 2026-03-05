@@ -47,6 +47,7 @@ class BaseModel(BaseSQLModel):
     )
     created_at: datetime = Field(default_factory=__cur_utc)
     updated_at: datetime = Field(default_factory=__cur_utc)
+    deleted_at: datetime | None = Field(default=None)
 
     session: ClassVar[Session] = db_session
     logger: ClassVar[logging.Logger] = ModelLogger().logger
@@ -107,9 +108,12 @@ class BaseModel(BaseSQLModel):
         self.logger.debug("Deleting record: %s", self, extra={"record": self})
         session = self._get_session(session)
         if known := session.exec(
-            select(self.__class__).where(self.__class__.id == self.id).with_for_update(),
+            select(self.__class__).where(
+                self.__class__.id == self.id,
+                self.__class__.deleted_at == None, # noqa: E711
+            ).with_for_update(),
         ).first():
-            session.delete(known)
+            known.deleted_at = self.__cur_utc()
             session.commit()
             return
         msg = f"Record with {self.__class__.__name__}.id={self.id} not found for deletion."
