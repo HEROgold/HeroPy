@@ -1,4 +1,5 @@
 """Module that provides a base APIModel class for API interactions with SQLModel instances."""
+
 import logging
 from collections.abc import Sequence
 
@@ -19,16 +20,52 @@ from herogold.orm.model import BaseModel
 class APIModel[T: type[BaseModel]]:
     """Base APIModel class with custom methods for API interactions."""
 
+    model: T
+
     def __init__(self, model: T, router: APIRouter) -> None:
         """Initialize the APIModel with a SQLModel instance, adding routes to the provided router."""
         self.model = model
-        self.router = router
-        self.router.tags = [model.__name__, *self.router.tags]
-        self.router.add_api_route("/", self.get_all, methods=["GET"])
-        self.router.add_api_route("/{_id}", self.get, methods=["GET"])
-        self.router.add_api_route("/{item}", self.create, methods=["POST"])
-        self.router.add_api_route("/{item}", self.update, methods=["PUT"])
-        self.router.add_api_route("/{_id}", self.delete, methods=["DELETE"])
+        router.tags = [model.__name__, *router.tags]
+        default_responses = {
+            200: {"description": "Successful Response"},
+            404: {"description": "Not Found"},
+        }
+        router.add_api_route(
+            "/",
+            self.get_all,
+            methods=["GET"],
+            response_model=Sequence[T],
+            responses=default_responses,
+        )
+        router.add_api_route(
+            "/{_id}",
+            self.get,
+            methods=["GET"],
+            response_model=T,
+            responses=default_responses,
+        )
+        router.add_api_route(
+            "/",
+            self.create,
+            methods=["POST"],
+            response_model=T,
+            responses={
+                201: {"description": "Created"},
+                400: {"description": "Bad Request"},
+            },
+        )
+        router.add_api_route(
+            "/",
+            self.update,
+            methods=["PUT"],
+            responses=default_responses,
+        )
+        router.add_api_route(
+            "/{_id}",
+            self.delete,
+            methods=["DELETE"],
+            responses=default_responses,
+        )
 
     def get_all(self) -> Sequence[T]:
         """Get all records."""
@@ -54,8 +91,11 @@ class APIModel[T: type[BaseModel]]:
         self.model.update(item)
         return None
 
-    def delete(self, _id: int) -> None:
+    def delete(self, _id: int) -> None | int:
         """Delete a record by ID."""
+        if not self.model.get(_id):
+            return status.HTTP_404_NOT_FOUND
         self.model.logger = logging.getLogger(self.model.__name__)
         inst = self.model.get(_id)
         self.model.delete(inst)
+        return None
