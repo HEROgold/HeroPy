@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from functools import partial
 from types import NoneType
-from typing import Any, ClassVar, Self, Unpack
+from typing import Any, ClassVar, Unpack
 
 from pydantic import ConfigDict
 from sqlalchemy import BigInteger, ScalarResult, func
@@ -16,6 +16,7 @@ from sqlmodel import Field, Session, col, select
 from sqlmodel import SQLModel as BaseSQLModel
 
 from herogold.log import LoggerMixin
+from herogold.orm.utils import SELF, Relationship
 from herogold.typing.check import contains_sub_type
 
 from .constants import session as db_session
@@ -33,6 +34,11 @@ class ModelLogger(LoggerMixin):
 
 class BaseModel(BaseSQLModel):
     """Base model class with custom methods."""
+
+    # ignore Relationship descriptor values so they don't have to be
+    # annotated at all; the class object is available at import time, so we
+    # can configure this statically rather than in __init_subclass__.
+    model_config = {"ignored_types": (Relationship,)}
 
     __cur_utc = partial(datetime.now, UTC)
 
@@ -54,6 +60,15 @@ class BaseModel(BaseSQLModel):
     __count: ClassVar[int | None] = None
     """Cached count of records. avoiding excessive queries."""
 
+    @property
+    def relations(self) -> dict[str, type["BaseModel"]]:
+        """Return a dict of related models and their values."""
+        return {
+            name: getattr(self, name)
+            for name, info in self.__class__.model_fields.items()
+            if info.annotation and issubclass(info.annotation, BaseModel)
+        }
+
     @classmethod
     def count(cls) -> int:
         """Return the total count of records in the model."""
@@ -69,7 +84,7 @@ class BaseModel(BaseSQLModel):
         super().__init_subclass__(**kwargs)
         models.add(cls)
 
-    def add(self: Self, session: Session | None = None) -> None:
+    def add(self: SELF, session: Session | None = None) -> None:
         """Add a record to Database."""
         self.logger.debug("Adding record: %s", self, extra={"record": self})
         if self.id is not None:
@@ -77,7 +92,7 @@ class BaseModel(BaseSQLModel):
             raise AlreadyExistsError(msg)
         self._create_record(session)
 
-    def update(self: Self, session: Session | None = None) -> None:
+    def update(self: SELF, session: Session | None = None) -> None:
         """Create or update a record in Database."""
         self.logger.debug("Record update requested: %s", self, extra={"record": self})
         session = self._get_session(session)
@@ -88,7 +103,7 @@ class BaseModel(BaseSQLModel):
         return self._create_record(session)
 
     @classmethod
-    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> Self:
+    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> SELF:
         """Get a record from Database."""
         cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
         session = cls._get_session(session)
@@ -103,7 +118,7 @@ class BaseModel(BaseSQLModel):
         raise NotFoundError(msg)
 
     @classmethod
-    def get_all(cls: type[Self], session: Session | None = None) -> Sequence[Self]:
+    def get_all(cls: type[SELF], session: Session | None = None) -> Sequence[SELF]:
         """Get all records from Database."""
         cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
         session = cls._get_session(session)
@@ -137,7 +152,7 @@ class BaseModel(BaseSQLModel):
         session.add(self)
         session.commit()
 
-    def _update_record(self, known: Self, session: Session | None = None) -> None:
+    def _update_record(self, known: SELF, session: Session | None = None) -> None:
         """Update known, with the values from self."""
         self.logger.debug("Updating record: %s", self, extra={"record": self})
         session = self._get_session(session)
@@ -166,7 +181,7 @@ class BaseModel(BaseSQLModel):
         session.commit()
 
     @classmethod
-    def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[Self]:
+    def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[SELF]:
         """Get a record from Database by field and value."""
         cls.logger.debug(
             "Getting record from field: %s, %s == %s",
