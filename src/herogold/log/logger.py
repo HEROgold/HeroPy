@@ -2,7 +2,7 @@
 """Custom logger implementation for python 3.14."""
 from __future__ import annotations
 
-from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARNING, _ExcInfoType
+from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARNING
 from logging import Logger as LoggingLogger
 from typing import TYPE_CHECKING, Any, Literal, override
 
@@ -10,6 +10,7 @@ from herogold.sentinel import create_sentinel
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping
+    from logging import _ExcInfoType
     from string.templatelib import Template
 
 __all__ = ["Logger"]
