@@ -52,8 +52,8 @@ jobs:
         prerelease: false
         generate_release_notes: true
 
-    # Trigger PyPI workflow when after we create a release.
-    # Pypi workflow won't with the usual on-release trigger
+    # Trigger PyPI workflow after release is created.
+    # PyPI workflow won't trigger with the usual on-release trigger
     # because another workflow (this one) created the release. (avoiding inf recursion)
     - name: Trigger PyPI workflow
       if: steps.version-check.outputs.version_changed == 'true'
