@@ -1,4 +1,5 @@
-from typing import Any
+"""Enforce strict attribute definitions on classes."""  # noqa: INP001
+from typing import Self
 
 
 class StrictAttributesMeta(type):
@@ -8,12 +9,12 @@ class StrictAttributesMeta(type):
     an AttributeError.
     """
 
-    def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> type:
+    def __new__[**P](mcs, name: str, bases: tuple[type, ...], namespace: dict[str, P]) -> type:
         """Create a new class with strict attribute enforcement."""
         cls = super().__new__(mcs, name, bases, namespace)
         original_init = cls.__init__
 
-        def new_init(self: Any, *args: Any, **kwargs: Any) -> None:
+        def new_init(self: type[Self], *args: P.args, **kwargs: P.kwargs) -> None:
             """Allow attributes during init, then lock after completion."""
             original_init(self, *args, **kwargs)
             object.__setattr__(self, "_locked", True)
