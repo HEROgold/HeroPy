@@ -16,7 +16,7 @@ except ImportError as e:
     raise ImportError(msg) from e
 
 
-from herogold.orm.model import BaseModel
+from .model import BaseModel
 
 
 class PaginatedResponse[T: type[BaseModel]]:
