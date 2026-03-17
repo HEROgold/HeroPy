@@ -60,9 +60,9 @@ class PaginatedResponse[T: type[BaseModel]]:
 
     def __iter__(self) -> Generator[T]:
         """Iterate over the items for the current page."""
-        offset = (self.page - 1) * self.size
+        offset = (self.model.id - 1) * self.size
         yield from self.model.session.exec(
-            select(self.model).offset(offset).limit(self.size),
+            select(self.model).where(self.model.id >= offset).limit(self.size),
         ).all()
         yield from self.next or []
 
