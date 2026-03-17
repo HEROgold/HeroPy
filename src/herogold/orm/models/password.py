@@ -7,10 +7,11 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 from datetime import UTC, datetime
 from typing import ClassVar
 
-from orm.core.model import BaseModel
-from orm.core.utils import Relationship, get_foreign_key
-from orm.models.user import User
 from sqlmodel import Field, ForeignKey
+
+from herogold.orm.core.model import BaseModel
+from herogold.orm.core.utils import Relationship, get_foreign_key
+from herogold.orm.models.user import User
 
 
 class Password(BaseModel, table=True):

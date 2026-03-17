@@ -11,13 +11,13 @@ ORM_SRC = ROOT / "herogold" / "src"
 if str(ORM_SRC) not in sys.path:
     sys.path.insert(0, str(ORM_SRC))
 
-from orm.core.config import DbConfig  # noqa: E402
+from herogold.orm.core.config import DbConfig  # noqa: E402
 
 PARSER = ConfigParser()
 PARSER.read(ROOT / "db_config.ini", encoding="utf-8")
 DbConfig.set_parser(PARSER)
 
-from orm.models.password import Password  # noqa: E402
+from herogold.orm.models.password import Password  # noqa: E402
 
 
 def test_password_create_for_user_hashes_with_salt() -> None:

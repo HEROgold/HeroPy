@@ -2,8 +2,9 @@
 
 from datetime import UTC, datetime
 
-from orm.core.model import BaseModel
 from sqlmodel import Field
+
+from herogold.orm.core.model import BaseModel
 
 
 class Email(BaseModel, table=True):
