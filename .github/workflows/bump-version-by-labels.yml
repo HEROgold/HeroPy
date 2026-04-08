@@ -28,8 +28,9 @@ jobs:
 
       - name: Determine version bump
         id: detect-bump
+        env:
+          LABELS: ${{ github.event.pull_request.labels.*.name }}
         run: |
-          LABELS="${{ github.event.pull_request.labels.*.name }}"
           if echo "$LABELS" | grep -q "Major"; then
             echo "bump_type=major" >> $GITHUB_OUTPUT
           elif echo "$LABELS" | grep -q "Minor"; then
