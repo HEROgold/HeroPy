@@ -72,17 +72,16 @@ class Relationship[T: SQLModel]:
         # the ``optional`` flag is honoured by turning the annotation into a
         # ``Optional``.
         try:
-            anns = owner.__annotations__
+            annotations = owner.__annotations__
         except AttributeError:
-            anns = {}
-            owner.__annotations__ = anns
+            annotations = {}
+            owner.__annotations__ = annotations
 
-        if name not in anns:
+        if name not in annotations:
             if self.optional:
-                # mypy/ty can't handle building a parameterised Optional at runtime
-                anns[name] = ClassVar[self.related_model | None]  # type: ignore[misc]
+                annotations[name] = ClassVar[self.related_model | None]
             else:
-                anns[name] = ClassVar[self.related_model]
+                annotations[name] = ClassVar[self.related_model]
 
     def __get__(self, instance: T | None, owner: type[T]) -> type[T] | T | None:
         """Retrieve the class or the related object from an instance.

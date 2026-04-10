@@ -19,7 +19,7 @@ class StrictAttributesMeta(type):
             original_init(self, *args, **kwargs)
             object.__setattr__(self, "_locked", True)
 
-        cls.__init__ = new_init
+        cls.__init__ = new_init  # ty: ignore[invalid-assignment] Explicit override of init
 
         return cls
 
