@@ -1,9 +1,10 @@
 """User model."""
 
-from orm.core.model import BaseModel
-from orm.core.utils import Relationship, get_foreign_key
-from orm.models.email import Email
 from sqlmodel import Field, ForeignKey
+
+from herogold.orm.core.model import BaseModel
+from herogold.orm.core.utils import Relationship, get_foreign_key
+from herogold.orm.models.email import Email
 
 
 class User(BaseModel, table=True):

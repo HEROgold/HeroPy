@@ -1,10 +1,11 @@
 """User configuration model."""
 
-from orm.core.model import BaseModel
-from orm.core.utils import Relationship, get_foreign_key
-from orm.models.user import User
 from sqlalchemy import UniqueConstraint
-from sqlmodel import Field, ForeignKey
+from sqlmodel import Field
+
+from herogold.orm.core.model import BaseModel
+from herogold.orm.core.utils import Relationship
+from herogold.orm.models.user import User
 
 
 class Configuration(BaseModel, table=True):
@@ -13,7 +14,6 @@ class Configuration(BaseModel, table=True):
     __tablename__ = "configuration"
     __table_args__ = (UniqueConstraint("user_id", "key", name="uq_configuration_user_key"),)
 
-    user_id: int = Field(index=True, sa_column_args=(ForeignKey(get_foreign_key(User)),))
     user = Relationship(User)
     key: str = Field(index=True, nullable=False, max_length=120)
     value: str = Field(nullable=False)
