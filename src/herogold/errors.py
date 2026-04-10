@@ -15,8 +15,14 @@ def as_group[**P, T](func: Callable[P, Iterable[T | Exception]]) -> Callable[P, 
     """Collect exceptions from an iterable of results and raise them as an ExceptionGroup."""
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> Iterable[T] | ExceptionGroup:
         results = func(*args, **kwargs)
-        exceptions = [i for i in results if isinstance(i, Exception)]
-        values = [i for i in results if not isinstance(i, Exception)]
+        exceptions: list[Exception] = []
+        values: list[T] = []
+
+        for i in results:
+            if isinstance(i, Exception):
+                exceptions.append(i)
+            else:
+                values.append(i)
 
         if exceptions:
             msg = "Multiple exceptions occurred"
