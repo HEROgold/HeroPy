@@ -160,12 +160,12 @@ class MultiProgress(list[ProgressBar]):
 def main() -> None:
     """Demonstrate the progress bar functionality."""
     while True:
-        _1 = PreciseProgressBar(100)
-        _2 = ProgressBar(100)
-        bars = MultiProgress([_1, _2])
+        precise = PreciseProgressBar(100)
+        normal = ProgressBar(100)
+        bars = MultiProgress([precise, normal])
         for i in range(10000):
-            _1.update(i/100)
-            _2.update(i/100)
+            precise.update(i/100)
+            normal.update(i/100)
             print(bars, end="\r")  # noqa: T201
             sleep(0.1)
 
