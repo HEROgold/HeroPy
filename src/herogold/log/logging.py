@@ -47,7 +47,7 @@ from logging import (
     warning,
 )
 
-from .formats import message, prefix
+from .formats import BASIC_FORMAT
 
 # Patch logging for Python 3.14+
 if sys.version_info >= (3, 14):
@@ -61,8 +61,6 @@ if sys.version_info >= (3, 14):
     exception = logger.exception
     critical = logger.critical
     fatal = logger.fatal
-
-BASIC_FORMAT = f"{prefix} {message}"
 
 __all__ = [
     "BASIC_FORMAT",

@@ -5,5 +5,6 @@ from logging import Formatter
 
 prefix = "< %(asctime)s.%(msecs)03d > %(name)s"
 message = "[ %(levelname)s ]: %(message)s"
+BASIC_FORMAT = f"{prefix} {message}"
 date_format = "%Y-%m-%d %H:%M:%S"
-formatter = Formatter(f"{prefix} {message}", datefmt=date_format)
+formatter = Formatter(BASIC_FORMAT, datefmt=date_format)

@@ -1,6 +1,5 @@
 """Module that helps setting up logging configurations."""
 
-import logging
 from logging import (
     DEBUG,
     INFO,
@@ -17,8 +16,3 @@ stream_handler.setLevel(INFO)
 file_handler = FileHandler("logs.log", mode="w")
 file_handler.setFormatter(formatter)
 file_handler.setLevel(DEBUG)
-
-logging.basicConfig(
-    level=INFO,
-    handlers=[stream_handler, file_handler],
-)
