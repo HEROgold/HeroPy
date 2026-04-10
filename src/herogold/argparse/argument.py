@@ -93,7 +93,7 @@ class ColorArgumentParser(ArgumentParser):
     def format_usage_line(self, line: str) -> str:
         """Override to colorize usage text."""
         # Only show script name, -h/--help, and a generic abstraction
-        script = self.format_program(line[len(self.cls.usage):].split()[0])
+        script = self.format_program(line[len(self.cls.usage):].split(maxsplit=1)[0])
         usage_line = f"{self.cls.usage}{script} [-h] [--argument OPTION]"
         rest = usage_line[len(self.cls.usage):]
         return self.format_heading(self.cls.usage) + self.format_command(rest)
