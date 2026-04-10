@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from sqlmodel import SQLModel, col, select
 
+from herogold.orm.core.model import ExtraData
+
 try:
     from fastapi import APIRouter, status
 except ImportError as e:
@@ -19,11 +21,11 @@ except ImportError as e:
     raise ImportError(msg) from e
 
 
-from herogold.orm.model import BaseModel, ExtraData
+from .model import BaseModel
 
 if TYPE_CHECKING:
-    from sqlalchemy.sql.elements import ColumnElement
-    from sqlmodel.sql._expression_select_cls import SelectOfScalar
+    from sqlalchemy import ColumnElement
+    from sqlmodel.sql.expression import SelectOfScalar
 
 
 class Operator(StrEnum):
