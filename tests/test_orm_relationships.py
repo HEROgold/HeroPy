@@ -11,9 +11,9 @@ ORM_SRC = ROOT / "herogold" / "src"
 if str(ORM_SRC) not in sys.path:
     sys.path.insert(0, str(ORM_SRC))
 
-from orm.core.config import DbConfig  # noqa: E402
-from orm.core.utils import get_foreign_key  # noqa: E402
-from orm.models import (  # noqa: E402
+from herogold.orm.core.config import DbConfig  # noqa: E402
+from herogold.orm.core.utils import get_foreign_key  # noqa: E402
+from herogold.orm.models import (  # noqa: E402
     Configuration,
     Email,
     Password,

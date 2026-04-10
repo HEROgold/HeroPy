@@ -1,7 +1,8 @@
 """Role model."""
 
-from orm.core.model import BaseModel
 from sqlmodel import Field
+
+from herogold.orm.core.model import BaseModel
 
 
 class Role(BaseModel, table=True):

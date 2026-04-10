@@ -1,11 +1,12 @@
 """Association table for users and roles."""
 
-from orm.core.model import BaseModel
-from orm.core.utils import Relationship, get_foreign_key
-from orm.models.role import Role
-from orm.models.user import User
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, ForeignKey
+
+from herogold.orm.core.model import BaseModel
+from herogold.orm.core.utils import Relationship, get_foreign_key
+from herogold.orm.models.role import Role
+from herogold.orm.models.user import User
 
 
 class UserRole(BaseModel, table=True):
