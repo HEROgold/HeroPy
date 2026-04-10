@@ -7,18 +7,21 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from enum import Enum
 
+from herogold.log.logger_mixin import LoggerMixin
+
 type Action[Context] = Callable[[Context], None]
 type CurrentState[State, Event] = tuple[State, Event]
 type NextState[State, Action] = tuple[State, Action]
 type Transition[State, Event, Context] = dict[CurrentState[State, Event], NextState[State, Action[Context]]]
 type TransitionDecorator[Context] = Callable[[Action[Context]], Action[Context]]
 
+
 class InvalidTransitionError(Exception):
     """Raised when an invalid transition is attempted."""
 
 
 @dataclass
-class StateMachine[State: Enum, Event: Enum, Context]:
+class StateMachine[State: Enum, Event: Enum, Context](LoggerMixin):
     """State machine for handling state transitions."""
 
     transitions: Transition[State, Event, Context] = field(default_factory=dict)
@@ -31,6 +34,7 @@ class StateMachine[State: Enum, Event: Enum, Context]:
         func: Action[Context],
     ) -> None:
         """Add a transition to the state machine."""
+        self.logger.debug("Adding transition: {%s} + {%s} -> {%s}", from_, event, to)
         self.transitions[(from_, event)] = (to, func)
 
     def _next(self, state: State, event: Event) -> tuple[State, Action[Context]]:
@@ -43,6 +47,7 @@ class StateMachine[State: Enum, Event: Enum, Context]:
 
     def handle(self, ctx: Context, state: State, event: Event) -> State:
         """Handle an event and return the next state."""
+        self.logger.debug("Handling event: {%s} in state: {%s}", event, state)
         next_state, action = self._next(state, event)
         action(ctx)
         return next_state
