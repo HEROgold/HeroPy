@@ -1,11 +1,13 @@
 """Argument descriptor for argparse integration."""
 
+import re
 import sys
 from argparse import ArgumentParser
 from collections.abc import Callable
 from enum import Enum
-from typing import TypeVar
+from typing import ClassVar, NoReturn, Self, TypeVar, override
 
+from herogold.colors import Bold, colorize
 from herogold.sentinel import MISSING
 
 # Prefer to use later versions. For typevar support defaults.
@@ -15,7 +17,103 @@ if sys.version_info >= (3, 14):
 else:
     T = TypeVar("T")
 
-parser = ArgumentParser()
+
+class ColorArgumentParser(ArgumentParser):
+    """ArgumentParser with colored help and error output."""
+
+    usage: ClassVar[str] = "usage: "
+
+    @property
+    def cls(self) -> type[Self]:
+        """Return the class of the parser.
+
+        Used when trying to get ClassVars
+        """
+        return type(self)
+
+    @override
+    def error(self, message: str) -> NoReturn:
+        self.print_usage(sys.stderr)
+        msg = colorize(Bold.Red, f"error: {message}\n")
+        self.exit(2, msg)
+
+    def regex_flag(self, string: str) -> str:
+        """Format an option flag (e.g. -h, --help) for regex replacement."""
+        def repl_flag(match: re.Match) -> str:
+            return self.format_argument(match.group(0))
+        return re.sub(r"(?<![\w-])(-{1,2}[\w-]+)(?![\w-])", repl_flag, string)
+
+    def regex_option(self, string: str) -> str:
+        """Format an option name (e.g. ENVIRONMENT) for regex replacement."""
+        def repl_value(match: re.Match) -> str:
+            return self.format_option(match.group(0))
+        return re.sub(r"\b([A-Z_][A-Z0-9_\-]*)\b", repl_value, string)
+
+    def regex_type(self, string: str) -> str:
+        """Format a type name (e.g. str, int) for regex replacement at end of line, only color the type name."""
+        def repl_type(match: re.Match) -> str:
+            return f" - {self.format_type(match.group(1))}"
+        # Match ' - <letters>' at end of line only, only color the type name
+        return re.sub(r" - ([a-zA-Z]+)$", repl_type, string, flags=re.MULTILINE)
+
+    def regex_formatter(self, lines: list[str], index: int) -> None:
+        """Apply regex-based formatting to a line of help text."""
+        lines[index] = self.regex_flag(lines[index])
+        lines[index] = self.regex_option(lines[index])
+        lines[index] = self.regex_type(lines[index])
+
+    def format_argument(self, argument: str) -> str:
+        """Format an argument."""
+        return colorize(Bold.Blue, argument)
+
+    def format_option(self, option: str) -> str:
+        """Format an option (e.g. ENVIRONMENT, RETRIES)."""
+        return colorize(Bold.Purple, option)
+
+    def format_type(self, type_name: str) -> str:
+        """Format type names in help text."""
+        return colorize(Bold.Red, type_name)
+
+    def format_program(self, program: str) -> str:
+        """Format the program name in usage."""
+        return program
+
+    def format_value(self, value: str) -> str:
+        """Format argument values in help text."""
+        return colorize(Bold.Yellow, value)
+
+    def format_heading(self, heading: str) -> str:
+        """Override to colorize section headings."""
+        return colorize(Bold.Green, heading)
+
+    def format_command(self, command: str) -> str:
+        """Format the command part after usage, coloring flags and values precisely."""
+        return self.regex_option(self.regex_flag(command))
+
+    def format_usage_line(self, line: str) -> str:
+        """Override to colorize usage text."""
+        # Only show script name, -h/--help, and a generic abstraction
+        script = self.format_program(line[len(self.cls.usage):].split()[0])
+        usage_line = f"{self.cls.usage}{script} [-h] [--argument OPTION]"
+        rest = usage_line[len(self.cls.usage):]
+        return self.format_heading(self.cls.usage) + self.format_command(rest)
+
+    def format_help(self) -> str:
+        """Override to colorize help text and simplify usage line."""
+        help_text = super().format_help()
+        lines = help_text.splitlines()
+        for i, line in enumerate(lines):
+            comparable = line.casefold()
+            stripped = line.strip()
+            if comparable.startswith(self.cls.usage):
+                lines[i] = self.format_usage_line(line)
+            elif stripped.endswith(":"):
+                lines[i] = self.format_heading(stripped)
+            else:
+                self.regex_formatter(lines, i)
+        return "\n".join(lines)
+
+parser = ColorArgumentParser()
 
 class Actions(Enum):
     """Possible argument actions."""
@@ -111,7 +209,8 @@ class Argument[T]:
         if not isinstance(self.type, type):
             self.type = type(self.type)
 
-        help_ = f"{self.help} - {self.type.__name__}" if self.help else f"{self.type.__name__}"
+        type_name = self.type.__name__
+        help_ = f"{self.help} - {type_name}" if self.help else f"{type_name}"
         # TD: Handle subparsers and groups
         for i in self.names:
             if self.action is Actions.STORE_BOOL:
