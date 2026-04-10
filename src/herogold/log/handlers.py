@@ -14,7 +14,7 @@ stream_handler = StreamHandler()
 stream_handler.setFormatter(formatter)
 stream_handler.setLevel(INFO)
 
-file_handler = FileHandler(__name__, mode="w")
+file_handler = FileHandler("logs.log", mode="w")
 file_handler.setFormatter(formatter)
 file_handler.setLevel(DEBUG)
 
