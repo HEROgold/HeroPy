@@ -1,9 +1,10 @@
 """Module that provides a base APIModel class for API interactions with SQLModel instances."""
+from __future__ import annotations
+
 from collections.abc import Generator
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from sqlmodel import col, select
-from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 try:
     from fastapi import APIRouter, status
@@ -17,6 +18,9 @@ except ImportError as e:
 
 
 from herogold.orm.model import BaseModel
+
+if TYPE_CHECKING:
+    from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 
 class PaginatedResponse[T: type[BaseModel]]:
@@ -41,7 +45,7 @@ class PaginatedResponse[T: type[BaseModel]]:
         return f"{self.base_url}?page={self.page}&size={self.size}"
 
     @property
-    def next(self) -> "PaginatedResponse"[T] | None: # pyright: ignore[reportIndexIssue]
+    def next(self) -> PaginatedResponse[T] | None: # pyright: ignore[reportIndexIssue]
         """Generate the URL for the next page if it exists."""
         if self.page < self.total_pages:
             return PaginatedResponse[T](self.model, self.page + 1)

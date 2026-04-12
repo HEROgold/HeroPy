@@ -1,4 +1,6 @@
 """Module that contains some formatting presets."""
+from __future__ import annotations
+
 from logging import Formatter
 
 # https://docs.python.org/2/library/logging.html#logrecord-attributes

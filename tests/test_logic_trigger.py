@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from herogold.logic.action import Action
 from herogold.logic.predicate import Predicate
 from herogold.logic.trigger import DidNotRun, Trigger

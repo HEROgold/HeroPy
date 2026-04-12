@@ -1,4 +1,5 @@
 """Module that helps setting up logging configurations."""
+from __future__ import annotations
 
 from logging import (
     DEBUG,

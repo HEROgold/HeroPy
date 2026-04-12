@@ -1,4 +1,5 @@
 """The database package for the Winter Dragon project."""
+from __future__ import annotations
 
 try:
     import confkit

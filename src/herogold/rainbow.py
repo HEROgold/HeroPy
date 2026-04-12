@@ -1,4 +1,5 @@
 """Module that contains a rainbow color palette."""
+from __future__ import annotations
 
 RAINBOW = [
     0xff0000,

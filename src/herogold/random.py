@@ -1,9 +1,13 @@
 """Random utilities for rolling and selection based on probabilities."""
+from __future__ import annotations
 
 import random
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from herogold.sentinel import MISSING
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def recursive_rolls(target: float, rolls: int = 1) -> int:

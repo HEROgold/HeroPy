@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import os
 from datetime import UTC, datetime, timedelta
-
-import pytest
+from typing import TYPE_CHECKING
 
 from herogold.progress import PreciseProgressBar, ProgressBar
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_progress_bar_bar_count_clamps_to_range(monkeypatch: pytest.MonkeyPatch) -> None:

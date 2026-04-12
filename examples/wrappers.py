@@ -1,5 +1,10 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from functools import wraps
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def wrapper[F, **P](func: Callable[P, F]) -> Callable[P, F]:

@@ -1,9 +1,13 @@
 """Module defining the Trigger class for conditional action execution."""
-from typing import Literal
+from __future__ import annotations
 
-from herogold.logic.action import Action
-from herogold.logic.predicate import Predicate
+from typing import TYPE_CHECKING, Literal
+
 from herogold.sentinel import create_sentinel
+
+if TYPE_CHECKING:
+    from herogold.logic.action import Action
+    from herogold.logic.predicate import Predicate
 
 DidNotRun = create_sentinel() # Sentinel value indicating the action did not run
 

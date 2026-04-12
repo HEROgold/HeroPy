@@ -1,4 +1,5 @@
 """Pass-through of logging module, with custom Logger patches."""
+from __future__ import annotations
 
 import sys
 from logging import (

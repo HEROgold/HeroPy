@@ -1,4 +1,5 @@
 """Module with helper methods for the database package."""
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Optional, TypeVar, overload  # noqa: F401
 

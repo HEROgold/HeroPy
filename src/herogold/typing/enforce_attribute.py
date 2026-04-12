@@ -1,4 +1,6 @@
 """Enforce strict attribute definitions on classes."""  # noqa: INP001
+from __future__ import annotations
+
 from typing import Self
 
 

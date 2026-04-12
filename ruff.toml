@@ -7,9 +7,13 @@ preview=false
 [lint]
 exclude = ["build", "dist", "venv"]
 select = ["ALL"]
+extend-select = ["I002"]
 ignore = [
     "E701"
 ]
+
+[lint.isort]
+required-imports = ["from __future__ import annotations"]
 
 [lint.per-file-ignores]
 "src/herogold/algorithms/**/*.py" = ["D", "ANN", "S", "PLR", "FBT", "C", "TRY", "PERF", "UP", "ERA001", "PLC"]

@@ -1,8 +1,11 @@
 """Predicate logic for combining boolean conditions."""
+from __future__ import annotations
 
-from collections.abc import Callable
 from functools import wraps
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class Predicate[**P]:
@@ -20,7 +23,7 @@ class Predicate[**P]:
         """Evaluate the predicate with the given arguments."""
         return self.func(*self.args, **self.kwargs)
 
-    def __and__(self, other: "Predicate[P]") -> "Predicate[P]":
+    def __and__(self, other: Predicate[P]) -> Predicate[P]:
         """Combine two predicates with logical AND."""
 
         def and_func() -> bool:
@@ -28,7 +31,7 @@ class Predicate[**P]:
 
         return _CombinedPredicate("AND", self, other, func=and_func)
 
-    def __or__(self, other: "Predicate[P]") -> "Predicate[P]":
+    def __or__(self, other: Predicate[P]) -> Predicate[P]:
         """Combine two predicates with logical OR."""
 
         def or_func() -> bool:
@@ -36,7 +39,7 @@ class Predicate[**P]:
 
         return _CombinedPredicate("OR", self, other, func=or_func)
 
-    def __invert__(self) -> "Predicate[P]":
+    def __invert__(self) -> Predicate[P]:
         """Negate the predicate with logical NOT."""
 
         def not_func() -> bool:
@@ -60,8 +63,8 @@ class _CombinedPredicate[**P](Predicate[P]):
     def __init__(
         self,
         operand: Literal["AND", "OR", "NOT"],
-        left: "Predicate[P]",
-        right: "Predicate[P] | None" = None,
+        left: Predicate[P],
+        right: Predicate[P] | None = None,
         *,
         func: Callable[[], bool],
     ) -> None:

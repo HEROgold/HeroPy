@@ -2,16 +2,14 @@
 
 This module should make the SQLModel classes more like a `Repository` pattern.
 """
-import logging
-from collections.abc import Sequence
+from __future__ import annotations
+
 from datetime import UTC, datetime
 from functools import partial
 from types import NoneType
-from typing import Any, ClassVar, Unpack
+from typing import TYPE_CHECKING, Any, ClassVar, Unpack
 
-from pydantic import ConfigDict
 from sqlalchemy import BigInteger, ScalarResult, func
-from sqlalchemy.orm import Mapped
 from sqlmodel import Field, Session, col, select
 from sqlmodel import SQLModel as BaseSQLModel
 
@@ -22,7 +20,14 @@ from herogold.typing.check import contains_sub_type
 from .constants import session as db_session
 from .errors import AlreadyExistsError, NotFoundError
 
-models: set[type["BaseModel"]] = set()
+if TYPE_CHECKING:
+    import logging
+    from collections.abc import Sequence
+
+    from pydantic import ConfigDict
+    from sqlalchemy.orm import Mapped
+
+models: set[type[BaseModel]] = set()
 
 
 class ModelLogger(LoggerMixin):
@@ -61,7 +66,7 @@ class BaseModel(BaseSQLModel):
     """Cached count of records. avoiding excessive queries."""
 
     @property
-    def relations(self) -> dict[str, type["BaseModel"]]:
+    def relations(self) -> dict[str, type[BaseModel]]:
         """Return a dict of related models and their values."""
         return {
             name: getattr(self, name)

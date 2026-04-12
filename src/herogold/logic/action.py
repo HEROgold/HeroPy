@@ -1,5 +1,10 @@
 """Defines an Action class and a decorator to create actions from functions."""
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class Action[T]:

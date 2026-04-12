@@ -1,4 +1,6 @@
 """A simple progress bar for terminal output."""
+from __future__ import annotations
+
 import math
 from datetime import UTC, datetime, timedelta
 from os import get_terminal_size

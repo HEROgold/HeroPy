@@ -1,4 +1,6 @@
 """Module for configuration for the database package."""
+from __future__ import annotations
+
 from pathlib import Path
 
 from confkit import Config

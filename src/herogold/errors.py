@@ -1,5 +1,10 @@
 """Module for enhancing python's error handling capabilities."""
-from collections.abc import Callable, Iterable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 
 def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | Exception]:
