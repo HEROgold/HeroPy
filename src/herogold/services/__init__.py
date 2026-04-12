@@ -1,6 +1,7 @@
+from __future__ import annotations
 
 try:
-    import watchdog
+    import watchdog  # noqa: F401
 except ImportError as e:
     msg = (
         "Failed to import required dependencies for the database package. "
