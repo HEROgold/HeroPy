@@ -218,3 +218,4 @@ __marimo__/
 # Lock files
 
 uv.lock
+db_config.ini
