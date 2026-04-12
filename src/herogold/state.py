@@ -2,6 +2,7 @@
 
 Copied and modified from: https://github.com/ArjanCodes/examples/blob/main/2026/state/final.py
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable

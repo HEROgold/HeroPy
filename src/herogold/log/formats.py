@@ -1,4 +1,5 @@
 """Module that contains some formatting presets."""
+
 from __future__ import annotations
 
 from logging import Formatter

@@ -54,6 +54,7 @@ class _Sentinel:
 
 MISSING: Any = _Sentinel()
 
+
 def create_sentinel() -> Any:  # noqa: ANN401
     """Create a new sentinel object which is falsy with all other objects."""
     return _Sentinel()

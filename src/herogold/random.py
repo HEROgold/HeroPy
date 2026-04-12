@@ -1,4 +1,5 @@
 """Random utilities for rolling and selection based on probabilities."""
+
 from __future__ import annotations
 
 import random

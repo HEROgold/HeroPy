@@ -1,4 +1,5 @@
 """Logic module helping with logical operations."""
+
 from __future__ import annotations
 
 from .action import Action, action

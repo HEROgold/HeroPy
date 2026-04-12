@@ -2,6 +2,7 @@
 
 This module should make the SQLModel classes more like a `Repository` pattern.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -79,8 +80,7 @@ class BaseModel(BaseSQLModel):
         """Return the total count of records in the model."""
         if not cls.__count or cls.session.identity_map.check_modified():
             cls.__count = cls.session.exec(
-                select(func.count(col(cls.id)))
-                .where(cls.deleted_at == None),  # noqa: E711
+                select(func.count(col(cls.id))).where(cls.deleted_at == None),  # noqa: E711
             ).one()
         return cls.__count
 
@@ -140,10 +140,12 @@ class BaseModel(BaseSQLModel):
         self.logger.debug("Deleting record: %s", self, extra={"record": self})
         session = self._get_session(session)
         if known := session.exec(
-            select(self.__class__).where(
+            select(self.__class__)
+            .where(
                 self.__class__.id == self.id,
-                self.__class__.deleted_at == None, # noqa: E711
-            ).with_for_update(),
+                self.__class__.deleted_at == None,  # noqa: E711
+            )
+            .with_for_update(),
         ).first():
             known.deleted_at = self.__cur_utc()
             session.commit()
@@ -197,4 +199,3 @@ class BaseModel(BaseSQLModel):
         )
         session = cls._get_session(session)
         return session.exec(select(cls).where(column == value))
-

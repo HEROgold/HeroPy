@@ -1,4 +1,5 @@
 """A simple progress bar for terminal output."""
+
 from __future__ import annotations
 
 import math
@@ -79,10 +80,11 @@ class ProgressBar:
 
     def calculate_space_count(self, bar_area: int, bar: str) -> int:
         """Calculate the number of spaces to use in the progress bar."""
-        return (math.floor(bar_area - len(bar)) - len(self.end))
+        return math.floor(bar_area - len(bar)) - len(self.end)
 
     def calculate_bar_area(self) -> int:
         """Calculate the available width for the progress bar."""
+        # fmt: off  - disable auto-formatting for readability
         return (
             get_terminal_size().columns
             - len(self.message)
@@ -90,6 +92,7 @@ class ProgressBar:
             - len(self.arrow)
             - len(self.end)
         )
+        # fmt: on
 
     def generate_bar(self, bar_count: int) -> str:
         """Generate the progress bar string based on the number of characters."""
@@ -108,12 +111,13 @@ class ProgressBar:
         """Reset the start time to the current time."""
         self._start_time = datetime.now(tz=UTC)
 
+
 class PreciseProgressBar(ProgressBar):
     """A progress bar that supports fractional progress with specified precision."""
 
     arrow = ""
     bar = "⠿"
-    partial_bars: ClassVar[list[str]] = ["⠄","⠆","⠇","⠧","⠷","⠿"]
+    partial_bars: ClassVar[list[str]] = ["⠄", "⠆", "⠇", "⠧", "⠷", "⠿"]
 
     @ProgressBar.current.setter
     def current(self, value: float) -> None:
@@ -144,6 +148,7 @@ class PreciseProgressBar(ProgressBar):
     def generate_bar(self, bar_count: int) -> str:
         return super().generate_bar(bar_count) + self.partial_bar
 
+
 class MultiProgress(list[ProgressBar]):
     """A class to manage multiple progress bars."""
 
@@ -159,6 +164,7 @@ class MultiProgress(list[ProgressBar]):
         msg += self.UP * (len(self.bars) - 1)
         return msg
 
+
 def main() -> None:
     """Demonstrate the progress bar functionality."""
     while True:
@@ -166,8 +172,8 @@ def main() -> None:
         normal = ProgressBar(100)
         bars = MultiProgress([precise, normal])
         for i in range(10000):
-            precise.update(i/100)
-            normal.update(i/100)
+            precise.update(i / 100)
+            normal.update(i / 100)
             print(bars, end="\r")  # noqa: T201
             sleep(0.1)
 

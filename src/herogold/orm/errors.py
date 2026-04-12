@@ -1,4 +1,5 @@
 """Module with custom exceptions for the database package."""
+
 from __future__ import annotations
 
 

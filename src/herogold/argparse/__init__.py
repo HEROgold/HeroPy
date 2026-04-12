@@ -1,4 +1,5 @@
 """Argument parsing utilities."""
+
 from __future__ import annotations
 
 from .argument import Actions, Argument, parser

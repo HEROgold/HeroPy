@@ -1,4 +1,5 @@
 """Package for logging utilities."""
+
 from __future__ import annotations
 
 from .formats import Formatter, formatter, message, prefix

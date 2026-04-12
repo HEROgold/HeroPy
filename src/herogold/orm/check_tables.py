@@ -20,11 +20,13 @@ YELLOW = "\x1b[33m"
 RED = "\x1b[31m"
 RESET = "\x1b[0m"
 
+
 class TableCheck:
     """Namespace for table check functions."""
 
     models_dir = DbConfig("models")
     """Directory where the table classes are defined."""
+
 
 def find_table_classes(py_path: Path) -> list[str]:
     """Find all class names in the given Python file that define SQLModel tables."""
@@ -50,6 +52,7 @@ def find_table_classes(py_path: Path) -> list[str]:
                 names.append(node.name)
 
     return names
+
 
 def load_all_list(init_path: Path) -> list[str]:
     """Load the __all__ list from the given __init__.py file."""
@@ -77,6 +80,7 @@ def load_all_list(init_path: Path) -> list[str]:
                     add_decoded_item(items, elt)
             return items
     return []
+
 
 def add_decoded_item(items: list[str], elt: ast.Constant) -> None:
     """Add a decoded item to the list based on the type of the constant."""

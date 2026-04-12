@@ -3,6 +3,7 @@
 Allows you to change a file, without affecting the original file until the context is exited
 successfully.
 """
+
 from __future__ import annotations
 
 import shutil
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 temp_dir = Path(mkdtemp())
 
 DIRECTORY_NOT_EMPTY_CODE = 145
+
 
 class TempFile:
     """Context manager for creating and managing a temporary file copy."""

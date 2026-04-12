@@ -1,10 +1,12 @@
 """runtime Type checking utilities."""  # noqa: INP001  Avoids `from typing` imports.
+
 from __future__ import annotations
 
 from types import NoneType, get_original_bases
 from typing import Any, get_args, get_origin
 
 NONE = (None, type(None), NoneType)
+
 
 def contains_sub_type(needle: object, haystack: object) -> bool:
     """Check if a subtype exists somewhere in the expected type."""
@@ -25,6 +27,7 @@ def contains_sub_type(needle: object, haystack: object) -> bool:
     if any(base is Any for base in flat_bases):
         return True
     return any(needle is base for base in flat_bases)
+
 
 # Aliases
 has_sub_type = contains_sub_type

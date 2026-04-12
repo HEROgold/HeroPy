@@ -1,4 +1,5 @@
 """Module that provides a base APIModel class for API interactions with SQLModel instances."""
+
 from __future__ import annotations
 
 from collections.abc import Generator
@@ -45,7 +46,7 @@ class PaginatedResponse[T: type[BaseModel]]:
         return f"{self.base_url}?page={self.page}&size={self.size}"
 
     @property
-    def next(self) -> PaginatedResponse[T] | None: # pyright: ignore[reportIndexIssue]
+    def next(self) -> PaginatedResponse[T] | None:  # pyright: ignore[reportIndexIssue]
         """Generate the URL for the next page if it exists."""
         if self.page < self.total_pages:
             return PaginatedResponse[T](self.model, self.page + 1)
@@ -69,6 +70,7 @@ class PaginatedResponse[T: type[BaseModel]]:
             select(self.model).offset(offset).limit(self.size),
         ).all()
         yield from self.next or []
+
 
 class APIModel[T: type[BaseModel]]:
     """Base APIModel class with custom methods for API interactions."""
@@ -137,7 +139,7 @@ class APIModel[T: type[BaseModel]]:
         order: Literal["asc", "desc"] = "asc",
         page: int = 1,
         limit: int = 100,
-        **kwargs: str, # Allows for dynamic fieldname filtering based on query parameters
+        **kwargs: str,  # Allows for dynamic fieldname filtering based on query parameters
     ) -> Generator[T]:
         """Get all records with optional sorting, pagination, and filtering."""
         q = self._build_filtered_query(kwargs)

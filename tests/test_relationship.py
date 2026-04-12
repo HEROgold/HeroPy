@@ -11,6 +11,7 @@ from herogold.orm.utils import Relationship, get_foreign_key
 class Other(BaseModel):
     pass
 
+
 class HasRel(BaseModel):
     # relationship pointing at Other, not optional
     other = Relationship(Other)
@@ -79,6 +80,7 @@ def test_selfref_behavior():
 
 
 # regression: ensure typing does not break at runtime
+
 
 def test_foreign_key_helper_accepts_generic():
     # simply call get_foreign_key with a subclass

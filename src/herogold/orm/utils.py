@@ -1,4 +1,5 @@
 """Module with helper methods for the database package."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Optional, TypeVar, overload  # noqa: F401
@@ -31,6 +32,7 @@ class Relationship[T: SQLModel]:
     """
 
     if TYPE_CHECKING:  # static-only overloads
+
         @overload
         def __init__(self, related_model: type[T], *, optional: bool = False) -> None: ...
         @overload
@@ -131,4 +133,3 @@ class Relationship[T: SQLModel]:
     def _get_optional(self, instance: T, foreign_key: str) -> T | None:
         """Return value stored in ``foreign_key`` attribute (may be ``None``)."""
         return getattr(instance, foreign_key)
-

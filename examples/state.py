@@ -1,4 +1,5 @@
 """Example taken from https://github.com/ArjanCodes/examples/blob/main/2026/state/final.py"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

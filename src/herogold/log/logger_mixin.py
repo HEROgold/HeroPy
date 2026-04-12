@@ -1,4 +1,5 @@
 """A module that contains a mixing class, that provides the subclasses with a logging.Logger instance."""
+
 from __future__ import annotations
 
 import logging
@@ -9,13 +10,16 @@ from .formats import formatter
 
 __all__ = ["LoggerMixin"]
 
+
 def ensure_log_directory(directory: str = "logs") -> str:
     """Ensure that the log directory exists and return its path."""
     log_dir = Path(directory)
     log_dir.mkdir(exist_ok=True)
     return str(log_dir)
 
+
 # In python 3.14 > Use t''
+
 
 class LoggerMixin:
     """A mixin class to provide a logger for subclasses."""
@@ -51,7 +55,7 @@ class LoggerMixin:
                 if not logger.handlers:
                     cls.__setup_class_logger(logger, base.__name__)
 
-                base.logger = logger # ty:ignore[invalid-assignment]
+                base.logger = logger  # ty:ignore[invalid-assignment]
 
     @classmethod
     def __setup_global_logger(cls) -> None:
@@ -101,8 +105,7 @@ class LoggerMixin:
             # (Avoid duplicating handlers on repeated lazy initializations.)
             expected_log_filename = f"{class_name}.log"
             has_handler = any(
-                isinstance(h, logging.FileHandler) and h.baseFilename.endswith(expected_log_filename)
-                for h in logger.handlers
+                isinstance(h, logging.FileHandler) and h.baseFilename.endswith(expected_log_filename) for h in logger.handlers
             )
             if not has_handler:
                 self.__setup_class_logger(logger, class_name)
@@ -112,7 +115,7 @@ class LoggerMixin:
     @logger.setter
     def logger(self, value: logging.Logger) -> None:
         """Set the logger instance for the class."""
-        if not isinstance(value, logging.Logger): # pyright: ignore[reportUnnecessaryIsInstance] # ensure robustness.
+        if not isinstance(value, logging.Logger):  # pyright: ignore[reportUnnecessaryIsInstance] # ensure robustness.
             msg = "Logger must be an instance of logging.Logger"
             raise TypeError(msg)
         self.__logger = value

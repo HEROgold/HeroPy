@@ -1,4 +1,5 @@
 """Enforce strict attribute definitions on classes."""  # noqa: INP001
+
 from __future__ import annotations
 
 from typing import Self
@@ -25,6 +26,7 @@ class StrictAttributesMeta(type):
 
         return cls
 
+
 class StrictAttributes(metaclass=StrictAttributesMeta):
     """Base class that enforces strict attribute definitions."""
 
@@ -37,6 +39,7 @@ class StrictAttributes(metaclass=StrictAttributesMeta):
             )
             raise AttributeError(msg)
         object.__setattr__(self, name, value)
+
 
 def strict_attributes(cls: type) -> type:
     """Apply strict attribute enforcement to a class.

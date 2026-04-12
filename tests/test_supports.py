@@ -15,25 +15,31 @@ class DummyGT:
     def __gt__(self, other: object) -> bool:
         return True
 
+
 class DummyLT:
     def __lt__(self, other: object) -> bool:
         return True
+
 
 class DummyGE:
     def __ge__(self, other: object) -> bool:
         return True
 
+
 class DummyLE:
     def __le__(self, other: object) -> bool:
         return True
+
 
 class DummyEq:
     def __eq__(self, other: object) -> bool:
         return True
 
+
 class DummyNe:
     def __ne__(self, other: object) -> bool:
         return True
+
 
 class DummyALL:
     def __gt__(self, other: object) -> bool:
@@ -54,23 +60,30 @@ class DummyALL:
     def __ne__(self, other: object) -> bool:
         return True
 
+
 def test_supports_gt_protocol() -> None:
     assert isinstance(DummyGT(), SupportsGT)
+
 
 def test_supports_lt_protocol() -> None:
     assert isinstance(DummyLT(), SupportsLT)
 
+
 def test_supports_ge_protocol() -> None:
     assert isinstance(DummyGE(), SupportsGE)
+
 
 def test_supports_le_protocol() -> None:
     assert isinstance(DummyLE(), SupportsLE)
 
+
 def test_supports_eq_protocol() -> None:
     assert isinstance(DummyEq(), SupportsEq)
 
+
 def test_supports_ne_protocol() -> None:
     assert isinstance(DummyNe(), SupportsNe)
+
 
 def test_supports_comparison_protocol() -> None:
     assert isinstance(DummyALL(), SupportsGT)
@@ -80,6 +93,7 @@ def test_supports_comparison_protocol() -> None:
     assert isinstance(DummyALL(), SupportsEq)
     assert isinstance(DummyALL(), SupportsNe)
     assert isinstance(DummyALL(), SupportsComparison)
+
 
 def test_builtin_types() -> None:
     assert isinstance(5, SupportsGT)

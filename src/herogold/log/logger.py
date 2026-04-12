@@ -1,5 +1,6 @@
 # type: ignore[reportIncompatibleMethodOverride]
 """Custom logger implementation for python 3.14."""
+
 from __future__ import annotations
 
 from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARNING
@@ -50,7 +51,11 @@ class Logger(LoggingLogger):
         extra: Mapping[str, object] | None = None,
     ) -> None:
         return super().debug(
-            *self._build_msg(msg), exc_info=exc_info, stack_info=stack_info, stacklevel=stacklevel, extra=extra,
+            *self._build_msg(msg),
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
         )
 
     @override
@@ -74,7 +79,11 @@ class Logger(LoggingLogger):
         extra: Mapping[str, object] | None = None,
     ) -> None:
         return super().warning(
-            *self._build_msg(msg), exc_info=exc_info, stack_info=stack_info, stacklevel=stacklevel, extra=extra,
+            *self._build_msg(msg),
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
         )
 
     @override
@@ -87,7 +96,11 @@ class Logger(LoggingLogger):
         extra: Mapping[str, object] | None = None,
     ) -> None:
         return super().error(
-            *self._build_msg(msg), exc_info=exc_info, stack_info=stack_info, stacklevel=stacklevel, extra=extra,
+            *self._build_msg(msg),
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
         )
 
     @override
@@ -100,7 +113,11 @@ class Logger(LoggingLogger):
         extra: Mapping[str, object] | None = None,
     ) -> None:
         return super().exception(
-            *self._build_msg(msg), exc_info=exc_info, stack_info=stack_info, stacklevel=stacklevel, extra=extra,
+            *self._build_msg(msg),
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
         )
 
     @override
@@ -113,7 +130,11 @@ class Logger(LoggingLogger):
         extra: Mapping[str, object] | None = None,
     ) -> None:
         return super().critical(
-            *self._build_msg(msg), exc_info=exc_info, stack_info=stack_info, stacklevel=stacklevel, extra=extra,
+            *self._build_msg(msg),
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
         )
 
     @override
@@ -123,10 +144,12 @@ class Logger(LoggingLogger):
     @override
     def log(self, level: int, msg: Template) -> None:  # noqa: PLR0911
         super().log(*self._build_msg)
+        # fmt: off One liners are cleaner here. Even though they violate pep8, they are more readable in this case.
         if level <= CRITICAL: return self.critical(msg)
         if level <= ERROR: return self.error(msg)
         if level <= WARNING: return self.warning(msg)
         if level <= INFO: return self.info(msg)
         if level <= DEBUG: return self.debug(msg)
         if level <= NOTSET: return super().log(0, msg)
+        # fmt: on
         return None

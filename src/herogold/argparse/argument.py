@@ -1,4 +1,5 @@
 """Argument descriptor for argparse integration."""
+
 from __future__ import annotations
 
 import re
@@ -40,20 +41,26 @@ class ColorArgumentParser(ArgumentParser):
 
     def regex_flag(self, string: str) -> str:
         """Format an option flag (e.g. -h, --help) for regex replacement."""
+
         def repl_flag(match: re.Match) -> str:
             return self.format_argument(match.group(0))
+
         return re.sub(r"(?<![\w-])(-{1,2}[\w-]+)(?![\w-])", repl_flag, string)
 
     def regex_option(self, string: str) -> str:
         """Format an option name (e.g. ENVIRONMENT) for regex replacement."""
+
         def repl_value(match: re.Match) -> str:
             return self.format_option(match.group(0))
+
         return re.sub(r"\b([A-Z_][A-Z0-9_\-]*)\b", repl_value, string)
 
     def regex_type(self, string: str) -> str:
         """Format a type name (e.g. str, int) for regex replacement at end of line, only color the type name."""
+
         def repl_type(match: re.Match) -> str:
             return f" - {self.format_type(match.group(1))}"
+
         # Match ' - <letters>' at end of line only, only color the type name
         return re.sub(r" - ([a-zA-Z]+)$", repl_type, string, flags=re.MULTILINE)
 
@@ -94,9 +101,9 @@ class ColorArgumentParser(ArgumentParser):
     def format_usage_line(self, line: str) -> str:
         """Override to colorize usage text."""
         # Only show script name, -h/--help, and a generic abstraction
-        script = self.format_program(line[len(self.cls.usage):].split(maxsplit=1)[0])
+        script = self.format_program(line[len(self.cls.usage) :].split(maxsplit=1)[0])
         usage_line = f"{self.cls.usage}{script} [-h] [--argument OPTION]"
-        rest = usage_line[len(self.cls.usage):]
+        rest = usage_line[len(self.cls.usage) :]
         return self.format_heading(self.cls.usage) + self.format_command(rest)
 
     def format_help(self) -> str:
@@ -114,7 +121,9 @@ class ColorArgumentParser(ArgumentParser):
                 self.regex_formatter(lines, i)
         return "\n".join(lines)
 
+
 parser = ColorArgumentParser()
+
 
 class Actions(Enum):
     """Possible argument actions."""
@@ -122,7 +131,7 @@ class Actions(Enum):
     STORE = "store"
     STORE_TRUE = "store_true"
     STORE_FALSE = "store_false"
-    STORE_BOOL = "store_bool" # Custom action to store bools
+    STORE_BOOL = "store_bool"  # Custom action to store bools
     STORE_CONST = "store_const"
     APPEND = "append"
     APPEND_CONST = "append_const"
@@ -130,6 +139,7 @@ class Actions(Enum):
     COUNT = "count"
     HELP = "help"
     VERSION = "version"
+
 
 # Type alias for argparse type
 ArgumentType = Callable[[str], T]

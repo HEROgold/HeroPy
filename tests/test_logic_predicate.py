@@ -23,6 +23,7 @@ def test_predicate_combinators_and_not() -> None:
     assert (p_true | p_false)() is True
     assert (~p_true)() is False
 
+
 def test_predicate_decorator_only_args() -> None:
     @predicate(5, 6, threshold=10)
     def sum_greater_than(x: int, y: int, threshold: int = 10) -> bool:
@@ -32,6 +33,7 @@ def test_predicate_decorator_only_args() -> None:
     p = sum_greater_than()
     assert isinstance(p, Predicate)
     assert p() is True
+
 
 def test_predicate_decorator_no_args_accepts_required_arguments() -> None:
     @predicate()
@@ -56,6 +58,7 @@ def test_predicate_decorator_merges_args_kwargs() -> None:
     # args merged: earlier 2 then 1 -> function receives (2, 1)
     assert p() is True
 
+
 def test_combining_predicates() -> None:
     p1 = Predicate(lambda: True)
     p2 = Predicate(lambda: False)
@@ -71,6 +74,7 @@ def test_combining_predicates() -> None:
     assert p_and() is False
     assert p_or() is True
     assert p_not() is True
+
 
 def test_combining_predicate_wrappers() -> None:
     @predicate(3)

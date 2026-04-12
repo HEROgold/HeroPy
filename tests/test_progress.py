@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 
 
 def test_progress_bar_bar_count_clamps_to_range(monkeypatch: pytest.MonkeyPatch) -> None:
-    def mock_calculate_bar_area() -> int: return 20
+    def mock_calculate_bar_area() -> int:
+        return 20
 
     monkeypatch.setattr(ProgressBar, "calculate_bar_area", mock_calculate_bar_area)
 
@@ -38,7 +39,7 @@ def test_progress_bar_string_representation(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_progress_bar_reset_timer() -> None:
     bar = ProgressBar(total=1)
-    bar._start_time = datetime.now(tz=UTC) - timedelta(seconds=10) # type: ignore[reportPrivateUsage]
+    bar._start_time = datetime.now(tz=UTC) - timedelta(seconds=10)  # type: ignore[reportPrivateUsage]
 
     assert bar.elapsed_time > timedelta(seconds=0)
 

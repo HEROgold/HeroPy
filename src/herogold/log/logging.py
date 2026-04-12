@@ -1,4 +1,5 @@
 """Pass-through of logging module, with custom Logger patches."""
+
 from __future__ import annotations
 
 import sys
@@ -53,6 +54,7 @@ from .formats import BASIC_FORMAT
 # Patch logging for Python 3.14+
 if sys.version_info >= (3, 14):
     from .logger import Logger
+
     logger = Logger("root")
     getLogger = logger.getChild  # noqa: N816
     debug = logger.debug

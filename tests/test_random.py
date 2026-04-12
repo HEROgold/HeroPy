@@ -29,7 +29,9 @@ def test_recursive_rolls_counts_expected_successes(monkeypatch: pytest.MonkeyPat
 
 
 def test_recursive_selection_without_weights(monkeypatch: pytest.MonkeyPatch) -> None:
-    def mock_recursive_rolls(target: float, rolls: int = 1) -> int: return 2
+    def mock_recursive_rolls(target: float, rolls: int = 1) -> int:
+        return 2
+
     monkeypatch.setattr(random_module, "recursive_rolls", mock_recursive_rolls)
 
     captured: dict[str, Any] = {}
@@ -50,7 +52,9 @@ def test_recursive_selection_without_weights(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_recursive_selection_with_weights(monkeypatch: pytest.MonkeyPatch) -> None:
-    def mock_recursive_rolls(target: float, rolls: int = 1) -> int: return 3
+    def mock_recursive_rolls(target: float, rolls: int = 1) -> int:
+        return 3
+
     monkeypatch.setattr(random_module, "recursive_rolls", mock_recursive_rolls)
 
     captured: dict[str, Any] = {}

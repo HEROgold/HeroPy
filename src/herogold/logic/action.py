@@ -1,4 +1,5 @@
 """Defines an Action class and a decorator to create actions from functions."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
