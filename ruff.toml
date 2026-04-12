@@ -7,7 +7,6 @@ preview=false
 [lint]
 exclude = ["build", "dist", "venv"]
 select = ["ALL"]
-extend-select = ["I002"]
 ignore = [
     "E701"
 ]
