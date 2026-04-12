@@ -84,7 +84,8 @@ class ProgressBar:
 
     def calculate_bar_area(self) -> int:
         """Calculate the available width for the progress bar."""
-        # fmt: off  - disable auto-formatting for readability
+        # - disable auto-formatting for readability
+        # fmt: off
         return (
             get_terminal_size().columns
             - len(self.message)
