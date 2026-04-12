@@ -11,11 +11,11 @@ from .formats import formatter
 __all__ = ["LoggerMixin"]
 
 
-def ensure_log_directory(directory: str = "logs") -> str:
+def ensure_log_directory(directory: str = "logs") -> Path:
     """Ensure that the log directory exists and return its path."""
     log_dir = Path(directory)
     log_dir.mkdir(exist_ok=True)
-    return str(log_dir)
+    return log_dir
 
 
 # In python 3.14 > Use t''
@@ -27,7 +27,7 @@ class LoggerMixin:
     __logger: logging.Logger
     __furthest_child_name = None  # Track the name of the furthest child class
     __global_logger: logging.Logger | None = None
-    __log_directory: str = ensure_log_directory()
+    __log_directory: Path = ensure_log_directory()
     __formatter = formatter
 
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
