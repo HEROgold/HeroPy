@@ -89,14 +89,3 @@ def test_async_workerpool_waits_for_completed_tasks() -> None:
             assert [i async for i in pool.pop_errors()] == []
 
     asyncio.run(run())
-
-
-def main() -> None:
-    test_workerpool_sort_integers()
-    test_workerpool_extracts_zero_division_error()
-    test_async_workerpool_sort_integers()
-    test_async_workerpool_extracts_zero_division_error()
-
-
-if __name__ == "__main__":
-    main()
