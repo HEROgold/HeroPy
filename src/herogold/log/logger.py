@@ -142,8 +142,7 @@ class Logger(LoggingLogger):
         return self.critical(msg)
 
     @override
-    def log(self, level: int, msg: Template) -> None:  # noqa: PLR0911
-        super().log(*self._build_msg)
+    def log(self, level: int, msg: Template) -> None:
         # One liners are cleaner here. Even though they violate pep8, they are more readable in this case.
         # fmt: off
         if level <= CRITICAL: return self.critical(msg)
@@ -151,6 +150,6 @@ class Logger(LoggingLogger):
         if level <= WARNING: return self.warning(msg)
         if level <= INFO: return self.info(msg)
         if level <= DEBUG: return self.debug(msg)
-        if level <= NOTSET: return super().log(0, msg)
-        # fmt: on
+        if level <= NOTSET: return super().log(0, *self._build_msg(msg))
         return None
+        # fmt: on
