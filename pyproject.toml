@@ -22,6 +22,9 @@ orm-api = ["herogold[orm]", "herogold[api]"]
 all = [
     "herogold[orm-api]"
 ]
+services = [
+    "watchdog>=6.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/HEROgold/HeroPy"
