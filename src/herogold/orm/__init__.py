@@ -1,4 +1,4 @@
-"""The database package for the Winter Dragon project."""
+"""The ORM package."""
 
 from __future__ import annotations
 
