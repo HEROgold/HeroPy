@@ -52,7 +52,7 @@ def with_group[**P, T](func: Callable[P, Iterable[T | Exception]]) -> Callable[P
     """Collect exceptions from an iterable of results and raise them as an ExceptionGroup."""
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> Iterable[T] | ExceptionGroup:
-        results = func(*args, **kwargs)
+        results: Iterable[T | Exception] = func(*args, **kwargs)
         exceptions: list[Exception] = []
         values: list[T] = []
 
@@ -77,6 +77,10 @@ if __name__ == "__main__":
     def test(i: int) -> float:  # noqa: D103
         return 10 / i
 
+    @with_known_exception(ZeroDivisionError)
+    def test2(i: int) -> float:  # noqa: D103
+        return 10 / i
+
     @with_group
     def test_group() -> Generator[float | Exception]:  # noqa: D103
         return (test(i) for i in range(-2, 3))
@@ -84,10 +88,12 @@ if __name__ == "__main__":
     def test_generator() -> Generator[float | Exception]:  # noqa: D103
         return (test(i) for i in range(-2, 3))
 
-    r1 = test(0)
-    r2 = test_group()
-    r3 = test_generator()
+    r1: int | float | Exception = test(0)
+    r2: float | ZeroDivisionError = test2(0)
+    r3: Iterable[int | float] | ExceptionGroup[Exception] = test_group()
+    r4: Generator[int | float | Exception, None, None] = test_generator()
 
     print(r1)  # noqa: T201
     print(r2)  # noqa: T201
-    print(list(r3))  # noqa: T201
+    print(r3)  # noqa: T201
+    print(list(r4))  # noqa: T201
