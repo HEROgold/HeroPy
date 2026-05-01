@@ -12,17 +12,40 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterable
 
+def _return_exception[**P, T](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T | Exception:
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:  # noqa: BLE001
+        return e
 
 def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | Exception]:
     """Wrap a function and returns any thrown exception."""
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | Exception:
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:  # noqa: BLE001
-            return e
+        return _return_exception(func, *args, **kwargs)
 
     return wrapper
+
+
+def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable[[Callable[P, F | E]], Callable[P, F | E]]:
+    """Wrap a function and returns any thrown exception if it's any instance of the provided exception types."""
+    exception_types = tuple(exceptions)
+
+    def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | E]:
+        """Wrap a function and returns any thrown exception."""
+
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | E:
+            result = _return_exception(func, *args, **kwargs)
+            if isinstance(result, exception_types):
+                return result
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+        return wrapper
+
+    return with_exception
 
 
 def with_group[**P, T](func: Callable[P, Iterable[T | Exception]]) -> Callable[P, Iterable[T] | ExceptionGroup]:

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from typing import Protocol, Self, SupportsAbs, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, Self, SupportsAbs, runtime_checkable
+
+from herogold.errors import with_known_exception
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 # Protocols for comparison operations
 
@@ -156,6 +161,25 @@ class SupportsBitNumeric[T](SupportsNumeric[T], SupportsBitwise, Protocol):
 class SupportsBitComparison(SupportsComparison, SupportsBitwise, Protocol):
     """A protocol for types that support both comparison and bitwise operations."""
 
+# Supports for descriptor operations
+
+@runtime_checkable
+class SupportsDelete(Protocol):
+    def __delete__(self, instance: object) -> None: ...
+
+@runtime_checkable
+class SupportsGet[Value, Owner](Protocol):
+    @with_known_exception(AttributeError)
+    def __get__(self, instance: Owner, owner: type[Owner]) -> Value | Exception: ...
+
+@runtime_checkable
+class SupportsSet[Value, Owner](Protocol):
+    def __set__(self, instance: Owner, value: Value) -> None: ...
+
+@runtime_checkable
+class SupportsSetName[Owner](Protocol):
+    def __set_name__(self, owner: type[Owner], name: str) -> None: ...
+
 
 # Protocols for container operations
 
@@ -163,3 +187,11 @@ class SupportsBitComparison(SupportsComparison, SupportsBitwise, Protocol):
 @runtime_checkable
 class SupportsLen(Protocol):
     def __len__(self) -> int: ...
+
+@runtime_checkable
+class SupportsContains[T](Protocol):
+    def __contains__(self, item: T) -> bool: ...
+
+@runtime_checkable
+class SupportsIter[T](Protocol):
+    def __iter__(self) -> Iterator[T]: ...
