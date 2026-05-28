@@ -5,6 +5,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
+# Matches names that are true dunders: a non-underscore char immediately before
+# the trailing ``__`` (e.g. ``__init__``, ``__var__``).  Names like ``___``
+# do not match and will be treated as private (mangled) names.
+_DUNDER_RE = re.compile(r"[^_]__$")
+
 
 class ManglingError(Exception):
     """Custom exception for mangling errors."""
@@ -16,8 +21,14 @@ class InvalidNameError(ManglingError):
     def __init__(self, name: str) -> None:
         """Initialize the InvalidNameError with the invalid name."""
         super().__init__(
-            f"Invalid name '{name}' for mangling. Names must be valid Python identifiers and cannot start with a digit."
+            f"Invalid name '{name}' for mangling. Names must be valid Python identifiers and cannot start with a digit.",
         )
+
+
+def _validate_name(name: str) -> None:
+    """Raise :exc:`InvalidNameError` if *name* is not a valid, non-digit-leading identifier."""
+    if not name.isidentifier() or name[0].isdigit():
+        raise InvalidNameError(name)
 
 
 def mangle(cls: type, name: str) -> str:
@@ -30,11 +41,8 @@ def mangle(cls: type, name: str) -> str:
     :raises InvalidNameError: If *name* is not a valid Python identifier or
         starts with a digit.
     """
-    if not name.isidentifier() or name[0].isdigit():
-        raise InvalidNameError(name)
-    # A "dunder" has a non-underscore character immediately before its trailing `__`
-    # (e.g. ``__init__``, ``__var__``).  Names like ``___`` do not qualify.
-    if name.startswith("__") and re.search(r"[^_]__$", name):
+    _validate_name(name)
+    if name.startswith("__") and _DUNDER_RE.search(name):
         return name
     if name.startswith("__"):
         return f"_{cls.__name__}{name}"
@@ -56,8 +64,7 @@ def get_mangled_attribute(cls: type, owner: type, name: str) -> Any:  # noqa: AN
         starts with a digit.
     :raises AttributeError: If the attribute does not exist in *owner*.
     """
-    if not name.isidentifier() or name[0].isdigit():
-        raise InvalidNameError(name)
+    _validate_name(name)
     dunder_name = f"__{name}__"
     try:
         return vars(owner)[dunder_name]
