@@ -6,6 +6,7 @@ from herogold.errors import with_known_exception
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from types import TracebackType
 
 # Protocols for comparison operations
 
@@ -195,3 +196,14 @@ class SupportsContains[T](Protocol):
 @runtime_checkable
 class SupportsIter[T](Protocol):
     def __iter__(self) -> Iterator[T]: ...
+
+
+@runtime_checkable
+class SupportsWith[T](Protocol):
+    def __enter__(self) -> T: ...
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None: ...
