@@ -1,12 +1,12 @@
-"""A module that contains a mixing class, that provides the subclasses with a logging.Logger instance."""
+"""A module that contains a mixing class, that provides the subclasses with a Logger instance."""
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any
 
 from .formats import formatter
+from .logging import DEBUG, INFO, FileHandler, Formatter, Logger, StreamHandler, getLogger
 
 __all__ = ["LoggerMixin"]
 
@@ -18,15 +18,12 @@ def ensure_log_directory(directory: str = "logs") -> Path:
     return log_dir
 
 
-# In python 3.14 > Use t''
-
-
 class LoggerMixin:
     """A mixin class to provide a logger for subclasses."""
 
-    __logger: logging.Logger
-    __furthest_child_name = None  # Track the name of the furthest child class
-    __global_logger: logging.Logger | None = None
+    __logger: Logger
+    __furthest_child_name: str | None = None  # Track the name of the furthest child class
+    __global_logger: Logger | None = None
     __log_directory: Path = ensure_log_directory()
     __formatter = formatter
 
@@ -49,25 +46,25 @@ class LoggerMixin:
         for base in reversed(cls.mro()):
             if issubclass(base, LoggerMixin) and hasattr(base, "__furthest_child_name"):
                 logger_name = f"{base.__module__}.{LoggerMixin.__furthest_child_name}"
-                logger = logging.getLogger(logger_name)
+                logger = getLogger(logger_name)
 
                 # If the logger doesn't have handlers, set up class-specific file handler
                 if not logger.handlers:
                     cls.__setup_class_logger(logger, base.__name__)
 
-                base.logger = logger  # ty:ignore[invalid-assignment]
+                base.__logger = logger  # noqa: SLF001
 
     @classmethod
     def __setup_global_logger(cls) -> None:
         """Set up the global logger that captures all logs."""
-        global_logger = logging.getLogger()
-        global_logger.setLevel(logging.DEBUG)
+        global_logger = getLogger()
+        global_logger.setLevel(DEBUG)
 
         # Create global file handler
         global_log_file = Path(cls.__log_directory) / "_global.log"
-        file_handler = logging.FileHandler(global_log_file)
+        file_handler = FileHandler(global_log_file)
         file_handler.setFormatter(cls.__formatter)
-        file_handler.setLevel(logging.INFO)
+        file_handler.setLevel(INFO)
 
         # Add handler to root logger
         global_logger.addHandler(file_handler)
@@ -76,22 +73,22 @@ class LoggerMixin:
         LoggerMixin.__global_logger = global_logger
 
     @classmethod
-    def __setup_class_logger(cls, logger: logging.Logger, class_name: str) -> None:
+    def __setup_class_logger(cls, logger: Logger, class_name: str) -> None:
         """Set up a logger specific to a class."""
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(DEBUG)
 
         # Create class-specific file handler
         class_log_file = Path(cls.__log_directory) / f"{class_name}.log"
-        file_handler = logging.FileHandler(class_log_file)
+        file_handler = FileHandler(class_log_file)
         file_handler.setFormatter(cls.__formatter)
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(DEBUG)
 
         # Add handler to logger
         logger.addHandler(file_handler)
-        logger.addHandler(logging.StreamHandler())
+        logger.addHandler(StreamHandler())
 
     @property
-    def logger(self) -> logging.Logger:
+    def logger(self) -> Logger:
         """Return the logger instance for the class."""
         if LoggerMixin.__global_logger is None:
             LoggerMixin.__setup_global_logger()
@@ -99,13 +96,13 @@ class LoggerMixin:
         if not hasattr(self, "_LoggerMixin__logger"):
             class_name = type(self).__name__
             logger_name = f"{type(self).__module__}.{class_name}"
-            logger = logging.getLogger(logger_name)
+            logger = getLogger(logger_name)
 
             # Attach a file handler if one matching this class hasn't been added.
             # (Avoid duplicating handlers on repeated lazy initializations.)
             expected_log_filename = f"{class_name}.log"
             has_handler = any(
-                isinstance(h, logging.FileHandler) and h.baseFilename.endswith(expected_log_filename) for h in logger.handlers
+                isinstance(h, FileHandler) and h.baseFilename.endswith(expected_log_filename) for h in logger.handlers
             )
             if not has_handler:
                 self.__setup_class_logger(logger, class_name)
@@ -113,10 +110,10 @@ class LoggerMixin:
         return self.__logger
 
     @logger.setter
-    def logger(self, value: logging.Logger) -> None:
+    def logger(self, value: Logger) -> None:
         """Set the logger instance for the class."""
-        if not isinstance(value, logging.Logger):  # pyright: ignore[reportUnnecessaryIsInstance] # ensure robustness.
-            msg = "Logger must be an instance of logging.Logger"
+        if not isinstance(value, Logger):  # pyright: ignore[reportUnnecessaryIsInstance] # ensure robustness.
+            msg = "Logger must be an instance of Logger"
             raise TypeError(msg)
         self.__logger = value
 
@@ -126,6 +123,6 @@ class LoggerMixin:
         cls.__log_directory = ensure_log_directory(directory)
 
     @classmethod
-    def set_log_format(cls, formatter: logging.Formatter) -> None:
+    def set_log_format(cls, formatter: Formatter) -> None:
         """Change the log format."""
         cls.__formatter = formatter
