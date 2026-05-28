@@ -1,4 +1,5 @@
 """Custom data descriptor for storing semi-persistent data in models."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -16,6 +17,7 @@ class OutOfSpaceError(ValueError):
         """Initialize the OutOfSpaceError with the size and limit."""
         super().__init__(f"Custom data of size {size} exceeds limit of {limit} bytes.")
 
+
 # TODO: Currently the owner of type BaseModel has not effect on typing
 # meaning this descriptor is still able to be used on any other class/owner :(
 class CustomData[Key, Value](DataDescriptor[Mapping[Key, Value], BaseModel]):
@@ -24,7 +26,7 @@ class CustomData[Key, Value](DataDescriptor[Mapping[Key, Value], BaseModel]):
     Useful for storing related models or other data that should not be persisted.
     """
 
-    def __init__(self, *, size_limit: int = 1024*10) -> None:
+    def __init__(self, *, size_limit: int = 1024 * 10) -> None:
         """Initialize the CustomData with an empty dictionary."""
         self._data: Mapping[Key, Value] = {}
         self.size_limit = size_limit

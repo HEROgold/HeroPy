@@ -162,20 +162,25 @@ class SupportsBitNumeric[T](SupportsNumeric[T], SupportsBitwise, Protocol):
 class SupportsBitComparison(SupportsComparison, SupportsBitwise, Protocol):
     """A protocol for types that support both comparison and bitwise operations."""
 
+
 # Supports for descriptor operations
+
 
 @runtime_checkable
 class SupportsDelete(Protocol):
     def __delete__(self, instance: object) -> None: ...
+
 
 @runtime_checkable
 class SupportsGet[Value, Owner](Protocol):
     @with_known_exception(AttributeError)
     def __get__(self, instance: Owner, owner: type[Owner]) -> Value | Exception: ...
 
+
 @runtime_checkable
 class SupportsSet[Value, Owner](Protocol):
     def __set__(self, instance: Owner, value: Value) -> None: ...
+
 
 @runtime_checkable
 class SupportsSetName[Owner](Protocol):
@@ -189,9 +194,11 @@ class SupportsSetName[Owner](Protocol):
 class SupportsLen(Protocol):
     def __len__(self) -> int: ...
 
+
 @runtime_checkable
 class SupportsContains[T](Protocol):
     def __contains__(self, item: T) -> bool: ...
+
 
 @runtime_checkable
 class SupportsIter[T](Protocol):
