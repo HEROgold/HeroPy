@@ -7,6 +7,7 @@ from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARNING
 from logging import Logger as LoggingLogger
 from typing import TYPE_CHECKING, Any, Literal, override
 
+from herogold.log import FileHandler, StreamHandler
 from herogold.sentinel import create_sentinel
 
 if TYPE_CHECKING:
@@ -26,12 +27,19 @@ class Logger(LoggingLogger):
     def _interpolate(self, msg: Template) -> Generator[tuple[str, None] | tuple[Literal["%s"], Any]]:
         """Interpolate a Template message into a string and argument counterparts."""
         for part in msg:
-            if isinstance(part, str):
-                yield part, NO_ARG
-            else:
-                yield "%s", part.value
+            match part:
+                case str():
+                    yield part, NO_ARG
+                case float():
+                    yield "%f", part.value
+                case int():
+                    yield "%d", part.value
+                case bool():
+                    yield "%b", part.value
+                case _:
+                    yield "%s", part.value
 
-    def _build_msg(self, msg: Template) -> tuple[str, list[object]]:
+    def _build_msg(self, msg: Template) -> tuple[str, *tuple[object, ...]]:
         """Build the final log message string, combined with required arguments properly formatted."""
         parts: list[str] = []
         arguments: list[object] = []
@@ -39,7 +47,7 @@ class Logger(LoggingLogger):
             parts.append(part)
             if arg is not NO_ARG:
                 arguments.append(arg)
-        return "".join(parts), arguments
+        return "".join(parts), *arguments
 
     @override
     def debug(
@@ -176,3 +184,25 @@ class Logger(LoggingLogger):
         if level <= NOTSET: return super().log(0, *self._build_msg(msg))
         return None
         # fmt: on
+
+def main() -> None:
+    """Usage of the custom Logger."""
+    logger = Logger("herogold")
+    logger.addHandler(StreamHandler())
+    logger.addFilter(FileHandler("herogold.log"))
+    world = "world"
+    number = 42.159
+    item = "something"
+    error = "an error message"
+    logger.info(t"Hello, {world}!")
+    logger.debug(t"This is a debug message with a number: {number}")
+    logger.warning(t"This is a warning about {item}.")
+    logger.error(t"An error occurred: {error}")
+    try:
+        1 / 0  # noqa: B018
+    except ZeroDivisionError as exception:
+        logger.exception(t"Caught an exception: {exception}.")
+
+
+if __name__ == "__main__":
+    main()

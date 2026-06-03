@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from . import DEBUG, INFO, FileHandler, Formatter, Logger, StreamHandler, getLogger
 from .formats import formatter
-from .logging import DEBUG, INFO, FileHandler, Formatter, Logger, StreamHandler, getLogger
 
 __all__ = ["LoggerMixin"]
 
