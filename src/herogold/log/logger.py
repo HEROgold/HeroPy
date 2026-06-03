@@ -45,6 +45,7 @@ class Logger(LoggingLogger):
     def debug(
         self,
         msg: Template,
+        *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
         stacklevel: int = 1,
@@ -52,6 +53,7 @@ class Logger(LoggingLogger):
     ) -> None:
         return super().debug(
             *self._build_msg(msg),
+            *args,
             exc_info=exc_info,
             stack_info=stack_info,
             stacklevel=stacklevel,
@@ -62,17 +64,19 @@ class Logger(LoggingLogger):
     def info(
         self,
         msg: Template,
+        *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
         stacklevel: int = 1,
         extra: Mapping[str, object] | None = None,
     ) -> None:
-        return super().info(*self._build_msg(msg), exc_info=exc_info, stack_info=stack_info, stacklevel=stacklevel, extra=extra)
+        return super().info(*self._build_msg(msg), *args, exc_info=exc_info, stack_info=stack_info, stacklevel=stacklevel, extra=extra)
 
     @override
     def warning(
         self,
         msg: Template,
+        *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
         stacklevel: int = 1,
@@ -80,6 +84,7 @@ class Logger(LoggingLogger):
     ) -> None:
         return super().warning(
             *self._build_msg(msg),
+            *args,
             exc_info=exc_info,
             stack_info=stack_info,
             stacklevel=stacklevel,
@@ -90,6 +95,7 @@ class Logger(LoggingLogger):
     def error(
         self,
         msg: Template,
+        *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
         stacklevel: int = 1,
@@ -97,6 +103,7 @@ class Logger(LoggingLogger):
     ) -> None:
         return super().error(
             *self._build_msg(msg),
+            *args,
             exc_info=exc_info,
             stack_info=stack_info,
             stacklevel=stacklevel,
@@ -107,6 +114,7 @@ class Logger(LoggingLogger):
     def exception(
         self,
         msg: Template,
+        *args: object,
         exc_info: _ExcInfoType = True,
         stack_info: bool = False,
         stacklevel: int = 1,
@@ -114,6 +122,7 @@ class Logger(LoggingLogger):
     ) -> None:
         return super().exception(
             *self._build_msg(msg),
+            *args,
             exc_info=exc_info,
             stack_info=stack_info,
             stacklevel=stacklevel,
@@ -124,6 +133,7 @@ class Logger(LoggingLogger):
     def critical(
         self,
         msg: Template,
+        *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
         stacklevel: int = 1,
@@ -131,6 +141,7 @@ class Logger(LoggingLogger):
     ) -> None:
         return super().critical(
             *self._build_msg(msg),
+            *args,
             exc_info=exc_info,
             stack_info=stack_info,
             stacklevel=stacklevel,
@@ -138,18 +149,23 @@ class Logger(LoggingLogger):
         )
 
     @override
-    def fatal(self, msg: Template) -> None:
-        return self.critical(msg)
-
-    @override
-    def log(self, level: int, msg: Template) -> None:  # noqa: PLR0911
+    def log(  # noqa: PLR0911
+        self,
+        level: int,
+        msg: Template,
+        *args: object,
+        exc_info: _ExcInfoType | None = None,
+        stack_info: bool = False,
+        stacklevel: int = 1,
+        extra: Mapping[str, object] | None = None,
+    ) -> None:
         # One liners are cleaner here. Even though they violate pep8, they are more readable in this case.
         # fmt: off
-        if level <= CRITICAL: return self.critical(msg)
-        if level <= ERROR: return self.error(msg)
-        if level <= WARNING: return self.warning(msg)
-        if level <= INFO: return self.info(msg)
-        if level <= DEBUG: return self.debug(msg)
+        if level <= CRITICAL: return self.critical(msg, *args)
+        if level <= ERROR: return self.error(msg, *args)
+        if level <= WARNING: return self.warning(msg, *args)
+        if level <= INFO: return self.info(msg, *args)
+        if level <= DEBUG: return self.debug(msg, *args)
         if level <= NOTSET: return super().log(0, *self._build_msg(msg))
         return None
         # fmt: on
