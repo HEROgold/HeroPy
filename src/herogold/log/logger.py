@@ -70,7 +70,14 @@ class Logger(LoggingLogger):
         stacklevel: int = 1,
         extra: Mapping[str, object] | None = None,
     ) -> None:
-        return super().info(*self._build_msg(msg), *args, exc_info=exc_info, stack_info=stack_info, stacklevel=stacklevel, extra=extra)
+        return super().info(
+            *self._build_msg(msg),
+            *args,
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
+        )
 
     @override
     def warning(
