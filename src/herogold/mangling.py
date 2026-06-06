@@ -12,7 +12,8 @@ class InvalidNameError(ManglingError):
 
     def __init__(self, name: str) -> None:
         """Initialize the InvalidNameError with the invalid name."""
-        super().__init__(f"Invalid name '{name}' for mangling. Names must be valid Python identifiers and cannot start with a digit.")
+        msg = f"Invalid name '{name}' for mangling. Names must be valid Python identifiers and cannot start with a digit."
+        super().__init__(msg)
 
 def mangle(cls: type, name: str) -> str:
     """Mangle a private attribute name.

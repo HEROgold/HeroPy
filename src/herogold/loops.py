@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from herogold.asynchronous import get_async_loop
-
-__lazy_modules__: list[str] = ["asyncio"]
-
-import asyncio
 import os
 from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING
+
+from herogold.asynchronous import get_async_loop
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterable, Iterator
@@ -39,14 +36,3 @@ async def a_range(count: int) -> AsyncIterator[int]:
     """Asynchronous generator that yields values from 0 to count-1."""
     for i in range(count):
         yield i
-
-
-async def _run_async_parallel_test() -> None:
-    result = [value async for value in a_parallel(_square, a_range(4))]
-    assert result == [0, 1, 4, 9]
-    print("a_parallel async test passed:", result)
-
-
-if __name__ == "__main__":
-    output = parallel(_square, range(100_000_000))
-    asyncio.run(_run_async_parallel_test())

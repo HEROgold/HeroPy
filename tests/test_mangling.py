@@ -122,8 +122,8 @@ class TestGetMangledAttribute:
         """Test retrieving various types of mangled attributes."""
         class Container:
             __num = 42
-            __lst = [1, 2, 3]
-            __dct = {"key": "value"}
+            __lst = [1, 2, 3]  # noqa: RUF012
+            __dct = {"key": "value"}  # noqa: RUF012
 
         assert get_mangled_attribute(Container, Container, "num") == 42
         assert get_mangled_attribute(Container, Container, "lst") == [1, 2, 3]
@@ -161,7 +161,7 @@ class TestMultipleInheritance:
     def test_mangle_with_single_inheritance(self) -> None:
         """Test unmangling in single inheritance hierarchy."""
         class Base:
-            __secret = "base_value"
+            __secret = "base_value"  # noqa: S105
 
         class Derived(Base):
             pass

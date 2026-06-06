@@ -7,13 +7,12 @@ from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARNING
 from logging import Logger as LoggingLogger
 from typing import TYPE_CHECKING, Any, Literal, override
 
-from herogold.log import FileHandler, StreamHandler
 from herogold.sentinel import create_sentinel
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping
     from logging import _ExcInfoType
-    from string.templatelib import Template
+    from string.templatelib import Template  # ty:ignore[unresolved-import]
 
 __all__ = ["Logger"]
 
@@ -184,25 +183,3 @@ class Logger(LoggingLogger):
         if level <= NOTSET: return super().log(0, *self._build_msg(msg))
         return None
         # fmt: on
-
-def main() -> None:
-    """Usage of the custom Logger."""
-    logger = Logger("herogold")
-    logger.addHandler(StreamHandler())
-    logger.addFilter(FileHandler("herogold.log"))
-    world = "world"
-    number = 42.159
-    item = "something"
-    error = "an error message"
-    logger.info(t"Hello, {world}!")
-    logger.debug(t"This is a debug message with a number: {number}")
-    logger.warning(t"This is a warning about {item}.")
-    logger.error(t"An error occurred: {error}")
-    try:
-        1 / 0  # noqa: B018
-    except ZeroDivisionError as exception:
-        logger.exception(t"Caught an exception: {exception}.")
-
-
-if __name__ == "__main__":
-    main()

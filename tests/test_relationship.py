@@ -36,13 +36,13 @@ def reset_ids():
             del cls.__fields__
 
 
-def test_descriptor_returns_class():
+def test_descriptor_returns_class() -> None:
     assert HasRel.other is Other
     assert HasOpt.other is Other
     assert Node.parent is Node
 
 
-def test_instance_access_required():
+def test_instance_access_required() -> None:
     o = Other()
     o.id = 1
     h = HasRel()
@@ -54,7 +54,7 @@ def test_instance_access_required():
     assert h.other is o
 
 
-def test_instance_access_optional():
+def test_instance_access_optional() -> None:
     o = Other()
     o.id = 2
     h = HasOpt()
@@ -64,13 +64,13 @@ def test_instance_access_optional():
     assert h.other is o
 
 
-def test_setting_instance_attribute_forbidden():
+def test_setting_instance_attribute_forbidden() -> None:
     h = HasRel()
     with pytest.raises(AttributeError):
         h.other = Other()
 
 
-def test_selfref_behavior():
+def test_selfref_behavior() -> None:
     parent = Node()
     parent.id = 10
     child = Node()
@@ -82,6 +82,6 @@ def test_selfref_behavior():
 # regression: ensure typing does not break at runtime
 
 
-def test_foreign_key_helper_accepts_generic():
+def test_foreign_key_helper_accepts_generic() -> None:
     # simply call get_foreign_key with a subclass
     assert get_foreign_key(Other, "id") == "other.id"

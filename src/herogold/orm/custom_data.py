@@ -16,7 +16,7 @@ class OutOfSpaceError(ValueError):
         """Initialize the OutOfSpaceError with the size and limit."""
         super().__init__(f"Custom data of size {size} exceeds limit of {limit} bytes.")
 
-# TODO: Currently the owner of type BaseModel has not effect on typing
+# TODO: Currently the owner of type BaseModel has not effect on typing  # noqa: FIX002, TD002, TD003
 # meaning this descriptor is still able to be used on any other class/owner :(
 class CustomData[Key, Value](DataDescriptor[Mapping[Key, Value], BaseModel]):
     """Enables custom data to be stored in the model, without being a field.
