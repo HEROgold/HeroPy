@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from herogold.errors import as_group, with_exception
+from herogold.errors import with_exception, with_group
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -29,8 +29,8 @@ def test_with_exception_returns_exception_when_failing() -> None:
     assert isinstance(result, ZeroDivisionError)
 
 
-def test_as_group_returns_values_for_successful_iterable() -> None:
-    @as_group
+def test_with_group_returns_values_for_successful_iterable() -> None:
+    @with_group
     def values() -> Iterable[int | Exception]:
         return (value for value in (1, 2, 3))
 
@@ -39,12 +39,12 @@ def test_as_group_returns_values_for_successful_iterable() -> None:
     assert list(result) == [1, 2, 3]
 
 
-def test_as_group_returns_exception_group_when_any_exception_occurs() -> None:
+def test_with_group_returns_exception_group_when_any_exception_occurs() -> None:
     @with_exception
     def divide(value: int) -> float:
         return 10 / value
 
-    @as_group
+    @with_group
     def mixed() -> Iterable[float | Exception]:
         return (divide(value) for value in (-2, -1, 0, 1, 2))
 

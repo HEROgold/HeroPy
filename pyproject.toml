@@ -1,6 +1,6 @@
 [project]
 name = "herogold"
-version = "3.1.0"
+version = "3.2.0"
 description = "A single package containing personal utilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -39,6 +39,7 @@ build-backend = "hatchling.build"
 [dependency-groups]
 test = [
     "herogold[all]",
+    "hypothesis>=6.155.2",
     "psycopg2>=2.9.12",
     "psycopg2-binary>=2.9.12",
     "pytest>=9.0.3",
