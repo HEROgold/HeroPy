@@ -24,12 +24,12 @@ if TYPE_CHECKING:
     from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
 
-class PaginatedResponse[T: type[BaseModel]]:
+class PaginatedResponse[T: BaseModel]:
     """A simple wrapper for paginated responses."""
 
     base_url: str = "/"
 
-    def __init__(self, model: T, page: int = 1, size: int = 100) -> None:
+    def __init__(self, model: type[T], page: int = 1, size: int = 100) -> None:
         """Initialize the PaginatedResponse with page, size, and total items."""
         self.model = model
         self.page = page
@@ -72,16 +72,14 @@ class PaginatedResponse[T: type[BaseModel]]:
         yield from self.next or []
 
 
-class APIModel[T: type[BaseModel]]:
+class APIModel[T: BaseModel]:
     """Base APIModel class with custom methods for API interactions."""
 
-    model: T
-
-    def __init__(self, model: T, router: APIRouter) -> None:
+    def __init__(self, model: type[T], router: APIRouter) -> None:
         """Initialize the APIModel with a SQLModel instance, adding routes to the provided router."""
         self.model = model
         router.tags = [model.__name__, *router.tags]
-        default_responses = {
+        default_responses: dict[int, dict[str, str]] = {
             200: {"description": "Successful Response"},
             404: {"description": "Not Found"},
         }
@@ -126,7 +124,7 @@ class APIModel[T: type[BaseModel]]:
         """Build query parameters for filtering."""
         return {key: value for key, value in query_params.items() if hasattr(self.model, key)}
 
-    def _build_filtered_query(self, query_params: dict[str, str]) -> SelectOfScalar[BaseModel]:
+    def _build_filtered_query(self, query_params: dict[str, str]) -> SelectOfScalar[T]:
         """Build SQLModel filters based on query parameters."""
         q = select(self.model)
         for key, value in self._param_builder(query_params).items():

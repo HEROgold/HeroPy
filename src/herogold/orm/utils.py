@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, Optional, TypeVar, ove
 
 from sqlmodel import SQLModel
 
+from herogold.orm.model import BaseModel
 from herogold.sentinel import create_sentinel
 
 SELF = create_sentinel()
@@ -24,26 +25,20 @@ def get_foreign_key[M: SQLModel](table: type[M], column: str = "id") -> str:
     return f"{table.__tablename__}.{column}"
 
 
-class Relationship[T: SQLModel]:
+class Relationship[T: BaseModel]:
     """Descriptor for defining a foreign-key relationship.
 
     ``T`` is the related model type.  ``SELF`` may be given at declaration
     time; in ``__set_name__`` it will be replaced by the actual owner class.
     """
 
-    if TYPE_CHECKING:  # static-only overloads
-
-        @overload
-        def __init__(self, related_model: type[T], *, optional: bool = False) -> None: ...
-        @overload
-        def __init__(self, related_model: Any, *, optional: bool = False) -> None: ...  # noqa: ANN401
-
+    if TYPE_CHECKING:
         @overload
         def __get__(self, instance: None, owner: type[T]) -> type[T]: ...
         @overload
         def __get__(self, instance: T, owner: type[T]) -> T | None: ...
 
-    def __init__(self, related_model: type[T] | Any = SELF, *, optional: bool = False) -> None:  # noqa: ANN401
+    def __init__(self, related_model: type[T] = SELF, *, optional: bool = False) -> None:
         """Initialise the descriptor.
 
         ``related_model`` may be the special ``SELF`` sentinel or a concrete
@@ -116,7 +111,7 @@ class Relationship[T: SQLModel]:
             return val
 
         # otherwise interpret it as a primary key and fetch
-        return self.related_model.get(val)  # type: ignore[return-value]
+        return self.related_model.get(val)
 
     def __set__(self, instance: T, value: object) -> None:
         """Disallow assignment to the descriptor on instances."""

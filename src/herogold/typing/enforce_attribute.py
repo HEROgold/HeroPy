@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Self
+from typing import Any
 
 
 class StrictAttributesMeta(type):
@@ -12,17 +12,17 @@ class StrictAttributesMeta(type):
     an AttributeError.
     """
 
-    def __new__[**P](mcs, name: str, bases: tuple[type, ...], namespace: dict[str, P]) -> type:
+    def __new__[**P](mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> type:
         """Create a new class with strict attribute enforcement."""
         cls = super().__new__(mcs, name, bases, namespace)
         original_init = cls.__init__
 
-        def new_init(self: type[Self], *args: P.args, **kwargs: P.kwargs) -> None:
+        def new_init(cls: type[StrictAttributesMeta], *args: P.args, **kwargs: P.kwargs) -> None:
             """Allow attributes during init, then lock after completion."""
-            original_init(self, *args, **kwargs)
-            object.__setattr__(self, "_locked", True)
+            original_init(cls, *args, **kwargs)
+            object.__setattr__(cls, "_locked", True)
 
-        cls.__init__ = new_init  # ty: ignore[invalid-assignment] Explicit override of init
+        cls.__init__ = new_init  # ty:ignore[invalid-assignment]
 
         return cls
 
