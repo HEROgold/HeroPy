@@ -95,8 +95,11 @@ class SupportsNumeric[T](
     """A protocol for numeric types that support all operations."""
 
 
-# Protocol for bitwise operations
+# Protocols for bitwise and logical operations
 
+@runtime_checkable
+class SupportsBool(Protocol):
+    def __bool__(self) -> bool: ...
 
 @runtime_checkable
 class SupportsAnd(Protocol):
