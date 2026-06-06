@@ -35,13 +35,14 @@ async def a_parallel[T, **P](action: Callable[P, T], data: AsyncIterable[T]) -> 
         async for item in data:
             yield await loop.run_in_executor(executor, action, item)
 
-async def _async_range(count: int):
-    for value in range(count):
-        yield value
+async def a_range(count: int) -> AsyncIterator[int]:
+    """Asynchronous generator that yields values from 0 to count-1."""
+    for i in range(count):
+        yield i
 
 
 async def _run_async_parallel_test() -> None:
-    result = [value async for value in a_parallel(_square, _async_range(4))]
+    result = [value async for value in a_parallel(_square, a_range(4))]
     assert result == [0, 1, 4, 9]
     print("a_parallel async test passed:", result)
 

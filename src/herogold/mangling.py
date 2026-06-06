@@ -19,9 +19,14 @@ def mangle(cls: type, name: str) -> str:
 
     :param cls: The class containing the private attribute.
     :param name: The original attribute name.
-    :return: The mangled attribute name (e.g., '__ClassName__attribute__').
+    :return: The mangled attribute name (e.g., '__ClassName__attribute').
     """
-    mangled = f"_{cls.__name__}__{name}__"
+    if name.endswith("__") and name.startswith("__"):
+        # __x__ is a dunder method and is not mangled
+        return name
+    if name.startswith("__") and not name.endswith("__"):
+        name = name[2:]
+    mangled = f"_{cls.__name__}__{name}"
     if not name.isidentifier() or name[0].isdigit():
         raise InvalidNameError(name)
     return mangled
@@ -29,6 +34,7 @@ def mangle(cls: type, name: str) -> str:
 def get_mangled_attribute(cls: type, owner: type, name: str) -> Any:  # noqa: ANN401
     """Get the value of a mangled private attribute.
 
+    Owner is parent of cls or cls itself.
     `cls`: The class from which to get the attribute.
     `owner`: The owner class. This is the class that owns the attribute.
     `name`: The original attribute name.
