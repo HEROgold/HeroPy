@@ -12,14 +12,17 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterable
 
+
 def _return_exception[**P, T](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T | Exception:
     try:
         return func(*args, **kwargs)
     except Exception as e:  # noqa: BLE001
         return e
 
+
 def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | Exception]:
     """Wrap a function and returns any thrown exception."""
+
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | Exception:
         return _return_exception(func, *args, **kwargs)
@@ -50,6 +53,7 @@ def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable
 
 def with_group[**P, T](func: Callable[P, Iterable[T | Exception]]) -> Callable[P, Iterable[T] | ExceptionGroup]:
     """Collect exceptions from an iterable of results and raise them as an ExceptionGroup."""
+
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> Iterable[T] | ExceptionGroup:
         results: Iterable[T | Exception] = func(*args, **kwargs)
@@ -69,6 +73,10 @@ def with_group[**P, T](func: Callable[P, Iterable[T | Exception]]) -> Callable[P
         return values
 
     return wrapper
+
+
+#: Alias for :func:`with_group`.
+as_group = with_group
 
 
 if __name__ == "__main__":

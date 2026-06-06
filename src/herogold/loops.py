@@ -35,6 +35,7 @@ async def a_parallel[T, **P](action: Callable[P, T], data: AsyncIterable[T]) -> 
         async for item in data:
             yield await loop.run_in_executor(executor, action, item)
 
+
 async def _async_range(count: int):
     for value in range(count):
         yield value

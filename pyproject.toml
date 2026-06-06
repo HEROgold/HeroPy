@@ -39,6 +39,7 @@ build-backend = "hatchling.build"
 [dependency-groups]
 test = [
     "herogold[all]",
+    "hypothesis>=6.0.0",
     "psycopg2>=2.9.12",
     "psycopg2-binary>=2.9.12",
     "pytest>=9.0.3",
