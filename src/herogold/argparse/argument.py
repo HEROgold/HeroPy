@@ -7,7 +7,7 @@ import sys
 from argparse import ArgumentParser
 from collections.abc import Callable
 from enum import Enum
-from typing import ClassVar, NoReturn, Self, TypeVar, override
+from typing import NoReturn, Self, TypeVar, override
 
 from herogold.colors import Bold, colorize
 from herogold.sentinel import MISSING
@@ -23,7 +23,10 @@ else:
 class ColorArgumentParser(ArgumentParser):
     """ArgumentParser with colored help and error output."""
 
-    usage: ClassVar[str] = "usage: "
+    def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
+        """Initialize the ColorArgumentParser."""
+        super().__init__(*args, **kwargs)
+        self.usage: str = "usage: "
 
     @property
     def cls(self) -> type[Self]:
@@ -100,20 +103,25 @@ class ColorArgumentParser(ArgumentParser):
 
     def format_usage_line(self, line: str) -> str:
         """Override to colorize usage text."""
+        if self.usage is None:
+            return line
         # Only show script name, -h/--help, and a generic abstraction
-        script = self.format_program(line[len(self.cls.usage) :].split(maxsplit=1)[0])
-        usage_line = f"{self.cls.usage}{script} [-h] [--argument OPTION]"
-        rest = usage_line[len(self.cls.usage) :]
-        return self.format_heading(self.cls.usage) + self.format_command(rest)
+        script = self.format_program(line[len(self.usage) :].split(maxsplit=1)[0])
+        usage_line = f"{self.usage}{script} [-h] [--argument OPTION]"
+        rest = usage_line[len(self.usage) :]
+        return self.format_heading(self.usage) + self.format_command(rest)
 
     def format_help(self) -> str:
         """Override to colorize help text and simplify usage line."""
+        if self.usage is None:
+            return super().format_help()
+
         help_text = super().format_help()
         lines = help_text.splitlines()
         for i, line in enumerate(lines):
             comparable = line.casefold()
             stripped = line.strip()
-            if comparable.startswith(self.cls.usage):
+            if comparable.startswith(self.usage):
                 lines[i] = self.format_usage_line(line)
             elif stripped.endswith(":"):
                 lines[i] = self.format_heading(stripped)
