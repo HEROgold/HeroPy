@@ -19,6 +19,7 @@ class Cache[K, V](Container[K, V]):
         """Get a value from the cache."""
         result = self._cache.get(instance)
         if not result:
+            del self._cache[instance] # Remove the key from the cache if the value has been garbage collected
             msg = f"{instance} not found in cache"
             raise AttributeError(msg)
         return result()
