@@ -8,7 +8,8 @@ preview=false
 exclude = ["build", "dist", "venv"]
 select = ["ALL"]
 ignore = [
-    "E701"
+    "E701",
+    "FIX002", # Ignore "fix" rules, since we force an gh-issue for a fix.
 ]
 
 [lint.isort]

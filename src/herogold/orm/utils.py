@@ -45,6 +45,7 @@ class Relationship[T: BaseModel]:
         subclass of ``SQLModel``.  ``optional`` indicates whether accessing the
         attribute on an instance may return ``None``.
         """
+        # TODO(HEROgold): #7 Ensure optional=True type checks to Optional[T] in __get__ return type
         self.optional = optional
         # sentinel preserved until set_name
         self.related_model = related_model
