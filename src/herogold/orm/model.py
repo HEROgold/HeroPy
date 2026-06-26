@@ -37,14 +37,13 @@ class ModelLogger(LoggerMixin):
     Avoids the issue of cls.logger raising AttributeError, property has no attribute `xxx`
     """
 
-
 class BaseModel(BaseSQLModel):
     """Base model class with custom methods."""
 
     # ignore Relationship descriptor values so they don't have to be
     # annotated at all; the class object is available at import time, so we
     # can configure this statically rather than in __init_subclass__.
-    model_config = {"ignored_types": (Relationship,)}
+    model_config = {"ignored_types": (Relationship,)}  # ty:ignore[invalid-assignment]
 
     __cur_utc = partial(datetime.now, UTC)
 
@@ -60,6 +59,7 @@ class BaseModel(BaseSQLModel):
     created_at: datetime = Field(default_factory=__cur_utc)
     updated_at: datetime = Field(default_factory=__cur_utc)
     deleted_at: datetime | None = Field(default=None)
+    extra = Relationship["ExtraData"](optional=True)
 
     session: ClassVar[Session] = db_session
     logger: ClassVar[logging.Logger] = ModelLogger().logger
@@ -199,3 +199,9 @@ class BaseModel(BaseSQLModel):
         )
         session = cls._get_session(session)
         return session.exec(select(cls).where(column == value))
+
+class ExtraData(BaseModel):
+    """Model for storing extra data in JSONB format."""
+
+    data: dict[str, Any] = Field(default_factory=dict, sa_column_kwargs={"type_": "JSONB"})
+    extra = None # Avoid recursive relationship with itself

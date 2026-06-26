@@ -18,7 +18,7 @@ except ImportError as e:
     raise ImportError(msg) from e
 
 
-from herogold.orm.model import BaseModel
+from herogold.orm.model import BaseModel, ExtraData
 
 if TYPE_CHECKING:
     from sqlmodel.sql._expression_select_cls import SelectOfScalar
@@ -155,6 +155,8 @@ class APIModel[T: BaseModel]:
 
     def create(self, item: T) -> T:
         """Create a new record."""
+        if extras := getattr(item, "extra", None):
+            item.extra = ExtraData(data=extras)
         self.model.add(item)
         return item
 
@@ -162,6 +164,8 @@ class APIModel[T: BaseModel]:
         """Update an existing record."""
         if not item.id or not self.model.get(item.id):
             return status.HTTP_404_NOT_FOUND
+        if extras := getattr(item, "extra", None):
+            item.extra = ExtraData(data=extras)
         self.model.update(item)
         return None
 

@@ -113,18 +113,18 @@ class Relationship[T: BaseModel]:
         # otherwise interpret it as a primary key and fetch
         return self.related_model.get(val)
 
-    def __set__(self, instance: T, value: object) -> None:
-        """Disallow assignment to the descriptor on instances."""
-        msg = f"Cannot set relationship '{self.name}' on instances."
-        raise AttributeError(msg)
+    def __set__(self, instance: BaseModel, value: T) -> None:
+        """Update the related object for the descriptor."""
+        instance.logger.debug("Setting relationship '%s' to %s", self.name, value, extra={"record": instance})
+        self.related_model.update(value)
 
-    def _get_required(self, instance: T, foreign_key: str) -> T:
+    def _get_required(self, instance: BaseModel, foreign_key: str) -> T:
         """Return related object, raising if the foreign key is absent."""
         if related := self._get_optional(instance, foreign_key):
             return related
         msg = f"Related instance for relationship '{self.name}' not found."
         raise AttributeError(msg)
 
-    def _get_optional(self, instance: T, foreign_key: str) -> T | None:
+    def _get_optional(self, instance: BaseModel, foreign_key: str) -> T | None:
         """Return value stored in ``foreign_key`` attribute (may be ``None``)."""
         return getattr(instance, foreign_key)
