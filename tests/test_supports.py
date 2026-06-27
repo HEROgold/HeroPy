@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 from herogold.supports import (
     SupportsComparison,
     SupportsEq,
@@ -7,6 +9,7 @@ from herogold.supports import (
     SupportsGT,
     SupportsLE,
     SupportsLT,
+    SupportsMetadata,
     SupportsNe,
 )
 
@@ -93,6 +96,17 @@ def test_supports_comparison_protocol() -> None:
     assert isinstance(DummyALL(), SupportsEq)
     assert isinstance(DummyALL(), SupportsNe)
     assert isinstance(DummyALL(), SupportsComparison)
+
+
+class DummyMetadata:
+    __origin__ = int
+    __metadata__ = ("a", "b")
+
+
+def test_supports_metadata_protocol() -> None:
+    assert isinstance(Annotated[int, "a", "b"], SupportsMetadata)
+    assert isinstance(DummyMetadata(), SupportsMetadata)
+    assert not isinstance(5, SupportsMetadata)
 
 
 def test_builtin_types() -> None:
