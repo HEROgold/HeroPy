@@ -68,3 +68,7 @@ class NonDataDescriptor[Value, Owner](
     metaclass=NonDataDescriptorMeta,
 ):
     """Non-Data Descriptor: Resolves if __get__ is present WITHOUT __set__ or __delete__."""
+
+type DescriptorType[Value, Owner] = SupportsGet[Value, Owner] | SupportsSet[Value, Owner] | SupportsDelete[Value, Owner]
+type DataDescriptorType[Value, Owner] = SupportsSet[Value, Owner] | SupportsDelete[Value, Owner]
+type NonDataDescriptorType[Value, Owner] = SupportsGet[Value, Owner] # & ~SupportsSet[Value, Owner] & ~SupportsDelete[Value, Owner]
