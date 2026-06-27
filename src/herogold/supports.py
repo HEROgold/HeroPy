@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Protocol, Self, SupportsAbs, runtime_checkable
 from herogold.errors import with_known_exception
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterable, Iterator
     from types import TracebackType
 
 # Protocols for comparison operations
@@ -210,3 +210,11 @@ class SupportsWith[T](Protocol):
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None: ...
+
+@runtime_checkable
+class SupportsMetadata[T](Protocol):
+    """A protocol for objects that have metadata. Added by typing.Annotated."""
+
+    @property
+    def __metadata__(self) -> Iterable[T]:
+        """Return the annotations/metadata associated with the object."""
