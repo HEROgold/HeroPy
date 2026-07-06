@@ -11,5 +11,5 @@ type DataDescriptorType[Value, Owner] = SupportsSet[Value, Owner] | SupportsDele
 type NonDataDescriptorType[Value, Owner] = (
     SupportsGet[Value, Owner]
     & ~SupportsSet[Value, Owner]  # ty:ignore[experimental-syntax, unsupported-operator]
-    & ~SupportsDelete[Value, Owner]  # ty:ignore[experimental-syntax]
+    & ~SupportsDelete  # ty:ignore[experimental-syntax]
 )
