@@ -1,14 +1,8 @@
-"""Protocols for compound objects from the supports module."""
-
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from herogold.supports import (
-    SupportsDelete,
-    SupportsGet,
-    SupportsSet,
-)
+from herogold.supports import SupportsDelete, SupportsGet, SupportsSet
 
 
 @runtime_checkable
@@ -46,7 +40,7 @@ class NonDataDescriptorMeta(type(Protocol)):
 class Descriptor[Value, Owner](
     SupportsGet[Value, Owner],
     SupportsSet[Value, Owner],
-    SupportsDelete[Value, Owner],
+    SupportsDelete,
     Protocol,
     metaclass=DescriptorMeta,
 ):
@@ -55,7 +49,7 @@ class Descriptor[Value, Owner](
 
 class DataDescriptor[Value, Owner](
     SupportsSet[Value, Owner],
-    SupportsDelete[Value, Owner],
+    SupportsDelete,
     Protocol,
     metaclass=DataDescriptorMeta,
 ):
@@ -68,7 +62,3 @@ class NonDataDescriptor[Value, Owner](
     metaclass=NonDataDescriptorMeta,
 ):
     """Non-Data Descriptor: Resolves if __get__ is present WITHOUT __set__ or __delete__."""
-
-type DescriptorType[Value, Owner] = SupportsGet[Value, Owner] | SupportsSet[Value, Owner] | SupportsDelete[Value, Owner]
-type DataDescriptorType[Value, Owner] = SupportsSet[Value, Owner] | SupportsDelete[Value, Owner]
-type NonDataDescriptorType[Value, Owner] = SupportsGet[Value, Owner] # & ~SupportsSet[Value, Owner] & ~SupportsDelete[Value, Owner]
