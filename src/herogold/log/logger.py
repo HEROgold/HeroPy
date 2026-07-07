@@ -183,3 +183,10 @@ class Logger(LoggingLogger):
         if level <= NOTSET: return super().log(0, *self._build_msg(msg))
         return None
         # fmt: on
+
+    @override
+    def getChild(self, suffix: str | None = None) -> Logger:
+        """Get a child logger with the given suffix."""
+        if self.root is not self:
+            suffix = f"{self.name}.{suffix}"
+        return Logger(suffix or self.name)
