@@ -49,10 +49,6 @@ from logging import (
     warning,
 )
 
-from .formats import BASIC_FORMAT, formatter, message, prefix
-from .handlers import stream_handler
-from .logger_mixin import LoggerMixin
-
 # Patch logging for Python 3.14+
 if sys.version_info >= (3, 14):
     from .logger import Logger
@@ -66,6 +62,10 @@ if sys.version_info >= (3, 14):
     exception = logger.exception
     critical = logger.critical
     fatal = logger.fatal
+
+from .formats import BASIC_FORMAT, formatter, message, prefix
+from .handlers import stream_handler
+from .logger_mixin import LoggerMixin
 
 basicConfig(
     level=INFO,
