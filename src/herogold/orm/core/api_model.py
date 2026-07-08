@@ -116,7 +116,7 @@ class PaginatedResponse[T: BaseModel]:
         }
 
     def __iter__(self) -> Generator[T]:
-        """Iterate over the items for the current page."""
+        """Iterate over the items for the current page, then yield from the next page if it exists."""
         if self._query is not None:
             offset = (self.page - 1) * self.size
             yield from self.model.session.exec(self._query.offset(offset).limit(self.size)).all()
