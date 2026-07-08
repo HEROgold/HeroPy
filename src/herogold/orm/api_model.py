@@ -98,7 +98,7 @@ class PaginatedResponse[T: BaseModel]:
         }
 
     def __iter__(self) -> Generator[T]:
-        """Iterate over the items for the current page."""
+        """Iterate over the items for the current page, then yield from the next page if it exists."""
         offset = (self.page - 1) * self.size
         yield from self.model.session.exec(
             select(self.model).offset(offset).limit(self.size),
@@ -175,7 +175,7 @@ class APIModel[T: BaseModel]:
     # I don't like this mapping, but it works.
     # It's missing type infor for c, v. But it's defined in the type hint, so it's okay.
     # I'd like to see a replacement, that handles and cleans up Any here as well.
-    _operators: ClassVar[dict[Operator, Callable[[ColumnElement[Any], Any], ColumnElement[bool]]]] = {
+    _operators: ClassVar[dict[Operator, Callable[[Any, Any], ColumnElement[bool]]]] = {
         Operator.eq: lambda c, v: c == v,
         Operator.ne: lambda c, v: c != v,
         Operator.gt: lambda c, v: c > v,
