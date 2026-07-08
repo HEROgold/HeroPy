@@ -3,14 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from fastapi import APIRouter, FastAPI
-from fastapi.testclient import TestClient
+from fastapi import APIRouter
 from sqlalchemy import BigInteger
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from herogold.orm.core.api_model import APIModel
+from herogold.orm.core.api_model import APIModel, Operator, QueryFilter, QueryRequest
 from herogold.orm.core.model import BaseModel
 
 if TYPE_CHECKING:
@@ -30,7 +29,7 @@ class Item(BaseModel, table=True):
 
 
 @pytest.fixture
-def client() -> Iterator[TestClient]:
+def api() -> Iterator[APIModel[Item]]:
     # StaticPool keeps a single shared connection so create_all and the Session
     # target the same in-memory database (a fresh connection would start empty).
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -42,51 +41,46 @@ def client() -> Iterator[TestClient]:
             Item(name=name, price=price).add()
         # soft-delete one row so it must be excluded from query results
         Item.get_all()[-1].delete()
-
-        router = APIRouter()
-        APIModel(Item, router)
-        app = FastAPI()
-        app.include_router(router)
-        yield TestClient(app)
+        yield APIModel(Item, APIRouter())
     finally:
         BaseModel.session.close()
         BaseModel.session = original
 
 
-def _query(client: TestClient, body: dict) -> list[dict]:
-    resp = client.request("QUERY", "/", json=body)
-    assert resp.status_code == 200, resp.text
-    return resp.json()
+def test_operator_gt(api: APIModel[Item]) -> None:
+    rows = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.gt, value=10)]))
+    assert {r.name for r in rows} == {"big box", "crate"}
 
 
-def test_operator_gt(client: TestClient) -> None:
-    rows = _query(client, {"filters": [{"field": "price", "op": "gt", "value": 10}]})
-    assert {r["name"] for r in rows} == {"big box", "crate"}
+def test_operator_like(api: APIModel[Item]) -> None:
+    rows = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.like, value="%box%")]))
+    assert {r.name for r in rows} == {"small box", "big box"}
 
 
-def test_operator_like(client: TestClient) -> None:
-    rows = _query(client, {"filters": [{"field": "name", "op": "like", "value": "%box%"}]})
-    assert {r["name"] for r in rows} == {"small box", "big box"}
+def test_operator_in(api: APIModel[Item]) -> None:
+    rows = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]))
+    assert {r.name for r in rows} == {"crate", "small box"}
 
 
-def test_operator_in(client: TestClient) -> None:
-    rows = _query(client, {"filters": [{"field": "name", "op": "in", "value": ["crate", "small box"]}]})
-    assert {r["name"] for r in rows} == {"crate", "small box"}
+def test_sort_and_order(api: APIModel[Item]) -> None:
+    rows = api.query(QueryRequest(sort="price", order="desc"))
+    assert [r.price for r in rows] == [50, 20, 5]
 
 
-def test_sort_and_order(client: TestClient) -> None:
-    rows = _query(client, {"sort": "price", "order": "desc"})
-    assert [r["price"] for r in rows] == [50, 20, 5]
+def test_pagination(api: APIModel[Item]) -> None:
+    page1 = api.query(QueryRequest(sort="price", order="asc", page=1, limit=2))
+    page2 = api.query(QueryRequest(sort="price", order="asc", page=2, limit=2))
+    assert [r.price for r in page1] == [5, 20]
+    assert [r.price for r in page2] == [50]
 
 
-def test_pagination(client: TestClient) -> None:
-    page1 = _query(client, {"sort": "price", "order": "asc", "page": 1, "limit": 2})
-    page2 = _query(client, {"sort": "price", "order": "asc", "page": 2, "limit": 2})
-    assert [r["price"] for r in page1] == [5, 20]
-    assert [r["price"] for r in page2] == [50]
+def test_unknown_field_ignored(api: APIModel[Item]) -> None:
+    # a filter on a non-existent column is skipped, not an error
+    rows = api.query(QueryRequest(filters=[QueryFilter(field="nope", op=Operator.eq, value=1)]))
+    assert len(rows) == 3
 
 
-def test_soft_deleted_excluded(client: TestClient) -> None:
-    rows = _query(client, {})
-    assert "gone" not in {r["name"] for r in rows}
+def test_soft_deleted_excluded(api: APIModel[Item]) -> None:
+    rows = api.query(QueryRequest())
+    assert "gone" not in {r.name for r in rows}
     assert len(rows) == 3
