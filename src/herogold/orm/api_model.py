@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
-from typing import TYPE_CHECKING, Literal
+from collections.abc import Callable, Generator, Sequence
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from sqlmodel import col, select
+from sqlmodel import SQLModel, col, select
 
 try:
     from fastapi import APIRouter, status
@@ -21,7 +22,40 @@ except ImportError as e:
 from herogold.orm.model import BaseModel, ExtraData
 
 if TYPE_CHECKING:
+    from sqlalchemy.sql.elements import ColumnElement
     from sqlmodel.sql._expression_select_cls import SelectOfScalar
+
+
+class Operator(StrEnum):
+    """Comparison operators supported by the QUERY endpoint (RFC 10008)."""
+
+    eq = "eq"
+    ne = "ne"
+    gt = "gt"
+    ge = "ge"
+    lt = "lt"
+    le = "le"
+    like = "like"
+    ilike = "ilike"
+    in_ = "in"
+
+
+class QueryFilter(SQLModel):
+    """A single field filter for a QUERY request body."""
+
+    field: str
+    op: Operator = Operator.eq
+    value: Any
+
+
+class QueryRequest(SQLModel):
+    """Body for a QUERY request: filters plus sorting and pagination."""
+
+    filters: list[QueryFilter] = []
+    sort: str | None = None
+    order: Literal["asc", "desc"] = "asc"
+    page: int = 1
+    limit: int = 100
 
 
 class PaginatedResponse[T: BaseModel]:
@@ -119,6 +153,13 @@ class APIModel[T: BaseModel]:
             methods=["DELETE"],
             responses=default_responses,
         )
+        router.add_api_route(
+            "/",
+            self.query,
+            methods=["QUERY"],
+            response_model=list[model],  # ty:ignore[invalid-type-form]
+            responses=default_responses,
+        )
 
     def _param_builder(self, query_params: dict[str, str]) -> dict[str, str]:
         """Build query parameters for filtering."""
@@ -130,6 +171,35 @@ class APIModel[T: BaseModel]:
         for key, value in self._param_builder(query_params).items():
             q = q.where(getattr(self.model, key) == value)
         return q
+
+    # I don't like this mapping, but it works.
+    # It's missing type infor for c, v. But it's defined in the type hint, so it's okay.
+    # I'd like to see a replacement, that handles and cleans up Any here as well.
+    _operators: ClassVar[dict[Operator, Callable[[ColumnElement[Any], Any], ColumnElement[bool]]]] = {
+        Operator.eq: lambda c, v: c == v,
+        Operator.ne: lambda c, v: c != v,
+        Operator.gt: lambda c, v: c > v,
+        Operator.ge: lambda c, v: c >= v,
+        Operator.lt: lambda c, v: c < v,
+        Operator.le: lambda c, v: c <= v,
+        Operator.like: lambda c, v: c.like(v),
+        Operator.ilike: lambda c, v: c.ilike(v),
+        Operator.in_: lambda c, v: c.in_(v),
+    }
+
+    def query(self, request: QueryRequest) -> Sequence[T]:
+        """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
+        self.model.logger.debug("QUERY %s: %s", self.model.__name__, request, extra={"request": request})
+        q = select(self.model).where(self.model.deleted_at == None)  # noqa: E711
+        for f in request.filters:
+            if not hasattr(self.model, f.field):
+                continue
+            q = q.where(self._operators[f.op](col(getattr(self.model, f.field)), f.value))
+        if request.sort and hasattr(self.model, request.sort):
+            sort_col = col(getattr(self.model, request.sort))
+            q = q.order_by(sort_col.desc() if request.order.lower() == "desc" else sort_col.asc())
+        offset = (request.page - 1) * request.limit
+        return self.model.session.exec(q.offset(offset).limit(request.limit)).all()
 
     def get_all(
         self,
