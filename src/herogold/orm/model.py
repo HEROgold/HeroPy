@@ -98,7 +98,11 @@ class BaseModel(BaseSQLModel):
         self._create_record(session)
 
     def update(self: SELF, session: Session | None = None) -> None:
-        """Create or update a record in Database."""
+        """Create or update a record in Database.
+
+        If the record already exists (has an id), it will be updated.
+        If the record does not exist (no id), it will be created.
+        """
         self.logger.debug("Record update requested: %s", self, extra={"record": self})
         session = self._get_session(session)
         if known := session.exec(

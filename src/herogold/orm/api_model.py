@@ -110,7 +110,7 @@ class APIModel[T: BaseModel]:
         router.add_api_route(
             "/",
             self.update,
-            methods=["PUT"],
+            methods=["PUT", "PATCH"],
             responses=default_responses,
         )
         router.add_api_route(
@@ -161,7 +161,10 @@ class APIModel[T: BaseModel]:
         return item
 
     def update(self, item: T) -> None | int:
-        """Update an existing record."""
+        """Update an existing record.
+
+        Item can be a full model instance or a partial update with only the fields to be updated.
+        """
         if not item.id or not self.model.get(item.id):
             return status.HTTP_404_NOT_FOUND
         if extras := getattr(item, "extra", None):
