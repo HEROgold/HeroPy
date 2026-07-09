@@ -25,6 +25,7 @@ from .model import BaseModel
 
 if TYPE_CHECKING:
     from sqlalchemy import ColumnElement
+    from sqlalchemy.sql.elements import SQLColumnExpression
     from sqlmodel.sql.expression import SelectOfScalar
 
 
@@ -174,10 +175,9 @@ class APIModel[T: BaseModel]:
             q = q.where(getattr(self.model, key) == value)
         return q
 
-    # I don't like this mapping, but it works.
-    # It's missing type infor for c, v. But it's defined in the type hint, so it's okay.
-    # I'd like to see a replacement, that handles and cleans up Any here as well.
-    _operators: ClassVar[dict[Operator, Callable[[Any, Any], ColumnElement[bool]]]] = {
+    # `v` is intentionally Any: filter values come straight from the request body
+    # (QueryFilter.value: Any) and are heterogeneous — scalar for eq/like, iterable for in_.
+    _operators: ClassVar[dict[Operator, Callable[[SQLColumnExpression[Any], Any], ColumnElement[bool]]]] = {
         Operator.eq: lambda c, v: c == v,
         Operator.ne: lambda c, v: c != v,
         Operator.gt: lambda c, v: c > v,
