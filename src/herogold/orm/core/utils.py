@@ -9,10 +9,10 @@ from sqlmodel import SQLModel
 from herogold.sentinel import create_sentinel
 
 if TYPE_CHECKING:
-    # Imported for typing only: ``BaseModel`` appears solely in (stringized)
-    # annotations and the lazily-evaluated PEP 695 bound ``Relationship[T: BaseModel]``.
+    # Imported for typing only: ``_BaseModel`` appears solely in (stringized)
+    # annotations and the lazily-evaluated PEP 695 bound ``Relationship[T: _BaseModel]``.
     # Importing it at runtime creates a circular import (model -> utils -> model).
-    from herogold.orm.core.model import BaseModel
+    from herogold.orm.core.model import _BaseModel
 
 SELF = create_sentinel()
 """Sentinel value for self-referential relationships in SQLModel classes."""
@@ -30,7 +30,7 @@ def get_foreign_key[M: SQLModel](table: type[M], column: str = "id") -> str:
     return f"{table.__tablename__}.{column}"
 
 
-class Relationship[T: BaseModel]:
+class Relationship[T: _BaseModel]:
     """Descriptor for defining a foreign-key relationship.
 
     ``T`` is the related model type.  ``SELF`` may be given at declaration
@@ -119,18 +119,18 @@ class Relationship[T: BaseModel]:
         # otherwise interpret it as a primary key and fetch
         return self.related_model.get(val)
 
-    def __set__(self, instance: BaseModel, value: T) -> None:
+    def __set__(self, instance: _BaseModel, value: T) -> None:
         """Update the related object for the descriptor."""
         instance.logger.debug("Setting relationship '%s' to %s", self.name, value, extra={"record": instance})
         self.related_model.update(value)
 
-    def _get_required(self, instance: BaseModel, foreign_key: str) -> T:
+    def _get_required(self, instance: _BaseModel, foreign_key: str) -> T:
         """Return related object, raising if the foreign key is absent."""
         if related := self._get_optional(instance, foreign_key):
             return related
         msg = f"Related instance for relationship '{self.name}' not found."
         raise AttributeError(msg)
 
-    def _get_optional(self, instance: BaseModel, foreign_key: str) -> T | None:
+    def _get_optional(self, instance: _BaseModel, foreign_key: str) -> T | None:
         """Return value stored in ``foreign_key`` attribute (may be ``None``)."""
         return getattr(instance, foreign_key)
