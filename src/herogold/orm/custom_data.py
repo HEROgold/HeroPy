@@ -27,7 +27,7 @@ class OutOfSpaceError(ValueError):
 
 
 @with_known_exception(OutOfSpaceError)
-def validate_size(item: Mapping[object, object], size_limit: int = DEFAULT_SIZE_LIMIT) -> None:
+def validate_size(item: object, size_limit: int = DEFAULT_SIZE_LIMIT) -> None:
     """Validate that the size of the custom data does not exceed the limit.
 
     Returns an :class:`OutOfSpaceError` instead of raising it (see

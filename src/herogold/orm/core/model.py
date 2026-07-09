@@ -134,7 +134,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         raise NotFoundError(msg)
 
     @classmethod
-    def get_all(cls: type[Self], session: Session | None = None) -> Sequence[SELF]:
+    def get_all(cls, session: Session | None = None) -> Sequence[SELF]:
         """Get all records from Database."""
         cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
         session = cls._get_session(session)
@@ -196,6 +196,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     def _delete_record(self, session: Session) -> None:
         """Delete the record in the database with the current instance's values."""
 
+# TODO: move to its own module.
 class CustomData(_BaseModel, table=True):
     """Persisted extra-data table: a single JSONB blob per row.
 

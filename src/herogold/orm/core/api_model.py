@@ -18,7 +18,7 @@ with ExtraImportContext("herogold", "orm", "orm", "api"):
     from fastapi import APIRouter, HTTPException, Response, status
 
 
-from .model import BaseModel
+from .model import BaseModel, _BaseModel
 
 if TYPE_CHECKING:
     from sqlmodel.sql.expression import SelectOfScalar
@@ -66,7 +66,7 @@ class PaginatedMeta(TypedDict):
     next: str | None
 
 
-class PaginatedResponse[T: BaseModel]:
+class PaginatedResponse[T: _BaseModel]:
     """A simple wrapper for paginated responses."""
 
     base_url: str = "/"
@@ -270,6 +270,8 @@ class APIModel[T: BaseModel]:
 
     def query(self, request: QueryRequest) -> QueryResponse[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
+        # TODO: preferibly, this module does not use any sql.
+        # Only using the Model's methods
         self.model.logger.debug("QUERY %s: %s", self.model.__name__, request, extra={"request": request})
         q = select(self.model).where(self.model.deleted_at == None)  # noqa: E711
 
