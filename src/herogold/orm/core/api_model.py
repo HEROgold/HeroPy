@@ -6,18 +6,23 @@ from collections.abc import Callable, Generator, Iterable
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict
 
+from fastapi import HTTPException, Response
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import SQLCoreOperations
 from sqlmodel import Field, SQLModel, col, select
 
-from herogold.imports import ExtraImportContext
-from herogold.orm.core.model import ExtraData
+from herogold.orm.core.model import ExtraData, _BaseModel, BaseModel
 
-with ExtraImportContext("herogold", "orm", "orm", "api"):
-    from fastapi import APIRouter, HTTPException, Response, status
+try:
+    from fastapi import APIRouter, status
+except ImportError as e:
+    msg = (
+        "Failed to import required dependencies for the orm[api] package. "
+        "Please ensure that 'api' extra is installed. "
+        "You can install them using 'herogold[orm-api]'."
+    )
+    raise ImportError(msg) from e
 
-
-from .model import BaseModel
 
 if TYPE_CHECKING:
     from sqlmodel.sql.expression import SelectOfScalar
@@ -65,7 +70,7 @@ class PaginatedMeta(TypedDict):
     next: str | None
 
 
-class PaginatedResponse[T: BaseModel]:
+class PaginatedResponse[T: _BaseModel]:
     """A simple wrapper for paginated responses."""
 
     base_url: str = "/"
@@ -132,7 +137,8 @@ class PaginatedResponse[T: BaseModel]:
         yield from self.next or []
 
 
-class QueryResponse[T: BaseModel](TypedDict):
+
+class QueryResponse[T: _BaseModel](TypedDict):
     """TypedDict for the response of a QUERY request."""
 
     items: list[T]
@@ -145,6 +151,17 @@ class QueryResponse[T: BaseModel](TypedDict):
 
 type SupportsOperations = Callable[[SQLCoreOperations[Any], Any], SQLCoreOperations[bool]]
 type OperatorMap = dict[Operator, SupportsOperations]
+
+
+class QueryResponse[T: _BaseModel](TypedDict):
+    """TypedDict for the response of a QUERY request."""
+
+    items: list[T]
+    page: int
+    size: int
+    total_pages: int
+    total_items: int
+    next: str | None
 
 
 class APIModel[T: BaseModel]:
@@ -251,6 +268,8 @@ class APIModel[T: BaseModel]:
 
     def query(self, request: QueryRequest) -> QueryResponse[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
+        # TODO: preferably, this module does not use any sql.
+        # Only using the Model's methods
         self.model.logger.debug("QUERY %s: %s", self.model.__name__, request, extra={"request": request})
         q = select(self.model).where(self.model.deleted_at == None)  # noqa: E711
 
