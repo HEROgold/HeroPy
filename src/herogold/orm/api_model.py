@@ -19,7 +19,7 @@ except ImportError as e:
     raise ImportError(msg) from e
 
 
-from herogold.orm.model import BaseModel, ExtraData
+from herogold.orm.model import ExtraData, _BaseModel
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.elements import ColumnElement, SQLColumnExpression
@@ -58,7 +58,7 @@ class QueryRequest(SQLModel):
     limit: int = 100
 
 
-class PaginatedResponse[T: BaseModel]:
+class PaginatedResponse[T: _BaseModel]:
     """A simple wrapper for paginated responses."""
 
     base_url: str = "/"
@@ -106,14 +106,14 @@ class PaginatedResponse[T: BaseModel]:
         yield from self.next or []
 
 
-class APIModel[T: BaseModel]:
+class APIModel[T: _BaseModel]:
     """Base APIModel class with custom methods for API interactions."""
 
     def __init__(self, model: type[T], router: APIRouter) -> None:
         """Initialize the APIModel with a SQLModel instance, adding routes to the provided router."""
         self.model = model
         router.tags = [model.__name__, *router.tags]
-        default_responses: dict[int, dict[str, str]] = {
+        default_responses: dict[int | str, dict[str, str]] = {
             200: {"description": "Successful Response"},
             404: {"description": "Not Found"},
         }
@@ -188,6 +188,8 @@ class APIModel[T: BaseModel]:
 
     def query(self, request: QueryRequest) -> Sequence[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
+        # TODO: preferibly, this module does not use any sql.
+        # Only using the Model's methods
         self.model.logger.debug("QUERY %s: %s", self.model.__name__, request, extra={"request": request})
         q = select(self.model).where(self.model.deleted_at == None)  # noqa: E711
         for f in request.filters:
