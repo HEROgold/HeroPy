@@ -7,12 +7,8 @@ circular dependency.
 from __future__ import annotations
 
 from sys import getsizeof
-from typing import TYPE_CHECKING
 
 from herogold.errors import with_known_exception
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 DEFAULT_SIZE_LIMIT = 1024 * 10
 """Default byte budget for a model's custom data (the old descriptor default)."""
