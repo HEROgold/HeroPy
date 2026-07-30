@@ -6,23 +6,19 @@ from collections.abc import Callable, Generator, Iterable
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict
 
-from fastapi import HTTPException, Response
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import SQLCoreOperations
 from sqlmodel import Field, SQLModel, col, select
 
-from herogold.orm.core.model import ExtraData, _BaseModel, BaseModel
+from herogold.imports import ExtraImportContext
+from herogold.orm.core.model import CustomData
+from herogold.orm.custom_data import DEFAULT_SIZE_LIMIT, OutOfSpaceError, validate_size
 
-try:
-    from fastapi import APIRouter, status
-except ImportError as e:
-    msg = (
-        "Failed to import required dependencies for the orm[api] package. "
-        "Please ensure that 'api' extra is installed. "
-        "You can install them using 'herogold[orm-api]'."
-    )
-    raise ImportError(msg) from e
+with ExtraImportContext("herogold", "orm", "orm", "api"):
+    from fastapi import APIRouter, HTTPException, Response, status
 
+
+from .model import BaseModel
 
 if TYPE_CHECKING:
     from sqlmodel.sql.expression import SelectOfScalar
@@ -70,7 +66,7 @@ class PaginatedMeta(TypedDict):
     next: str | None
 
 
-class PaginatedResponse[T: _BaseModel]:
+class PaginatedResponse[T: BaseModel]:
     """A simple wrapper for paginated responses."""
 
     base_url: str = "/"
@@ -137,8 +133,7 @@ class PaginatedResponse[T: _BaseModel]:
         yield from self.next or []
 
 
-
-class QueryResponse[T: _BaseModel](TypedDict):
+class QueryResponse[T: BaseModel](TypedDict):
     """TypedDict for the response of a QUERY request."""
 
     items: list[T]
@@ -151,17 +146,6 @@ class QueryResponse[T: _BaseModel](TypedDict):
 
 type SupportsOperations = Callable[[SQLCoreOperations[Any], Any], SQLCoreOperations[bool]]
 type OperatorMap = dict[Operator, SupportsOperations]
-
-
-class QueryResponse[T: _BaseModel](TypedDict):
-    """TypedDict for the response of a QUERY request."""
-
-    items: list[T]
-    page: int
-    size: int
-    total_pages: int
-    total_items: int
-    next: str | None
 
 
 class APIModel[T: BaseModel]:
@@ -246,6 +230,24 @@ class APIModel[T: BaseModel]:
             q = q.where(getattr(self.model, key) == value)
         return q
 
+    def _persist_custom_data(self, item: T, data: dict[str, Any] | None) -> None:
+        """Persist ``data`` as a linked :class:`CustomData` row.
+
+        Validates the size first; an oversize payload raises ``413``. On success a
+        ``CustomData`` row is created and linked to ``item`` via the association
+        table (``item.custom_data = row``), so ``item`` must already be persisted.
+        The per-model byte budget can be overridden with a ``custom_data_size_limit``
+        ClassVar on the model.
+        """
+        if not data:
+            return
+        limit = getattr(self.model, "custom_data_size_limit", DEFAULT_SIZE_LIMIT)
+        if isinstance(err := validate_size(data, limit), OutOfSpaceError):
+            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=str(err))
+        row = CustomData(data=dict(data))
+        row.add()
+        item.custom_data = row
+
     _operators: ClassVar[OperatorMap] = {
         Operator.eq: lambda c, v: c == v,
         Operator.ne: lambda c, v: c != v,
@@ -268,8 +270,6 @@ class APIModel[T: BaseModel]:
 
     def query(self, request: QueryRequest) -> QueryResponse[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
-        # TODO: preferably, this module does not use any sql.
-        # Only using the Model's methods
         self.model.logger.debug("QUERY %s: %s", self.model.__name__, request, extra={"request": request})
         q = select(self.model).where(self.model.deleted_at == None)  # noqa: E711
 
@@ -311,26 +311,24 @@ class APIModel[T: BaseModel]:
         yield from PaginatedResponse(self.model, page, size=limit)
 
     def get(self, _id: int) -> T | int:
-        """Get a record by ID."""
+        """Get a record by ID. Its extra data is available via ``inst.custom_data.data``."""
         return self.model.get(_id) or status.HTTP_404_NOT_FOUND
 
-    def create(self, item: T) -> T:
-        """Create a new record."""
-        if extras := getattr(item, "extra", None):
-            item.extra = ExtraData(data=extras)
-        self.model.add(item)
+    def create(self, item: T, custom_data: dict[str, Any] | None = None) -> T:
+        """Create a new record, then link any ``custom_data`` via the CustomData table."""
+        self.model.add(item)  # persist first so item.id exists for the link
+        self._persist_custom_data(item, custom_data)
         return item
 
-    def update(self, item: T) -> int | None:
+    def update(self, item: T, custom_data: dict[str, Any] | None = None) -> int | None:
         """Update an existing record.
 
         Item can be a full model instance or a partial update with only the fields to be updated.
         """
         if not item.id or not self.model.get(item.id):
             return status.HTTP_404_NOT_FOUND
-        if extras := getattr(item, "extra", None):
-            item.extra = ExtraData(data=extras)
         self.model.update(item)
+        self._persist_custom_data(item, custom_data)
         return None
 
     def delete(self, _id: int) -> int | None:
