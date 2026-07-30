@@ -312,7 +312,10 @@ class APIModel[T: BaseModel]:
 
     def get(self, _id: int) -> T | int:
         """Get a record by ID. Its extra data is available via ``inst.custom_data.data``."""
-        return self.model.get(_id) or status.HTTP_404_NOT_FOUND
+        inst = self.model.get(_id)
+        if inst is None:
+            return status.HTTP_404_NOT_FOUND
+        return inst
 
     def create(self, item: T, custom_data: dict[str, Any] | None = None) -> T:
         """Create a new record, then link any ``custom_data`` via the CustomData table."""
