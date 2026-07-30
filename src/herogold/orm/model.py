@@ -12,12 +12,15 @@ from functools import partial
 from types import NoneType
 from typing import TYPE_CHECKING, Any, ClassVar, Unpack, override
 
-from sqlalchemy import BigInteger, ScalarResult, func
+from sqlalchemy import JSON, BigInteger, Column, ScalarResult, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import declared_attr
+from sqlalchemy.schema import Index
 from sqlmodel import Field, Session, col, select
 from sqlmodel import SQLModel as BaseSQLModel
 
 from herogold.log import LoggerMixin
-from herogold.orm.utils import SELF, Relationship
+from herogold.orm.utils import SELF, ModelMeta, Relationship
 from herogold.typing.check import contains_sub_type
 
 from .constants import session as db_session
@@ -40,8 +43,12 @@ class ModelLogger(LoggerMixin):
     Avoids the issue of cls.logger raising AttributeError, property has no attribute `xxx`
     """
 
-class _BaseModel(BaseSQLModel, ABC):
+class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     """Base model class for all models."""
+
+    # ignore the Relationship descriptors so pydantic/sqlmodel treat them as
+    # non-fields (they carry no column annotation).
+    model_config = {"ignored_types": (Relationship,)}  # ty:ignore[invalid-assignment]
 
     id: int | None = Field(
         default=None,
@@ -51,6 +58,9 @@ class _BaseModel(BaseSQLModel, ABC):
         nullable=False,
         sa_column_kwargs={"autoincrement": True},
     )
+
+    # ``custom_data`` (a Relationship to the CustomData table) is attached below,
+    # after CustomData is defined, because it targets a subclass of this class.
 
     session: ClassVar[Session] = db_session
     logger: ClassVar[logging.Logger] = ModelLogger().logger
@@ -163,12 +173,56 @@ class _BaseModel(BaseSQLModel, ABC):
     def _delete_record(self, session: Session) -> None:
         """Delete the record in the database with the current instance's values."""
 
+class CustomData(_BaseModel, table=True):
+    """Persisted extra-data table: a single JSONB blob per row.
+
+    Every model links to (at most) one ``CustomData`` row through the inherited
+    ``custom_data`` relationship. It is defined right after ``_BaseModel`` so it
+    exists as a link target before any concrete model, and it is built *before*
+    the ``custom_data`` relationship is attached to ``_BaseModel`` below, so it
+    stays a leaf (no recursive self-link).
+    """
+
+    # JSONB on PostgreSQL, plain JSON elsewhere (e.g. the sqlite test engine).
+    data: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON().with_variant(JSONB(), "postgresql")),
+    )
+
+    @override
+    def _create_record(self, session: Session) -> None:
+        self.logger.debug("Creating record: %s", self, extra={"record": self})
+        session = self._get_session(session)
+        session.add(self)
+        session.commit()
+
+    @override
+    def _update_record(self, session: Session, entry: SELF) -> None:
+        entry.data = self.data
+        session = self._get_session(session)
+        session.add(entry)
+        session.commit()
+
+    @override
+    def _delete_record(self, session: Session) -> None:
+        session = self._get_session(session)
+        session.delete(self)
+        session.commit()
+
+
+# Attach the shared ``custom_data`` relationship to the base now that its target
+# (CustomData) exists. Placed here rather than in the _BaseModel body because it
+# points at a subclass; CustomData was built above, so it never gains its own
+# ``custom_data`` link table (it stays a leaf).
+_custom_data = Relationship(CustomData)
+_custom_data.__set_name__(_BaseModel, "custom_data")
+_BaseModel.custom_data = _custom_data
+
+
 class BaseModel(_BaseModel):
     """Base model class with custom methods."""
 
-    # ignore Relationship descriptor values so they don't have to be
-    # annotated at all; the class object is available at import time, so we
-    # can configure this statically rather than in __init_subclass__.
+    # ignore Relationship descriptor values so they don't have to be annotated.
     model_config = {"ignored_types": (Relationship,)}  # ty:ignore[invalid-assignment]
 
     id: int | None = Field(
@@ -184,9 +238,23 @@ class BaseModel(_BaseModel):
     __cur_utc = partial(datetime.now, UTC)
 
     created_at: datetime = Field(default_factory=__cur_utc)
-    updated_at: datetime = Field(default_factory=__cur_utc)
+    updated_at: datetime = Field(default_factory=__cur_utc, sa_column_kwargs={"onupdate": __cur_utc})
     deleted_at: datetime | None = Field(default=None)
-    extra = Relationship["ExtraData"](optional=True)
+
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> tuple[Index, ...]:
+        """Specify partial indexes for deleted_at to optimize queries for alive records."""
+        return (
+            Index(
+                f"idx_{cls.__tablename__}_alive_only",
+                "id",
+                postgresql_where=cls.deleted_at == None,  # noqa: E711
+                mssql_where=cls.deleted_at == None,  # noqa: E711
+                sqlite_where=cls.deleted_at == None,  # noqa: E711
+                # MySQL automatically ignores these and falls back to a normal index on "id"
+            ),
+        )
 
     @override
     @classmethod
@@ -255,9 +323,7 @@ class Actions(Enum):
 class DataModel(_BaseModel):
     """Base model for models that require a history of changes."""
 
-    # ignore Relationship descriptor values so they don't have to be
-    # annotated at all; the class object is available at import time, so we
-    # can configure this statically rather than in __init_subclass__.
+    # ignore Relationship descriptor values so they don't have to be annotated.
     model_config = {"ignored_types": (Relationship,)}  # ty:ignore[invalid-assignment]
 
     # Composite primary key of id and timestamp
@@ -276,8 +342,11 @@ class DataModel(_BaseModel):
 
     action: Actions = Field()
     """Each implementation of _ACTION_record() must handle setting the action type."""
-    changes: dict[str, Any] = Field(default_factory=dict, sa_column_kwargs={"type_": "JSONB"})
-    extra = Relationship["ExtraData"](optional=True)
+    # JSONB on PostgreSQL, plain JSON elsewhere (e.g. the sqlite test engine).
+    changes: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON().with_variant(JSONB(), "postgresql")),
+    )
 
     @override
     def _create_record(self, session: Session) -> None:
@@ -324,10 +393,3 @@ class DataModel(_BaseModel):
             session.add(self)
             session.commit()
             return
-
-
-class ExtraData(_BaseModel):
-    """Model for storing extra data in JSONB format."""
-
-    data: dict[str, Any] = Field(default_factory=dict, sa_column_kwargs={"type_": "JSONB"})
-    extra = None # Avoid recursive relationship with itself

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from sqlmodel import SQLModel, col, select
 
 try:
-    from fastapi import APIRouter, status
+    from fastapi import APIRouter, HTTPException, status
 except ImportError as e:
     msg = (
         "Failed to import required dependencies for the orm[api] package. "
@@ -19,7 +19,8 @@ except ImportError as e:
     raise ImportError(msg) from e
 
 
-from herogold.orm.model import ExtraData, _BaseModel
+from herogold.orm.custom_data import DEFAULT_SIZE_LIMIT, OutOfSpaceError, validate_size
+from herogold.orm.model import CustomData, _BaseModel
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.elements import ColumnElement, SQLColumnExpression
@@ -172,6 +173,24 @@ class APIModel[T: _BaseModel]:
             q = q.where(getattr(self.model, key) == value)
         return q
 
+    def _persist_custom_data(self, item: T, data: dict[str, Any] | None) -> None:
+        """Persist ``data`` as a linked :class:`CustomData` row.
+
+        Validates the size first; an oversize payload raises ``413``. On success a
+        ``CustomData`` row is created and linked to ``item`` via the association
+        table (``item.custom_data = row``), so ``item`` must already be persisted.
+        The per-model byte budget can be overridden with a ``custom_data_size_limit``
+        ClassVar on the model.
+        """
+        if not data:
+            return
+        limit = getattr(self.model, "custom_data_size_limit", DEFAULT_SIZE_LIMIT)
+        if isinstance(err := validate_size(data, limit), OutOfSpaceError):
+            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=str(err))
+        row = CustomData(data=dict(data))
+        row.add()
+        item.custom_data = row
+
     # `v` is intentionally Any: filter values come straight from the request body
     # (QueryFilter.value: Any) and are heterogeneous — scalar for eq/like, iterable for in_.
     _operators: ClassVar[dict[Operator, Callable[[SQLColumnExpression[Any], Any], ColumnElement[bool]]]] = {
@@ -221,26 +240,27 @@ class APIModel[T: _BaseModel]:
         yield from PaginatedResponse(self.model, page, size=limit)
 
     def get(self, _id: int) -> T | int:
-        """Get a record by ID."""
-        return self.model.get(_id) or status.HTTP_404_NOT_FOUND
+        """Get a record by ID. Its extra data is available via ``inst.custom_data.data``."""
+        inst = self.model.get(_id)
+        if inst is None:
+            return status.HTTP_404_NOT_FOUND
+        return inst
 
-    def create(self, item: T) -> T:
-        """Create a new record."""
-        if extras := getattr(item, "extra", None):
-            item.extra = ExtraData(data=extras)
-        self.model.add(item)
+    def create(self, item: T, custom_data: dict[str, Any] | None = None) -> T:
+        """Create a new record, then link any ``custom_data`` via the CustomData table."""
+        self.model.add(item)  # persist first so item.id exists for the link
+        self._persist_custom_data(item, custom_data)
         return item
 
-    def update(self, item: T) -> None | int:
+    def update(self, item: T, custom_data: dict[str, Any] | None = None) -> None | int:
         """Update an existing record.
 
         Item can be a full model instance or a partial update with only the fields to be updated.
         """
         if not item.id or not self.model.get(item.id):
             return status.HTTP_404_NOT_FOUND
-        if extras := getattr(item, "extra", None):
-            item.extra = ExtraData(data=extras)
         self.model.update(item)
+        self._persist_custom_data(item, custom_data)
         return None
 
     def delete(self, _id: int) -> None | int:
