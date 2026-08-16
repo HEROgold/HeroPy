@@ -15,6 +15,9 @@ class _Sentinel:
     def __init__(self) -> None:
         return
 
+    def __init_subclass__(cls) -> None:
+        return None
+
     def __eq__(self, other: object) -> bool:
         return False
 
@@ -44,9 +47,6 @@ class _Sentinel:
 
     def __dir__(self) -> Iterable[str]:
         return [""]
-
-    def __init_subclass__(cls) -> None:
-        return None
 
     @classmethod
     def __subclasshook__(cls, subclass: type, /) -> bool:

@@ -12,23 +12,6 @@ def no_op() -> None:
     return
 
 
-def _sort() -> None:
-    size = 10
-    numbers = list(range(size, 0, -1))
-    numbers.sort()
-    if numbers[0] != 1 or numbers[-1] != size:
-        msg = "Sorting failed: first element is %s, last element is %s"
-        raise RuntimeError(msg, numbers[0], numbers[-1])
-
-
-def _raise_zero_division() -> None:
-    _ = 1 / 0
-
-
-def _sleep_long() -> None:
-    time.sleep(5)
-
-
 def test_workerpool_sort_integers() -> None:
     with WorkerPool() as pool:
         pool.submit(_sort)
@@ -89,3 +72,20 @@ def test_async_workerpool_waits_for_completed_tasks() -> None:
             assert [i async for i in pool.pop_errors()] == []
 
     asyncio.run(run())
+
+
+def _sort() -> None:
+    size = 10
+    numbers = list(range(size, 0, -1))
+    numbers.sort()
+    if numbers[0] != 1 or numbers[-1] != size:
+        msg = "Sorting failed: first element is %s, last element is %s"
+        raise RuntimeError(msg, numbers[0], numbers[-1])
+
+
+def _raise_zero_division() -> None:
+    _ = 1 / 0
+
+
+def _sleep_long() -> None:
+    time.sleep(5)

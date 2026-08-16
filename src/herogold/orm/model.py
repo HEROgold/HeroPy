@@ -72,21 +72,6 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         super().__init_subclass__(**kwargs)
         models.add(cls)
 
-    @classmethod
-    def _get_session(cls, session: Session | None = None) -> Session:
-        """Get the usable session, either the provided one or the default."""
-        cls.logger.debug("Getting session: %s", session, extra={"session": session})
-        return session or cls.session
-
-    @classmethod
-    def count(cls) -> int:
-        """Return the total count of records in the model."""
-        if not cls.__count or cls.session.identity_map.check_modified():
-            cls.__count = cls.session.exec(
-                select(func.count(col(cls.id))),
-            ).one()
-        return cls.__count
-
     @property
     def relations(self) -> dict[str, type[_BaseModel]]:
         """Return a dict of related models and their values."""
@@ -95,28 +80,6 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             for name, info in self.__class__.model_fields.items()
             if info.annotation and issubclass(info.annotation, _BaseModel)
         }
-
-    @classmethod
-    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> SELF:
-        """Get a record from Database."""
-        cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
-        session = cls._get_session(session)
-
-        query = select(cls).where(cls.id == id_)
-        if with_for_update:
-            query = query.with_for_update()
-
-        if known := session.exec(query).first():
-            return known
-        msg = f"Record with {cls.__name__}.id={id_} not found."
-        raise NotFoundError(msg)
-
-    @classmethod
-    def get_all(cls: type[SELF], session: Session | None = None) -> Sequence[SELF]:
-        """Get all records from Database."""
-        cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
-        session = cls._get_session(session)
-        return session.exec(select(cls)).all()
 
     def add(self: SELF, session: Session | None = None) -> None:
         """Add a record to Database."""
@@ -148,6 +111,37 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         raise NotFoundError(msg)
 
     @classmethod
+    def count(cls) -> int:
+        """Return the total count of records in the model."""
+        if not cls.__count or cls.session.identity_map.check_modified():
+            cls.__count = cls.session.exec(
+                select(func.count(col(cls.id))),
+            ).one()
+        return cls.__count
+
+    @classmethod
+    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> SELF:
+        """Get a record from Database."""
+        cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
+        session = cls._get_session(session)
+
+        query = select(cls).where(cls.id == id_)
+        if with_for_update:
+            query = query.with_for_update()
+
+        if known := session.exec(query).first():
+            return known
+        msg = f"Record with {cls.__name__}.id={id_} not found."
+        raise NotFoundError(msg)
+
+    @classmethod
+    def get_all(cls: type[SELF], session: Session | None = None) -> Sequence[SELF]:
+        """Get all records from Database."""
+        cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
+        session = cls._get_session(session)
+        return session.exec(select(cls)).all()
+
+    @classmethod
     def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[SELF]:
         """Get a record from Database by field and value."""
         cls.logger.debug(
@@ -172,6 +166,12 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     @abstractmethod
     def _delete_record(self, session: Session) -> None:
         """Delete the record in the database with the current instance's values."""
+
+    @classmethod
+    def _get_session(cls, session: Session | None = None) -> Session:
+        """Get the usable session, either the provided one or the default."""
+        cls.logger.debug("Getting session: %s", session, extra={"session": session})
+        return session or cls.session
 
 class CustomData(_BaseModel, table=True):
     """Persisted extra-data table: a single JSONB blob per row.

@@ -79,9 +79,57 @@ class Relationship[T: _BaseModel](LoggerMixin):
         """Record the attribute name (link tables are built later, per subclass)."""
         self.name = name
 
-    def _resolve_target(self, owner: type) -> type[SQLModel]:
-        """Resolve ``SELF`` to the owner; otherwise return the declared target."""
-        return owner if self.related_model is SELF else self.related_model
+    def __set__(self, instance: _BaseModel, value: T) -> None:
+        """Persist ``value`` if needed and replace the owner's single link row."""
+        instance.logger.debug("Setting relationship '%s' to %s", self.name, value, extra={"record": instance})
+        info = self._links[type(instance)]
+        if instance.id is None:
+            msg = f"Owner must be persisted before setting relationship '{self.name}'."
+            raise ValueError(msg)
+        if value.id is None:
+            value.add()
+        session = type(instance).session
+        owner_vals = {oc: getattr(instance, op) for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)}
+        target_vals = {tc: getattr(value, tp) for tc, tp in zip(info.target_cols, info.target_pk, strict=True)}
+        session.execute(
+            info.table.delete().where(and_(*(info.table.c[oc] == v for oc, v in owner_vals.items()))),
+        )
+        session.execute(info.table.insert().values(**owner_vals, **target_vals))
+        session.commit()
+
+    def __delete__(self, instance: _BaseModel) -> None:
+        """Remove the owner's link row(s)."""
+        info = self._links.get(type(instance))
+        if info is None:
+            return
+        session = type(instance).session
+        owner_vals = {oc: getattr(instance, op) for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)}
+        session.execute(
+            info.table.delete().where(and_(*(info.table.c[oc] == v for oc, v in owner_vals.items()))),
+        )
+        session.commit()
+
+    @overload
+    def __get__(self, instance: None, owner: type[T]) -> type[T]: ...
+    @overload
+    def __get__(self, instance: T, owner: type[T]) -> T | None: ...
+    def __get__(self, instance: T | None, owner: type[T]) -> type[T] | T | None:
+        """Class access returns the target class; instance access joins the link table."""
+        if instance is None:
+            return self._resolve_target(owner)
+        info = self._links.get(type(instance))
+        if info is None:
+            return None
+        session = type(instance).session
+        join_cond = and_(*(
+            info.table.c[tc] == info.target.__table__.c[tp]
+            for tc, tp in zip(info.target_cols, info.target_pk, strict=True)
+        ))
+        where_cond = and_(*(
+            info.table.c[oc] == getattr(instance, op)
+            for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)
+        ))
+        return session.exec(select(info.target).join(info.table, join_cond).where(where_cond)).first()
 
     def build_link_for(self, owner: type[SQLModel]) -> None:
         """Build (once) the association table joining ``owner`` to the target.
@@ -125,57 +173,9 @@ class Relationship[T: _BaseModel](LoggerMixin):
 
         self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
 
-    @overload
-    def __get__(self, instance: None, owner: type[T]) -> type[T]: ...
-    @overload
-    def __get__(self, instance: T, owner: type[T]) -> T | None: ...
-    def __get__(self, instance: T | None, owner: type[T]) -> type[T] | T | None:
-        """Class access returns the target class; instance access joins the link table."""
-        if instance is None:
-            return self._resolve_target(owner)
-        info = self._links.get(type(instance))
-        if info is None:
-            return None
-        session = type(instance).session
-        join_cond = and_(*(
-            info.table.c[tc] == info.target.__table__.c[tp]
-            for tc, tp in zip(info.target_cols, info.target_pk, strict=True)
-        ))
-        where_cond = and_(*(
-            info.table.c[oc] == getattr(instance, op)
-            for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)
-        ))
-        return session.exec(select(info.target).join(info.table, join_cond).where(where_cond)).first()
-
-    def __set__(self, instance: _BaseModel, value: T) -> None:
-        """Persist ``value`` if needed and replace the owner's single link row."""
-        instance.logger.debug("Setting relationship '%s' to %s", self.name, value, extra={"record": instance})
-        info = self._links[type(instance)]
-        if instance.id is None:
-            msg = f"Owner must be persisted before setting relationship '{self.name}'."
-            raise ValueError(msg)
-        if value.id is None:
-            value.add()
-        session = type(instance).session
-        owner_vals = {oc: getattr(instance, op) for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)}
-        target_vals = {tc: getattr(value, tp) for tc, tp in zip(info.target_cols, info.target_pk, strict=True)}
-        session.execute(
-            info.table.delete().where(and_(*(info.table.c[oc] == v for oc, v in owner_vals.items()))),
-        )
-        session.execute(info.table.insert().values(**owner_vals, **target_vals))
-        session.commit()
-
-    def __delete__(self, instance: _BaseModel) -> None:
-        """Remove the owner's link row(s)."""
-        info = self._links.get(type(instance))
-        if info is None:
-            return
-        session = type(instance).session
-        owner_vals = {oc: getattr(instance, op) for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)}
-        session.execute(
-            info.table.delete().where(and_(*(info.table.c[oc] == v for oc, v in owner_vals.items()))),
-        )
-        session.commit()
+    def _resolve_target(self, owner: type) -> type[SQLModel]:
+        """Resolve ``SELF`` to the owner; otherwise return the declared target."""
+        return owner if self.related_model is SELF else self.related_model
 
 
 class ModelMeta(type(SQLModel)):
