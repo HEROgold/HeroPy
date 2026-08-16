@@ -17,33 +17,6 @@ type SupportsStr = object
 class Logger(LoggingLogger):
     """Custom logger, supporting template string literals."""
 
-    def _interpolate(self, msg: Template) -> Generator[tuple[str, Any]]:
-        """Interpolate a Template message into a string and argument counterparts."""
-        for part in msg:
-            match part:
-                case str():
-                    yield "%s", part
-                case Interpolation(value=float()):
-                    yield "%f", part.value
-                case Interpolation(value=int()):
-                    yield "%d", part.value
-                case Interpolation(value=bool()):
-                    yield "%b", part.value
-                case _:
-                    yield "%s", part.value
-
-    def _build_msg(self, msg: SupportsStr) -> tuple[str, *tuple[object, ...]]:
-        """Build the final log message string, combined with required arguments properly formatted."""
-        if not isinstance(msg, Template):
-            return "%s", msg
-
-        parts: list[str] = []
-        arguments: list[object] = []
-        for part, arg in self._interpolate(msg):
-            parts.append(part)
-            arguments.append(arg)
-        return "".join(parts), *arguments
-
     @override
     def debug(
         self,
@@ -185,3 +158,30 @@ class Logger(LoggingLogger):
         if self.root is not self:
             suffix = f"{self.name}.{suffix}"
         return Logger(suffix or self.name)
+
+    def _interpolate(self, msg: Template) -> Generator[tuple[str, Any]]:
+        """Interpolate a Template message into a string and argument counterparts."""
+        for part in msg:
+            match part:
+                case str():
+                    yield "%s", part
+                case Interpolation(value=float()):
+                    yield "%f", part.value
+                case Interpolation(value=int()):
+                    yield "%d", part.value
+                case Interpolation(value=bool()):
+                    yield "%b", part.value
+                case _:
+                    yield "%s", part.value
+
+    def _build_msg(self, msg: SupportsStr) -> tuple[str, *tuple[object, ...]]:
+        """Build the final log message string, combined with required arguments properly formatted."""
+        if not isinstance(msg, Template):
+            return "%s", msg
+
+        parts: list[str] = []
+        arguments: list[object] = []
+        for part, arg in self._interpolate(msg):
+            parts.append(part)
+            arguments.append(arg)
+        return "".join(parts), *arguments

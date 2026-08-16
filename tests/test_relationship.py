@@ -1,38 +1,18 @@
 from __future__ import annotations
 
-<<<<<<< HEAD
-from sqlmodel import Session, SQLModel
-
-from herogold.orm.core.model import BaseModel
-from herogold.orm.core.utils import SELF, Relationship, get_foreign_key
-
-
-# Association tables require real tables, so every model here is table=True.
-class Other(BaseModel, table=True):
-    name: str = "o"
-
-
-=======
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy import BigInteger
+from sqlalchemy import BigInteger, StaticPool
 from sqlalchemy.ext.compiler import compiles
 from sqlmodel import Session, SQLModel, create_engine
 
-from herogold.orm.model import BaseModel, _BaseModel
-from herogold.orm.utils import SELF, Relationship, get_foreign_key
+from herogold.orm.core.model import BaseModel, _BaseModel
+from herogold.orm.core.utils import SELF, Relationship, get_foreign_key
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-DB_PATH = Path(__file__).with_name("_relationship.sqlite")
-
-
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):  # noqa: ANN001, ANN202, ARG001
-    return "INTEGER"
 
 
 # Association tables require real tables, so every model here is table=True.
@@ -40,7 +20,6 @@ class Other(BaseModel, table=True):
     name: str = "o"
 
 
->>>>>>> d02a7b1 (ORM changes)
 class HasRel(BaseModel, table=True):
     other = Relationship(Other)
 
@@ -53,12 +32,13 @@ class Node(BaseModel, table=True):
     parent = Relationship(SELF, optional=True)
 
 
-<<<<<<< HEAD
-=======
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
+    return "INTEGER"
+
 @pytest.fixture
 def session() -> Iterator[Session]:
-    DB_PATH.unlink(missing_ok=True)
-    engine = create_engine(f"sqlite:///{DB_PATH}")
+    engine = create_engine(url="sqlite:///:memory:", poolclass=StaticPool)
     SQLModel.metadata.create_all(engine)
     sess = Session(engine)
     originals = {cls: cls.__dict__.get("session") for cls in (_BaseModel, BaseModel)}
@@ -76,7 +56,6 @@ def session() -> Iterator[Session]:
         engine.dispose()
 
 
->>>>>>> d02a7b1 (ORM changes)
 def test_class_access_returns_target() -> None:
     assert HasRel.other is Other
     assert HasOpt.other is Other
@@ -90,11 +69,7 @@ def test_link_tables_registered() -> None:
     assert "other" not in {c.name for c in HasRel.__table__.columns}
 
 
-<<<<<<< HEAD
 def test_set_and_get(session: Session) -> None:
-=======
-def test_set_and_get(session: Session) -> None:  # noqa: ARG001
->>>>>>> d02a7b1 (ORM changes)
     o = Other(name="target")
     o.add()
     h = HasRel()
@@ -104,11 +79,7 @@ def test_set_and_get(session: Session) -> None:  # noqa: ARG001
     assert h.other.id == o.id
 
 
-<<<<<<< HEAD
 def test_reassign_replaces_single_link(session: Session) -> None:
-=======
-def test_reassign_replaces_single_link(session: Session) -> None:  # noqa: ARG001
->>>>>>> d02a7b1 (ORM changes)
     o1, o2 = Other(name="one"), Other(name="two")
     o1.add()
     o2.add()
@@ -120,21 +91,13 @@ def test_reassign_replaces_single_link(session: Session) -> None:  # noqa: ARG00
     assert h.other.id == o2.id
 
 
-<<<<<<< HEAD
 def test_optional_returns_none_when_unset(session: Session) -> None:
-=======
-def test_optional_returns_none_when_unset(session: Session) -> None:  # noqa: ARG001
->>>>>>> d02a7b1 (ORM changes)
     h = HasOpt()
     h.add()
     assert h.other is None
 
 
-<<<<<<< HEAD
 def test_self_referential(session: Session) -> None:
-=======
-def test_self_referential(session: Session) -> None:  # noqa: ARG001
->>>>>>> d02a7b1 (ORM changes)
     parent = Node()
     parent.add()
     child = Node()
@@ -147,3 +110,8 @@ def test_self_referential(session: Session) -> None:  # noqa: ARG001
 
 def test_foreign_key_helper_accepts_generic() -> None:
     assert get_foreign_key(Other, "id") == "other.id"
+
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
+    return "INTEGER"
