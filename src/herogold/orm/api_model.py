@@ -71,6 +71,14 @@ class PaginatedResponse[T: _BaseModel]:
         self.page = page
         self.size = size
 
+    def __iter__(self) -> Generator[T]:
+        """Iterate over the items for the current page, then yield from the next page if it exists."""
+        offset = (self.page - 1) * self.size
+        yield from self.model.session.exec(
+            self.query.offset(offset).limit(self.size),
+        ).all()
+        yield from self.next or []
+
     @property
     def total_pages(self) -> int:
         """Calculate the total number of pages based on total items and page size."""
@@ -99,14 +107,6 @@ class PaginatedResponse[T: _BaseModel]:
             "next": self.next.url if self.next else None,
         }
 
-    def __iter__(self) -> Generator[T]:
-        """Iterate over the items for the current page, then yield from the next page if it exists."""
-        offset = (self.page - 1) * self.size
-        yield from self.model.session.exec(
-            self.query.offset(offset).limit(self.size),
-        ).all()
-        yield from self.next or []
-
 class RequestFilter[T: _BaseModel]:
     """An APIModel that supports filtering, sorting, and pagination."""
 
@@ -130,15 +130,6 @@ class RequestFilter[T: _BaseModel]:
         Operator.in_: lambda c, v: c.in_(v),
     }
 
-    def _kwargs_filter(self, **kwargs: str) -> SelectOfScalar[T]:
-        """Filter inplace records based on keyword arguments."""
-        q = self.query
-        for key, value in kwargs.items():
-            if not hasattr(self.model, key):
-                continue
-            q = self.query.where(getattr(self.model, key) == value)
-        return q
-
     def filter(self, **kwargs: str) -> RequestFilter[T]:
         """Filter inplace records based on a QueryRequest, applying filters, sorting, and pagination."""
         q = self._kwargs_filter(**kwargs) if kwargs else self.query
@@ -155,6 +146,15 @@ class RequestFilter[T: _BaseModel]:
             sort_col = col(getattr(self.model, self.request.sort))
             q = self.query.order_by(sort_col.desc() if self.request.order.lower() == "desc" else sort_col.asc())
         return RequestFilter(self.model, self.request, q)
+
+    def _kwargs_filter(self, **kwargs: str) -> SelectOfScalar[T]:
+        """Filter inplace records based on keyword arguments."""
+        q = self.query
+        for key, value in kwargs.items():
+            if not hasattr(self.model, key):
+                continue
+            q = self.query.where(getattr(self.model, key) == value)
+        return q
 
 class CustomDataContainer[T: _BaseModel]:
     """A container for managing custom data associated with a model."""
@@ -245,17 +245,6 @@ class APIModel[T: _BaseModel]:
             responses=default_responses,
         )
 
-    def _param_builder(self, query_params: dict[str, str]) -> dict[str, str]:
-        """Build query parameters for filtering."""
-        return {key: value for key, value in query_params.items() if hasattr(self.model, key)}
-
-    def _build_filtered_query(self, query_params: dict[str, str]) -> SelectOfScalar[T]:
-        """Build SQLModel filters based on query parameters."""
-        q = select(self.model)
-        for key, value in self._param_builder(query_params).items():
-            q = q.where(getattr(self.model, key) == value)
-        return q
-
     def query(self, request: QueryRequest) -> Generator[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
         q = RequestFilter(self.model, request).filter().sort().query
@@ -316,3 +305,14 @@ class APIModel[T: _BaseModel]:
         inst = self.model.get(_id)
         self.model.delete(inst)
         return None
+
+    def _param_builder(self, query_params: dict[str, str]) -> dict[str, str]:
+        """Build query parameters for filtering."""
+        return {key: value for key, value in query_params.items() if hasattr(self.model, key)}
+
+    def _build_filtered_query(self, query_params: dict[str, str]) -> SelectOfScalar[T]:
+        """Build SQLModel filters based on query parameters."""
+        q = select(self.model)
+        for key, value in self._param_builder(query_params).items():
+            q = q.where(getattr(self.model, key) == value)
+        return q

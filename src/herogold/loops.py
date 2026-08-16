@@ -13,10 +13,6 @@ if TYPE_CHECKING:
 
 cpu_count = os.cpu_count() or 1
 
-
-def _square(value: int) -> int:
-    return value * value
-
 def parallel[T, P](action: Callable[[P], T], data: Iterable[P]) -> Iterator[T]:
     """Run a function in parallel across multiple CPU cores."""
     with ProcessPoolExecutor(max_workers=cpu_count) as executor:
@@ -34,3 +30,7 @@ async def a_range(count: int) -> AsyncIterator[int]:
     """Asynchronous generator that yields values from 0 to count-1."""
     for i in range(count):
         yield i
+
+
+def _square(value: int) -> int:
+    return value * value

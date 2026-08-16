@@ -44,15 +44,6 @@ class BaseWorkerPool(ABC):
         self._processes: list[mp.Process] = []
         self._setup_signal_handlers()
 
-    def _setup_signal_handlers(self) -> None:
-        """Register signal handlers to close on SIGTERM/SIGINT."""
-
-        def _handle_signal(_signum: int, _frame: FrameType | None) -> None:
-            self.close()
-
-        signal.signal(signal.SIGTERM, _handle_signal)
-        signal.signal(signal.SIGINT, _handle_signal)
-
     def start(self) -> None:
         """Start the worker processes if they haven't been started already."""
         if self._processes:
@@ -86,6 +77,15 @@ class BaseWorkerPool(ABC):
     @abstractmethod
     def wait(self) -> None | Awaitable[None]:
         """Wait for all worker processes to finish."""
+
+    def _setup_signal_handlers(self) -> None:
+        """Register signal handlers to close on SIGTERM/SIGINT."""
+
+        def _handle_signal(_signum: int, _frame: FrameType | None) -> None:
+            self.close()
+
+        signal.signal(signal.SIGTERM, _handle_signal)
+        signal.signal(signal.SIGINT, _handle_signal)
 
 
 class WorkerPool(BaseWorkerPool):

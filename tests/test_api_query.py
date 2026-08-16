@@ -16,18 +16,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
-    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT,
-    # so render BaseModel's BigInteger id as INTEGER for the in-memory test engine.
-    return "INTEGER"
-
-
-class Item(BaseModel, table=True):
-    name: str
-    price: int
-
-
 @pytest.fixture
 def api() -> Iterator[APIModel[Item]]:
     # StaticPool keeps a single shared connection so create_all and the Session
@@ -45,6 +33,11 @@ def api() -> Iterator[APIModel[Item]]:
     finally:
         BaseModel.session.close()
         BaseModel.session = original
+
+
+class Item(BaseModel, table=True):
+    name: str
+    price: int
 
 
 def test_operator_gt(api: APIModel[Item]) -> None:
@@ -84,3 +77,10 @@ def test_soft_deleted_excluded(api: APIModel[Item]) -> None:
     rows = api.query(QueryRequest())
     assert "gone" not in {r.name for r in rows}
     assert len(list(rows)) == 3
+
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
+    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT,
+    # so render BaseModel's BigInteger id as INTEGER for the in-memory test engine.
+    return "INTEGER"

@@ -17,28 +17,6 @@ if TYPE_CHECKING:
 DB_PATH = Path(__file__).with_name("_relationship.sqlite")
 
 
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):  # noqa: ANN001, ANN202, ARG001
-    return "INTEGER"
-
-
-# Association tables require real tables, so every model here is table=True.
-class Other(BaseModel, table=True):
-    name: str = "o"
-
-
-class HasRel(BaseModel, table=True):
-    other = Relationship(Other)
-
-
-class HasOpt(BaseModel, table=True):
-    other = Relationship(Other, optional=True)
-
-
-class Node(BaseModel, table=True):
-    parent = Relationship(SELF, optional=True)
-
-
 @pytest.fixture
 def session() -> Iterator[Session]:
     DB_PATH.unlink(missing_ok=True)
@@ -58,6 +36,23 @@ def session() -> Iterator[Session]:
             else:
                 cls.session = original
         engine.dispose()
+
+
+# Association tables require real tables, so every model here is table=True.
+class Other(BaseModel, table=True):
+    name: str = "o"
+
+
+class HasRel(BaseModel, table=True):
+    other = Relationship(Other)
+
+
+class HasOpt(BaseModel, table=True):
+    other = Relationship(Other, optional=True)
+
+
+class Node(BaseModel, table=True):
+    parent = Relationship(SELF, optional=True)
 
 
 def test_class_access_returns_target() -> None:
@@ -114,3 +109,8 @@ def test_self_referential(session: Session) -> None:  # noqa: ARG001
 
 def test_foreign_key_helper_accepts_generic() -> None:
     assert get_foreign_key(Other, "id") == "other.id"
+
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):  # noqa: ANN001, ANN202, ARG001
+    return "INTEGER"

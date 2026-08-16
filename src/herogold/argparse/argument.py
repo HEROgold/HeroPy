@@ -180,6 +180,20 @@ class Argument[T]:
         if self.action is Actions.STORE_BOOL:
             self.type = bool
 
+    def __set_name__(self, owner: type, name: str) -> None:
+        """Set the name of the attribute to the name of the descriptor."""
+        self._setup_parser_argument(name)
+        self.name = name
+        self.private_name = f"{self.internal_prefix}{name}"
+
+    def __get__(self, obj: object, obj_type: object) -> T:
+        """Get the value of the attribute."""
+        return getattr(obj, self.private_name)
+
+    def __set__(self, obj: object, value: T) -> None:
+        """Set the value of the attribute."""
+        setattr(obj, self.private_name, value)
+
     def resolve_default(self, default: T | None, default_factory: Callable[[], T] | None) -> T:
         """Resolve the default value for the argument.
 
@@ -208,20 +222,6 @@ class Argument[T]:
         if type_ is MISSING:
             return str
         return type_
-
-    def __set_name__(self, owner: type, name: str) -> None:
-        """Set the name of the attribute to the name of the descriptor."""
-        self._setup_parser_argument(name)
-        self.name = name
-        self.private_name = f"{self.internal_prefix}{name}"
-
-    def __get__(self, obj: object, obj_type: object) -> T:
-        """Get the value of the attribute."""
-        return getattr(obj, self.private_name)
-
-    def __set__(self, obj: object, value: T) -> None:
-        """Set the value of the attribute."""
-        setattr(obj, self.private_name, value)
 
     def _setup_parser_argument(self, name: str) -> None:
         """Set up the argument in the parser."""

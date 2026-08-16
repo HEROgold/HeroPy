@@ -21,32 +21,6 @@ if TYPE_CHECKING:
 DB_PATH = Path(__file__).with_name("_custom_data.sqlite")
 
 
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):  # noqa: ANN001, ANN202, ARG001
-    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT.
-    return "INTEGER"
-
-
-class Widget(BaseModel, table=True):
-    name: str
-
-
-class Tiny(BaseModel, table=True):
-    name: str
-    custom_data_size_limit: ClassVar[int] = 64  # a small budget so a modest payload overflows
-
-
-class History(DataModel, table=True):
-    label: str
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _fresh_db() -> None:
-    # Start from a clean file ONCE per module, then let rows accumulate across the
-    # tests so the final on-disk database holds real, inspectable data.
-    DB_PATH.unlink(missing_ok=True)
-
-
 @pytest.fixture
 def session() -> Iterator[Session]:
     # On-disk engine (not in-memory) so the file survives for inspection.
@@ -69,6 +43,19 @@ def session() -> Iterator[Session]:
             else:
                 cls.session = original
         engine.dispose()  # release the sqlite file lock on Windows; file is kept
+
+
+class Widget(BaseModel, table=True):
+    name: str
+
+
+class Tiny(BaseModel, table=True):
+    name: str
+    custom_data_size_limit: ClassVar[int] = 64  # a small budget so a modest payload overflows
+
+
+class History(DataModel, table=True):
+    label: str
 
 
 @pytest.fixture
@@ -159,3 +146,16 @@ def test_overflow_returns_413(session: Session) -> None:  # noqa: ARG001
     with pytest.raises(HTTPException) as excinfo:
         tiny_api.create(item, {f"k{i}": i for i in range(50)})  # over the 64-byte limit
     assert excinfo.value.status_code == 413
+
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):  # noqa: ANN001, ANN202, ARG001
+    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT.
+    return "INTEGER"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _fresh_db() -> None:
+    # Start from a clean file ONCE per module, then let rows accumulate across the
+    # tests so the final on-disk database holds real, inspectable data.
+    DB_PATH.unlink(missing_ok=True)
