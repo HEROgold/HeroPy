@@ -104,7 +104,7 @@ class Logger(LoggingLogger):
         extra: Mapping[str, object] | None = None,
     ) -> None:
         return super().exception(
-            *self._build_msg(msg),
+            self._build_msg(msg)[1:],
             *args,
             exc_info=exc_info,
             stack_info=stack_info,
