@@ -1,57 +1,53 @@
-# type: ignore[reportIncompatibleMethodOverride]
 """Custom logger implementation for python 3.14."""
 
 from __future__ import annotations
 
-from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARNING
 from logging import Logger as LoggingLogger
-from typing import TYPE_CHECKING, Any, Literal, override
-
-from herogold.sentinel import create_sentinel
+from string.templatelib import Interpolation, Template
+from typing import TYPE_CHECKING, Any, override
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping
     from logging import _ExcInfoType
-    from string.templatelib import Template  # ty:ignore[unresolved-import]
 
 __all__ = ["Logger"]
-
-NO_ARG = create_sentinel()
-"""Special sentinel value indicating no argument."""
+type SupportsStr = object
 
 
 class Logger(LoggingLogger):
     """Custom logger, supporting template string literals."""
 
-    def _interpolate(self, msg: Template) -> Generator[tuple[str, None] | tuple[Literal["%s"], Any]]:
+    def _interpolate(self, msg: Template) -> Generator[tuple[str, Any]]:
         """Interpolate a Template message into a string and argument counterparts."""
         for part in msg:
             match part:
                 case str():
-                    yield part, NO_ARG
-                case float():
+                    yield "%s", part
+                case Interpolation(value=float()):
                     yield "%f", part.value
-                case int():
+                case Interpolation(value=int()):
                     yield "%d", part.value
-                case bool():
+                case Interpolation(value=bool()):
                     yield "%b", part.value
                 case _:
                     yield "%s", part.value
 
-    def _build_msg(self, msg: Template) -> tuple[str, *tuple[object, ...]]:
+    def _build_msg(self, msg: SupportsStr) -> tuple[str, *tuple[object, ...]]:
         """Build the final log message string, combined with required arguments properly formatted."""
+        if not isinstance(msg, Template):
+            return "%s", msg
+
         parts: list[str] = []
         arguments: list[object] = []
         for part, arg in self._interpolate(msg):
             parts.append(part)
-            if arg is not NO_ARG:
-                arguments.append(arg)
+            arguments.append(arg)
         return "".join(parts), *arguments
 
     @override
     def debug(
         self,
-        msg: Template,
+        msg: SupportsStr,
         *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
@@ -70,7 +66,7 @@ class Logger(LoggingLogger):
     @override
     def info(
         self,
-        msg: Template,
+        msg: SupportsStr,
         *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
@@ -89,7 +85,7 @@ class Logger(LoggingLogger):
     @override
     def warning(
         self,
-        msg: Template,
+        msg: SupportsStr,
         *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
@@ -108,7 +104,7 @@ class Logger(LoggingLogger):
     @override
     def error(
         self,
-        msg: Template,
+        msg: SupportsStr,
         *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
@@ -127,7 +123,7 @@ class Logger(LoggingLogger):
     @override
     def exception(
         self,
-        msg: Template,
+        msg: SupportsStr,
         *args: object,
         exc_info: _ExcInfoType = True,
         stack_info: bool = False,
@@ -146,7 +142,7 @@ class Logger(LoggingLogger):
     @override
     def critical(
         self,
-        msg: Template,
+        msg: SupportsStr,
         *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
@@ -163,26 +159,25 @@ class Logger(LoggingLogger):
         )
 
     @override
-    def log(  # noqa: PLR0911
+    def log(
         self,
         level: int,
-        msg: Template,
+        msg: SupportsStr,
         *args: object,
         exc_info: _ExcInfoType | None = None,
         stack_info: bool = False,
         stacklevel: int = 1,
         extra: Mapping[str, object] | None = None,
     ) -> None:
-        # One liners are cleaner here. Even though they violate pep8, they are more readable in this case.
-        # fmt: off
-        if level <= CRITICAL: return self.critical(msg, *args)
-        if level <= ERROR: return self.error(msg, *args)
-        if level <= WARNING: return self.warning(msg, *args)
-        if level <= INFO: return self.info(msg, *args)
-        if level <= DEBUG: return self.debug(msg, *args)
-        if level <= NOTSET: return super().log(0, *self._build_msg(msg))
-        return None
-        # fmt: on
+        return super().log(
+            level,
+            *self._build_msg(msg),
+            *args,
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra,
+        )
 
     @override
     def getChild(self, suffix: str | None = None) -> Logger:
