@@ -25,7 +25,7 @@ def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable
     """Wrap a function and returns any thrown exception if it's any instance of the provided exception types."""
     exception_types = tuple(exceptions)
 
-    def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | E]:
+    def with_exception[**P2, T](func: Callable[P, T]) -> Callable[P, T | E]:
         """Wrap a function and returns any thrown exception."""
 
         @wraps(func)
