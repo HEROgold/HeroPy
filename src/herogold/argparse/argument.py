@@ -1,5 +1,6 @@
 """Argument descriptor for argparse integration."""
 
+
 from __future__ import annotations
 
 import re
@@ -11,6 +12,36 @@ from typing import NoReturn, Self, TypeVar, override
 
 from herogold.colors import Bold, colorize
 from herogold.sentinel import MISSING
+
+# TODO; fix following --help and no --help differences.
+"""
+$ uvx funcsort --help
+usage: usage:
+
+Sort class methods and module-level functions into configurable groups
+
+positional arguments:
+  paths                 Python files or directories to sort
+
+options:
+  -h, --help            show this help message and exit
+  --check               Check without modifying files - bool
+  --no-check
+  --diff                Show a diff of the changes - bool
+  --no-diff
+  --recursive           Recurse into directories - bool
+  --no-recursive
+  --sort-module         Sort module-level functions - bool
+  --no-sort-module
+  --respect-dependencies
+                        Never move a definition above code that uses it at import time - bool
+  --no-respect-dependencies
+  --exclude EXCLUDE     Exclude files/dirs matching a glob pattern - str
+
+$ uvx funcsort
+usage: usage:
+error: the following arguments are required: paths
+"""
 
 # Prefer to use later versions. For typevar support defaults.
 # Better yet, switch to 3.14+
@@ -26,7 +57,7 @@ class ColorArgumentParser(ArgumentParser):
     def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
         """Initialize the ColorArgumentParser."""
         super().__init__(*args, **kwargs)
-        self.usage: str = "usage: "
+        self.usage: str = ""
 
     @property
     def cls(self) -> type[Self]:
