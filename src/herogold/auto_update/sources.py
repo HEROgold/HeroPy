@@ -52,9 +52,9 @@ class _Installed(_State):
 class Source(meta=ABC):
     """ABC for tracking different sources for auto-updates."""
 
-    def __init__(self, url: URL) -> None:
+    def __init__(self, url: URL | str) -> None:
         """Initialize the source with the given URL."""
-        self.url: URL = url
+        self.url: URL = URL(url) if isinstance(url, str) else url
 
     @abstractmethod
     def apply_update(self) -> None:
