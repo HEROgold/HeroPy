@@ -95,11 +95,6 @@ class Github(Source):
             ZipFile(_zip).extractall(self.root_directory)
         return _Installed(success=True)
 
-    def _is_git_repo(self) -> bool:
-        """Check if the root directory contains a .git directory."""
-        git_directory = self.root_directory / ".git"
-        return git_directory.is_dir()
-
     def apply_git_update(self) -> None:
         """Apply the update from a git repository."""
         fetch = CLI("git fetch --all")
@@ -148,3 +143,8 @@ class Github(Source):
             case _, _:
                 msg = "Invalid combination of git repo and zip installation."
                 raise ValueError(msg)
+
+    def _is_git_repo(self) -> bool:
+        """Check if the root directory contains a .git directory."""
+        git_directory = self.root_directory / ".git"
+        return git_directory.is_dir()
