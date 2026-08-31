@@ -5,17 +5,14 @@ description = "A single package containing personal utilities."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "confkit>=2.1.0",
-    "httpxyz>=0.42.1",
-    "sqlmodel>=0.0.42",
-    "fastapi>=0.136.1",
-    "typing-extensions>=4.16.0",
-    "watchdog>=6.0.0",
 ]
 authors = [{ name = "HEROgold" }]
 license = { text = "MIT" }
 
 [project.optional-dependencies]
+updater = [
+    "httpxyz[http2]>=0.42.1"
+]
 orm = [
     "confkit>=2.1.0",
     "sqlmodel>=0.0.42",
@@ -27,7 +24,7 @@ services = [
     "watchdog>=6.0.0",
 ]
 all = [
-    "herogold[orm,api,services]"
+    "herogold[orm,api,services,updater]",
 ]
 
 [project.urls]
