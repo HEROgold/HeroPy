@@ -7,7 +7,7 @@ to wrap functions and handle exceptions in a more structured way.
 from __future__ import annotations
 
 from functools import wraps
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterable
@@ -41,7 +41,21 @@ def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable
 
     return with_exception
 
-
+# Would like to add more tracking of types. Making Exception a generic, would be nice, but is tricky
+# as seen in connectors.py:CommandRunner:run, using @with_group
+# Object of type `Iterable[list[bytes] | UpdateError] | ExceptionGroup[Exception]` is not assignable to `Iterable[list[bytes]] | ExceptionGroup[Exception]`: Incompatible value of type `Iterable[list[bytes] | UpdateError] | ExceptionGroup[Exception]`
+# info: element `Iterable[list[bytes] | UpdateError]` of union `Iterable[list[bytes] | UpdateError] | ExceptionGroup[Exception]` is not assignable to `Iterable[list[bytes]] | ExceptionGroup[Exception]`
+# info: └── type `Iterable[list[bytes] | UpdateError]` is not assignable to any element of the union `Iterable[list[bytes]] | ExceptionGroup[Exception]`
+# info:     ├── protocol `Iterable[list[bytes] | UpdateError]` is not assignable to protocol `Iterable[list[bytes]]`
+# info:     │   └── protocol member `__iter__` is incompatible
+# info:     │       └── incompatible return types: `Iterator[list[bytes] | UpdateError]` is not assignable to `Iterator[list[bytes]]`
+# info:     │           └── protocol `Iterator[list[bytes] | UpdateError]` is not assignable to protocol `Iterator[list[bytes]]`
+# info:     │               └── protocol member `__next__` is incompatible
+# info:     │                   └── incompatible return types: `list[bytes] | UpdateError` is not assignable to `list[bytes]`
+# info:     │                       └── element `UpdateError` of union `list[bytes] | UpdateError` is not assignable to `list[bytes]`
+# info:     │                           └── element `UpdateError` of union `list[bytes] | UpdateError` is not assignable to `list[bytes]`
+# info:     │                               └── element `UpdateError` of union `list[bytes] | UpdateError` is not assignable to `list[bytes]`
+# info:     └── ... omitted 1 union element without additional context
 def with_group[**P, T](func: Callable[P, Iterable[T | Exception]]) -> Callable[P, Iterable[T] | ExceptionGroup]:
     """Collect exceptions from an iterable of results and raise them as an ExceptionGroup."""
     @wraps(func)
