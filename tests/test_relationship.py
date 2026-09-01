@@ -18,7 +18,7 @@ DB_PATH = Path(__file__).with_name("_relationship.sqlite")
 
 
 @compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):  # noqa: ANN001, ANN202, ARG001
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
     return "INTEGER"
 
 
@@ -73,7 +73,7 @@ def test_link_tables_registered() -> None:
     assert "other" not in {c.name for c in HasRel.__table__.columns}
 
 
-def test_set_and_get(session: Session) -> None:  # noqa: ARG001
+def test_set_and_get(session: Session) -> None:
     o = Other(name="target")
     o.add()
     h = HasRel()
@@ -83,7 +83,7 @@ def test_set_and_get(session: Session) -> None:  # noqa: ARG001
     assert h.other.id == o.id
 
 
-def test_reassign_replaces_single_link(session: Session) -> None:  # noqa: ARG001
+def test_reassign_replaces_single_link(session: Session) -> None:
     o1, o2 = Other(name="one"), Other(name="two")
     o1.add()
     o2.add()
@@ -95,13 +95,13 @@ def test_reassign_replaces_single_link(session: Session) -> None:  # noqa: ARG00
     assert h.other.id == o2.id
 
 
-def test_optional_returns_none_when_unset(session: Session) -> None:  # noqa: ARG001
+def test_optional_returns_none_when_unset(session: Session) -> None:
     h = HasOpt()
     h.add()
     assert h.other is None
 
 
-def test_self_referential(session: Session) -> None:  # noqa: ARG001
+def test_self_referential(session: Session) -> None:
     parent = Node()
     parent.add()
     child = Node()

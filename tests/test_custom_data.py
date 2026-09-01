@@ -22,7 +22,7 @@ DB_PATH = Path(__file__).with_name("_custom_data.sqlite")
 
 
 @compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):  # noqa: ANN001, ANN202, ARG001
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
     # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT.
     return "INTEGER"
 
@@ -72,7 +72,7 @@ def session() -> Iterator[Session]:
 
 
 @pytest.fixture
-def api(session: Session) -> APIModel[Widget]:  # noqa: ARG001
+def api(session: Session) -> APIModel[Widget]:
     return APIModel(Widget, APIRouter())
 
 
@@ -153,7 +153,7 @@ def test_datamodel_create_persists_and_links(session: Session) -> None:
 # --- overflow -> 413 --------------------------------------------------------
 
 
-def test_overflow_returns_413(session: Session) -> None:  # noqa: ARG001
+def test_overflow_returns_413(session: Session) -> None:
     tiny_api = APIModel(Tiny, APIRouter())
     item = Tiny(name="big")
     with pytest.raises(HTTPException) as excinfo:
