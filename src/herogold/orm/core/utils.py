@@ -32,7 +32,8 @@ def get_foreign_key[M: SQLModel](table: type[M], column: str = "id") -> str:
     return f"{table.__tablename__}.{column}"
 
 
-class LinkInfo(NamedTuple):
+
+class LinkInfo[T: _BaseModel](NamedTuple):
     """Resolved association table for a single (owner, relationship) pair."""
 
     table: Table
@@ -44,10 +45,10 @@ class LinkInfo(NamedTuple):
     """Target primary-key attribute names."""
     target_cols: list[str]
     """Link-table column names referencing the target PK."""
-    target: type[SQLModel]
+    target: type[T]
 
 
-class Relationship[T: _BaseModel](LoggerMixin):
+class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
     """Descriptor for a single-valued relationship backed by an association table.
 
     Instead of adding a foreign-key column to the owner, each concrete
@@ -73,17 +74,17 @@ class Relationship[T: _BaseModel](LoggerMixin):
         self.optional = optional
         self.related_model = related_model
         # Per-owner registry: a single inherited descriptor serves many subclasses.
-        self._links: dict[type, LinkInfo] = {}
+        self._links: dict[type, LinkInfo[_BaseModel]] = {}
 
-    def __set_name__(self, owner: type[T], name: str) -> None:
+    def __set_name__(self, owner: type[_BaseModel], name: str) -> None:
         """Record the attribute name (link tables are built later, per subclass)."""
         self.name = name
 
-    def _resolve_target(self, owner: type[T]) -> type[T]:
+    def _resolve_target(self, owner: type[OT]) -> type[_BaseModel]:
         """Resolve ``SELF`` to the owner; otherwise return the declared target."""
         return owner if self.related_model is SELF else self.related_model
 
-    def build_link_for(self, owner: type[T]) -> None:
+    def build_link_for(self, owner: type[OT]) -> None:
         """Build (once) the association table joining ``owner`` to the target.
 
         Called from :class:`ModelMeta` for each concrete ``table=True`` subclass.
@@ -125,19 +126,26 @@ class Relationship[T: _BaseModel](LoggerMixin):
 
         self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
 
+    # No matching overload found for function `herogold.orm.core.utils.Relationship.__get__` called with arguments: (User, type[User])
+    #   Possible overloads:
+    #     (instance: None, owner: type[Any]) -> type[_BaseModel] [closest match]
+    #     (instance: Email, owner: type[Any]) -> _BaseModel | None
+    #   Argument `User` is not assignable to parameter `instance` with type `None` in function `herogold.orm.core.utils.Relationship.__get__`
     @overload
-    def __get__(self, instance: None, owner: type[T]) -> type[T]: ...
+    def __get__(self, instance: None, owner: type[OT]) -> type[_BaseModel]: ...
 
     @overload
-    def __get__(self, instance: T, owner: type[T]) -> T | None: ...
+    def __get__(self, instance: T, owner: type[OT]) -> _BaseModel | None: ...
 
-    def __get__(self, instance: T | None, owner: type[T]) -> type[T] | T | None:
+    # I'd like to have return type be concrete, and not _BaseModel.
+    def __get__(self, instance: T | None, owner: type[OT]) -> type[_BaseModel] | _BaseModel | None:
         """Class access returns the target class; instance access joins the link table."""
         if instance is None:
             return self._resolve_target(owner)
         info = self._links.get(type(instance))
         if info is None:
             return None
+        # pyrefly: ignore [missing-attribute]
         session = type(instance).session
         join_cond = and_(*(
             info.table.c[tc] == info.target.__table__.c[tp]
