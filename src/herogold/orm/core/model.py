@@ -16,7 +16,7 @@ from sqlalchemy import JSON, BigInteger, Column, ScalarResult, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declared_attr
 from sqlalchemy.schema import Index
-from sqlmodel import Field, Session, col, select
+from sqlmodel import Field, Session, col, select, Table
 from sqlmodel import SQLModel as BaseSQLModel
 
 from herogold.log import LoggerMixin
@@ -62,8 +62,12 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
 
     if TYPE_CHECKING:
         custom_data: ClassVar[Relationship[CustomData]]
-    # ``custom_data`` (a Relationship to the CustomData table) is attached below,
-    # after CustomData is defined, because it targets a subclass of this class.
+        # ``custom_data`` (a Relationship to the CustomData table) is attached below,
+        # after CustomData is defined, because it targets a subclass of this class.
+        __table__: ClassVar[Table]
+        # __table__ is a normally hidden attribute.
+        # For type completeness, we're adding it here.
+
 
     session: ClassVar[Session] = db_session
     logger: ClassVar[logging.Logger] = ModelLogger().logger
@@ -146,9 +150,10 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     def delete(self, session: Session | None = None) -> None:
         """Delete a record from Database."""
         self.logger.debug("Deleting record: %s", self, extra={"record": self})
+        if self.id is None:
+            msg = f"Record with {self.__class__.__name__}.id={self.id} not found for deletion."
+            raise NotFoundError(msg)
         self._delete_record(self._get_session(session))
-        msg = f"Record with {self.__class__.__name__}.id={self.id} not found for deletion."
-        raise NotFoundError(msg)
 
     @classmethod
     def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[SELF]:

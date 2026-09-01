@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import sys
-from configparser import ConfigParser
-from pathlib import Path
-
 import pytest
 
+from herogold.orm.core.utils import get_foreign_key
 from herogold.orm.models.configuration import Configuration
 from herogold.orm.models.email import Email
 from herogold.orm.models.password import Password
@@ -16,18 +13,6 @@ from herogold.orm.models.user import User
 from herogold.orm.models.user_email import UserEmail
 from herogold.orm.models.user_permission import UserPermission
 from herogold.orm.models.user_role import UserRole
-
-ROOT = Path(__file__).resolve().parents[1]
-ORM_SRC = ROOT / "herogold" / "src"
-if str(ORM_SRC) not in sys.path:
-    sys.path.insert(0, str(ORM_SRC))
-
-from herogold.orm.core.config import DbConfig  # noqa: E402
-from herogold.orm.core.utils import get_foreign_key  # noqa: E402
-
-PARSER = ConfigParser()
-PARSER.read(ROOT / "db_config.ini", encoding="utf-8")
-DbConfig.set_parser(PARSER)
 
 
 def test_get_foreign_key_matches_model_tablename() -> None:
@@ -46,6 +31,7 @@ def test_relationship_returns_instance_when_fk_holds_instance() -> None:
     user = User(username="owner")
     password = Password.create_for_user(1, "example-password")
 
+    # pyrefly: ignore [bad-assignment]
     password.user_id = user
 
     assert password.user is user
@@ -53,6 +39,7 @@ def test_relationship_returns_instance_when_fk_holds_instance() -> None:
 
 def test_non_optional_relationship_raises_when_fk_is_none() -> None:
     password = Password.create_for_user(1, "example-password")
+    # pyrefly: ignore [bad-assignment]
     password.user_id = None
 
     with pytest.raises(AttributeError, match="required but None"):

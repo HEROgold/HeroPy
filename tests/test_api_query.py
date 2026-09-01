@@ -4,10 +4,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 from fastapi import APIRouter
-from sqlalchemy import BigInteger
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, SQLModel, create_engine
 
 from herogold.orm.core.api_model import APIModel, Operator, QueryFilter, QueryRequest
 from herogold.orm.core.model import BaseModel
@@ -15,12 +11,7 @@ from herogold.orm.core.model import BaseModel
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
-    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT,
-    # so render BaseModel's BigInteger id as INTEGER for the in-memory test engine.
-    return "INTEGER"
+    from sqlmodel import Session
 
 
 class Item(BaseModel, table=True):
@@ -29,22 +20,15 @@ class Item(BaseModel, table=True):
 
 
 @pytest.fixture
-def api() -> Iterator[APIModel[Item]]:
-    # StaticPool keeps a single shared connection so create_all and the Session
-    # target the same in-memory database (a fresh connection would start empty).
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
-    SQLModel.metadata.create_all(engine)
-    original = BaseModel.session
-    BaseModel.session = Session(engine)
+def api(session: Session) -> Iterator[APIModel[Item]]:
     try:
         for name, price in [("small box", 5), ("big box", 20), ("crate", 50), ("gone", 99)]:
             Item(name=name, price=price).add()
         # soft-delete one row so it must be excluded from query results
-        Item.get_all()[-1].delete()
+        Item.get_all(session)[-1].delete()
         yield APIModel(Item, APIRouter())
     finally:
-        BaseModel.session.close()
-        BaseModel.session = original
+        pass
 
 
 def test_operator_gt(api: APIModel[Item]) -> None:

@@ -111,7 +111,7 @@ class PaginatedResponse[T: _BaseModel]:
         yield from self.next or []
 
 
-class APIModel[T: BaseModel]:
+class APIModel[T: _BaseModel]:
     """Base APIModel class with custom methods for API interactions."""
 
     def __init__(self, model: type[T], router: APIRouter) -> None:

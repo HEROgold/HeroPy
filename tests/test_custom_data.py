@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 import pytest
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import BigInteger
-from sqlalchemy.ext.compiler import compiles
+from sqlalchemy import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from herogold.orm.core.api_model import APIModel
@@ -15,16 +13,6 @@ from herogold.orm.custom_data import OutOfSpaceError, validate_size
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-
-# The persisted database is written here and deliberately NOT deleted on teardown
-# so it can be inspected after the run (e.g. with a sqlite viewer).
-DB_PATH = Path(__file__).with_name("_custom_data.sqlite")
-
-
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
-    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT.
-    return "INTEGER"
 
 
 class Widget(BaseModel, table=True):
@@ -40,17 +28,11 @@ class History(DataModel, table=True):
     label: str
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _fresh_db() -> None:
-    # Start from a clean file ONCE per module, then let rows accumulate across the
-    # tests so the final on-disk database holds real, inspectable data.
-    DB_PATH.unlink(missing_ok=True)
-
 
 @pytest.fixture
 def session() -> Iterator[Session]:
     # On-disk engine (not in-memory) so the file survives for inspection.
-    engine = create_engine(f"sqlite:///{DB_PATH}")
+    engine = create_engine(url="sqlite:///:memory:", poolclass=StaticPool)
     SQLModel.metadata.create_all(engine)  # idempotent; keeps accumulated rows
     sess = Session(engine)
     # `session` is a ClassVar on _BaseModel; set it on the root (reaches CustomData,
@@ -137,7 +119,7 @@ def test_no_custom_data_leaves_link_empty(api: APIModel[Widget]) -> None:
 
 def test_datamodel_create_persists_and_links(session: Session) -> None:
     api = APIModel(History, APIRouter())
-    item = History(label="v1")
+    item = History(id=len(History.get_all())+1, label="v1")
     api.create(item, {"note": "first"})
 
     fetched = api.get(item.id)
