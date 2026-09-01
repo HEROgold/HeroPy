@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from sys import getsizeof
 
 from herogold.errors import with_known_exception
-from herogold.orm.model import BaseModel
+from herogold.orm.core.model import BaseModel
 from herogold.protocols import DataDescriptor
 
 
@@ -26,7 +26,7 @@ class CustomData[Key, Value](DataDescriptor[Mapping[Key, Value], BaseModel]):
 
     def __init__(self, *, size_limit: int = 1024*10) -> None:
         """Initialize the CustomData with an empty dictionary."""
-        self._data: Mapping[Key, Value] = {}
+        self._data: dict[Key, Value] = {}
         self.size_limit = size_limit
 
     @with_known_exception(AttributeError)
@@ -40,7 +40,7 @@ class CustomData[Key, Value](DataDescriptor[Mapping[Key, Value], BaseModel]):
         This will persisting existing data
         Add or overwrite data
         """
-        data: Mapping[Key, Value] = self._data.copy()
+        data = self._data.copy()
         for k, v in value.items():
             data[k] = v
         self._data = data

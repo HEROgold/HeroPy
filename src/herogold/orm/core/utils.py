@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     # Imported for typing only: ``BaseModel`` appears solely in (stringized)
     # annotations and the lazily-evaluated PEP 695 bound ``Relationship[T: BaseModel]``.
     # Importing it at runtime creates a circular import (model -> utils -> model).
-    from herogold.orm.model import BaseModel
+    from herogold.orm.core.model import BaseModel
 
 SELF = create_sentinel()
 """Sentinel value for self-referential relationships in SQLModel classes."""

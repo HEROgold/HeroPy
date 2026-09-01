@@ -14,11 +14,11 @@ from sqlmodel import Field, Session, col, select
 from sqlmodel import SQLModel as BaseSQLModel
 
 from herogold.log import LoggerMixin
-from herogold.orm.utils import SELF, Relationship
 from herogold.typing.check import contains_sub_type
 
 from .constants import session as db_session
 from .errors import AlreadyExistsError, NotFoundError
+from .utils import SELF, Relationship
 
 if TYPE_CHECKING:
     import logging

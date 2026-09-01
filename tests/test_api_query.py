@@ -10,15 +10,15 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from herogold.orm.api_model import APIModel
-from herogold.orm.model import BaseModel
+from herogold.orm.core.api_model import APIModel
+from herogold.orm.core.model import BaseModel
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
 @compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):  # noqa: ANN001, ANN202, ARG001
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
     # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT,
     # so render BaseModel's BigInteger id as INTEGER for the in-memory test engine.
     return "INTEGER"
