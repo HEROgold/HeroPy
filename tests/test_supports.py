@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import Annotated
 
 from herogold.supports import (
+    IsAnnotated,
     SupportsComparison,
     SupportsEq,
     SupportsGE,
     SupportsGT,
     SupportsLE,
     SupportsLT,
-    SupportsMetadata,
     SupportsNe,
 )
 
@@ -104,9 +104,9 @@ class DummyMetadata:
 
 
 def test_supports_metadata_protocol() -> None:
-    assert isinstance(Annotated[int, "a", "b"], SupportsMetadata)
-    assert isinstance(DummyMetadata(), SupportsMetadata)
-    assert not isinstance(5, SupportsMetadata)
+    assert isinstance(Annotated[int, "a", "b"], IsAnnotated)
+    assert isinstance(DummyMetadata(), IsAnnotated)
+    assert not isinstance(5, IsAnnotated)
 
 
 def test_builtin_types() -> None:
