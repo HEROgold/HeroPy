@@ -6,6 +6,17 @@ from pathlib import Path
 
 import pytest
 
+from herogold.orm.models.configuration import Configuration
+from herogold.orm.models.email import Email
+from herogold.orm.models.password import Password
+from herogold.orm.models.permission import Permission
+from herogold.orm.models.role import Role
+from herogold.orm.models.role_permission import RolePermission
+from herogold.orm.models.user import User
+from herogold.orm.models.user_email import UserEmail
+from herogold.orm.models.user_permission import UserPermission
+from herogold.orm.models.user_role import UserRole
+
 ROOT = Path(__file__).resolve().parents[1]
 ORM_SRC = ROOT / "herogold" / "src"
 if str(ORM_SRC) not in sys.path:
@@ -13,18 +24,6 @@ if str(ORM_SRC) not in sys.path:
 
 from herogold.orm.core.config import DbConfig  # noqa: E402
 from herogold.orm.core.utils import get_foreign_key  # noqa: E402
-from herogold.orm.models import (  # noqa: E402
-    Configuration,
-    Email,
-    Password,
-    Permission,
-    Role,
-    RolePermission,
-    User,
-    UserEmail,
-    UserPermission,
-    UserRole,
-)
 
 PARSER = ConfigParser()
 PARSER.read(ROOT / "db_config.ini", encoding="utf-8")

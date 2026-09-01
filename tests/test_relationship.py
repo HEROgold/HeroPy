@@ -3,8 +3,9 @@ from __future__ import annotations
 import contextlib
 
 import pytest
-from herogold.orm.model import SELF, BaseModel
-from herogold.orm.utils import Relationship, get_foreign_key
+
+from herogold.orm.core.model import SELF, BaseModel
+from herogold.orm.core.utils import Relationship, get_foreign_key
 
 
 class Other(BaseModel):

@@ -12,7 +12,6 @@ from herogold.orm.models.role import Role
 class RolePermission(BaseModel, table=True):
     """Map a role to a permission."""
 
-    __tablename__ = "role_permission"
     __table_args__ = (UniqueConstraint("role_id", "permission_id", name="uq_role_permission_role_permission"),)
 
     role_id: int = Field(index=True, sa_column_args=(ForeignKey(get_foreign_key(Role)),))

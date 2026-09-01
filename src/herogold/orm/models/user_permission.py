@@ -12,7 +12,6 @@ from herogold.orm.models.user import User
 class UserPermission(BaseModel, table=True):
     """Map users to directly granted permissions."""
 
-    __tablename__ = "user_permission"
     __table_args__ = (UniqueConstraint("user_id", "permission_id", name="uq_user_permission_user_permission"),)
 
     user_id: int = Field(index=True, sa_column_args=(ForeignKey(get_foreign_key(User)),))

@@ -8,8 +8,6 @@ from herogold.orm.core.model import BaseModel
 class Role(BaseModel, table=True):
     """Store a role that groups permissions."""
 
-    __tablename__ = "role"
-
     name: str = Field(index=True, unique=True, nullable=False, max_length=100)
     description: str | None = Field(default=None, max_length=255)
     is_system: bool = Field(default=False, index=True)

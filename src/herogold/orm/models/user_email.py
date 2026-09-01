@@ -12,7 +12,6 @@ from herogold.orm.models.user import User
 class UserEmail(BaseModel, table=True):
     """Map users to their secondary email addresses."""
 
-    __tablename__ = "user_email"
     __table_args__ = (UniqueConstraint("user_id", "email_id", name="uq_user_email_user_email"),)
 
     user_id: int = Field(index=True, sa_column_args=(ForeignKey(get_foreign_key(User)),))

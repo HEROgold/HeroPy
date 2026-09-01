@@ -10,8 +10,6 @@ from herogold.orm.core.model import BaseModel
 class Email(BaseModel, table=True):
     """Store an email address and verification state."""
 
-    __tablename__ = "email"
-
     email: str = Field(index=True, unique=True, nullable=False, max_length=320)
     is_verified: bool = Field(default=False, index=True)
     verified_at: datetime | None = Field(default=None)

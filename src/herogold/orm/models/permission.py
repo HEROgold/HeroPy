@@ -8,8 +8,6 @@ from herogold.orm.core.model import BaseModel
 class Permission(BaseModel, table=True):
     """Store a permission that can be assigned to users or roles."""
 
-    __tablename__ = "permission"
-
     name: str = Field(index=True, unique=True, nullable=False, max_length=150)
     resource: str = Field(index=True, nullable=False, max_length=80)
     action: str = Field(index=True, nullable=False, max_length=80)

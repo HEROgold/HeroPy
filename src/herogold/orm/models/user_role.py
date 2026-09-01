@@ -12,7 +12,6 @@ from herogold.orm.models.user import User
 class UserRole(BaseModel, table=True):
     """Map users to roles."""
 
-    __tablename__ = "user_role"
     __table_args__ = (UniqueConstraint("user_id", "role_id", name="uq_user_role_user_role"),)
 
     user_id: int = Field(index=True, sa_column_args=(ForeignKey(get_foreign_key(User)),))

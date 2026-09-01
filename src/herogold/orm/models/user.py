@@ -10,8 +10,6 @@ from herogold.orm.models.email import Email
 class User(BaseModel, table=True):
     """Store primary user identity information."""
 
-    __tablename__ = "user"
-
     username: str = Field(index=True, unique=True, nullable=False, max_length=100)
     display_name: str | None = Field(default=None, max_length=160)
     is_active: bool = Field(default=True, index=True)

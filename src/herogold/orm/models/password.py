@@ -17,8 +17,6 @@ from herogold.orm.models.user import User
 class Password(BaseModel, table=True):
     """Store a password hash record for a user."""
 
-    __tablename__ = "password"
-
     DEFAULT_ALGORITHM: ClassVar[str] = "pbkdf2_sha256"
     DEFAULT_ITERATIONS: ClassVar[int] = 600_000
     MIN_ITERATIONS: ClassVar[int] = 100_000
