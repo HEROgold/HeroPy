@@ -6,7 +6,6 @@ This module should make the SQLModel classes more like a `Repository` pattern.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from functools import partial
 from types import NoneType
 from typing import TYPE_CHECKING, Any, ClassVar, Unpack
 
@@ -37,6 +36,10 @@ class ModelLogger(LoggerMixin):
     Avoids the issue of cls.logger raising AttributeError, property has no attribute `xxx`
     """
 
+def _cur_utc() -> datetime:
+    """Return the current UTC datetime."""
+    return datetime.now(UTC)
+
 class BaseModel(BaseSQLModel):
     """Base model class with custom methods."""
 
@@ -44,8 +47,6 @@ class BaseModel(BaseSQLModel):
     # annotated at all; the class object is available at import time, so we
     # can configure this statically rather than in __init_subclass__.
     model_config = {"ignored_types": (Relationship,)}  # ty:ignore[invalid-assignment]
-
-    __cur_utc = partial(datetime.now, UTC)
 
     id: int | None = Field(
         default=None,
@@ -56,8 +57,8 @@ class BaseModel(BaseSQLModel):
         nullable=False,
         sa_column_kwargs={"autoincrement": True},
     )
-    created_at: datetime = Field(default_factory=__cur_utc)
-    updated_at: datetime = Field(default_factory=__cur_utc)
+    created_at: datetime = Field(default_factory=_cur_utc)
+    updated_at: datetime = Field(default_factory=_cur_utc)
     deleted_at: datetime | None = Field(default=None)
     extra = Relationship["ExtraData"](optional=True)
 
@@ -151,7 +152,7 @@ class BaseModel(BaseSQLModel):
             )
             .with_for_update(),
         ).first():
-            known.deleted_at = self.__cur_utc()
+            known.deleted_at = _cur_utc()
             session.commit()
             return
         msg = f"Record with {self.__class__.__name__}.id={self.id} not found for deletion."
@@ -187,7 +188,7 @@ class BaseModel(BaseSQLModel):
             if value_type is info.annotation or contains_sub_type(info, info.annotation):
                 # Set the actual value from the instance, not from field info
                 setattr(known, name, value)
-        known.updated_at = self.__cur_utc()
+        known.updated_at = _cur_utc()
         session.add(known)
         session.commit()
 
