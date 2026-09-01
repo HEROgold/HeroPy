@@ -1,0 +1,2 @@
+[errors]
+unsafe-overlap = "ignore"

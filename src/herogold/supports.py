@@ -218,7 +218,6 @@ class IsAnnotated[Origin, Meta](Protocol):
     @property
     def __origin__(self) -> type[Origin]:
         """Return the original type wrapped by the annotation."""
-        ...
 
     @property
     def __metadata__(self) -> tuple[Meta, ...]:
