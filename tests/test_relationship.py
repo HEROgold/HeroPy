@@ -1,25 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import TYPE_CHECKING
+from sqlmodel import Session, SQLModel
 
-import pytest
-from sqlalchemy import BigInteger
-from sqlalchemy.ext.compiler import compiles
-from sqlmodel import Session, SQLModel, create_engine
-
-from herogold.orm.core.model import BaseModel, _BaseModel
+from herogold.orm.core.model import BaseModel
 from herogold.orm.core.utils import SELF, Relationship, get_foreign_key
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-DB_PATH = Path(__file__).with_name("_relationship.sqlite")
-
-
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
-    return "INTEGER"
 
 
 # Association tables require real tables, so every model here is table=True.
@@ -37,27 +21,6 @@ class HasOpt(BaseModel, table=True):
 
 class Node(BaseModel, table=True):
     parent = Relationship(SELF, optional=True)
-
-
-@pytest.fixture
-def session() -> Iterator[Session]:
-    DB_PATH.unlink(missing_ok=True)
-    engine = create_engine(f"sqlite:///{DB_PATH}")
-    SQLModel.metadata.create_all(engine)
-    sess = Session(engine)
-    originals = {cls: cls.__dict__.get("session") for cls in (_BaseModel, BaseModel)}
-    for cls in (_BaseModel, BaseModel):
-        cls.session = sess
-    try:
-        yield sess
-    finally:
-        sess.close()
-        for cls, original in originals.items():
-            if original is None:
-                delattr(cls, "session")
-            else:
-                cls.session = original
-        engine.dispose()
 
 
 def test_class_access_returns_target() -> None:
