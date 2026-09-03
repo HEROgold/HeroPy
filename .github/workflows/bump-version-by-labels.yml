@@ -32,5 +32,5 @@ jobs:
         uses: herogold/bump-by-label@v1.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          command: "uv version"
-          validate: "uv version --bump"
+          command: "uv version --bump"
+          validate: "uv version"
