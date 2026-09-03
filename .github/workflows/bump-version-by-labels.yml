@@ -3,7 +3,9 @@ name: Bump Version By Labels
 on:
   pull_request:
     types: [closed]
-    branches: [main]
+    branches:
+      - main
+      - master
 
 jobs:
   bump-version:
