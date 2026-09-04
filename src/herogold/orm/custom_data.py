@@ -1,12 +1,21 @@
-"""Custom data descriptor for storing semi-persistent data in models."""
+"""Helpers for the ``CustomData`` extra-data table.
+
+The persisted ``CustomData`` table itself lives in :mod:`herogold.orm.model`;
+this module only holds the size-limit helpers so they can be imported without a
+circular dependency.
+"""
 from __future__ import annotations
 
-from collections.abc import Mapping
 from sys import getsizeof
+from typing import TYPE_CHECKING, Any
 
 from herogold.errors import with_known_exception
-from herogold.orm.core.model import BaseModel
-from herogold.protocols import DataDescriptor
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+DEFAULT_SIZE_LIMIT = 1024 * 10
+"""Default byte budget for a model's custom data (the old descriptor default)."""
 
 
 class OutOfSpaceError(ValueError):
@@ -16,41 +25,14 @@ class OutOfSpaceError(ValueError):
         """Initialize the OutOfSpaceError with the size and limit."""
         super().__init__(f"Custom data of size {size} exceeds limit of {limit} bytes.")
 
-# TODO: Currently the owner of type BaseModel has not effect on typing  # noqa: FIX002, TD002, TD003
-# meaning this descriptor is still able to be used on any other class/owner :(
-class CustomData[Key, Value](DataDescriptor[Mapping[Key, Value], BaseModel]):
-    """Enables custom data to be stored in the model, without being a field.
 
-    Useful for storing related models or other data that should not be persisted.
+@with_known_exception(OutOfSpaceError)
+def validate_size(item: Mapping[Any, Any], size_limit: int = DEFAULT_SIZE_LIMIT) -> None:
+    """Validate that the size of the custom data does not exceed the limit.
+
+    Returns an :class:`OutOfSpaceError` instead of raising it (see
+    :func:`herogold.errors.with_known_exception`); callers must inspect the
+    return value and decide how to react to an overflow.
     """
-
-    def __init__(self, *, size_limit: int = 1024*10) -> None:
-        """Initialize the CustomData with an empty dictionary."""
-        self._data: dict[Key, Value] = {}
-        self.size_limit = size_limit
-
-    @with_known_exception(AttributeError)
-    def __get__(self, instance: BaseModel, owner: type[BaseModel]) -> Mapping[Key, Value]:
-        """Return the value of the custom data for the instance."""
-        return self._data
-
-    def __set__(self, instance: BaseModel, value: Mapping[Key, Value]) -> None:
-        """Update the custom data.
-
-        This will persisting existing data
-        Add or overwrite data
-        """
-        data = self._data.copy()
-        for k, v in value.items():
-            data[k] = v
-        self._data = data
-
-    def _validate_size(self) -> None:
-        """Validate that the size of the custom data does not exceed the limit."""
-        if self.size > self.size_limit:
-            raise OutOfSpaceError(self.size, self.size_limit)
-
-    @property
-    def size(self) -> int:
-        """Return the number of items in the custom data."""
-        return getsizeof(self._data)
+    if getsizeof(item) > size_limit:
+        raise OutOfSpaceError(getsizeof(item), size_limit)
