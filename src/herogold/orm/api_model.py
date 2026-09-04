@@ -106,6 +106,51 @@ class PaginatedResponse[T: _BaseModel]:
         ).all()
         yield from self.next or []
 
+class RequestFilterer[T: _BaseModel]:
+    """An APIModel that supports filtering, sorting, and pagination."""
+
+    def __init__(self, model: type[T], request: QueryRequest, query: SelectOfScalar[T] | None = None) -> None:
+        """Initialize the RequestFilterer with a model, request, and optional query."""
+        self.model: type[T] = model
+        self.request: QueryRequest = request
+        self.q: SelectOfScalar[T] = query or select(model)
+
+    # `v` is intentionally Any: filter values come straight from the request body
+    # (QueryFilter.value: Any) and are heterogeneous — scalar for eq/like, iterable for in_.
+    _operators: ClassVar[dict[Operator, Callable[[SQLColumnExpression[Any], Any], ColumnElement[bool]]]] = {
+        Operator.eq: lambda c, v: c == v,
+        Operator.ne: lambda c, v: c != v,
+        Operator.gt: lambda c, v: c > v,
+        Operator.ge: lambda c, v: c >= v,
+        Operator.lt: lambda c, v: c < v,
+        Operator.le: lambda c, v: c <= v,
+        Operator.like: lambda c, v: c.like(v),
+        Operator.ilike: lambda c, v: c.ilike(v),
+        Operator.in_: lambda c, v: c.in_(v),
+    }
+
+    def filter(self) -> RequestFilterer[T]:
+        """Filter inplace records based on a QueryRequest, applying filters, sorting, and pagination."""
+        q = self.q
+        for f in self.request.filters:
+            if not hasattr(self.model, f.field):
+                continue
+            q = self.q.where(self._operators[f.op](col(getattr(self.model, f.field)), f.value))
+        return RequestFilterer(self.model, self.request, q)
+
+    def sort(self) -> RequestFilterer[T]:
+        """Sort inplace records based on a QueryRequest, applying sorting and pagination."""
+        q = self.q
+        if self.request.sort and hasattr(self.model, self.request.sort):
+            sort_col = col(getattr(self.model, self.request.sort))
+            q = self.q.order_by(sort_col.desc() if self.request.order.lower() == "desc" else sort_col.asc())
+        return RequestFilterer(self.model, self.request, q)
+
+    @property
+    def query(self) -> SelectOfScalar[T]:
+        """Return the final query after applying filters and sorting."""
+        return self.q
+
 
 class APIModel[T: _BaseModel]:
     """Base APIModel class with custom methods for API interactions."""
@@ -191,34 +236,12 @@ class APIModel[T: _BaseModel]:
         row.add()
         item.custom_data = row
 
-    # `v` is intentionally Any: filter values come straight from the request body
-    # (QueryFilter.value: Any) and are heterogeneous — scalar for eq/like, iterable for in_.
-    _operators: ClassVar[dict[Operator, Callable[[SQLColumnExpression[Any], Any], ColumnElement[bool]]]] = {
-        Operator.eq: lambda c, v: c == v,
-        Operator.ne: lambda c, v: c != v,
-        Operator.gt: lambda c, v: c > v,
-        Operator.ge: lambda c, v: c >= v,
-        Operator.lt: lambda c, v: c < v,
-        Operator.le: lambda c, v: c <= v,
-        Operator.like: lambda c, v: c.like(v),
-        Operator.ilike: lambda c, v: c.ilike(v),
-        Operator.in_: lambda c, v: c.in_(v),
-    }
 
     def query(self, request: QueryRequest) -> Sequence[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
-        # TODO: preferibly, this module does not use any sql.
-        # Only using the Model's methods
-        self.model.logger.debug("QUERY %s: %s", self.model.__name__, request, extra={"request": request})
-        q = select(self.model).where(self.model.deleted_at == None)  # noqa: E711
-        for f in request.filters:
-            if not hasattr(self.model, f.field):
-                continue
-            q = q.where(self._operators[f.op](col(getattr(self.model, f.field)), f.value))
-        if request.sort and hasattr(self.model, request.sort):
-            sort_col = col(getattr(self.model, request.sort))
-            q = q.order_by(sort_col.desc() if request.order.lower() == "desc" else sort_col.asc())
+        q = RequestFilterer(self.model, request).filter().sort().query
         offset = (request.page - 1) * request.limit
+        self.model.logger.debug("QUERY SQL: %s", q, extra={"query": str(q), "request": request})
         return self.model.session.exec(q.offset(offset).limit(request.limit)).all()
 
     def get_all(

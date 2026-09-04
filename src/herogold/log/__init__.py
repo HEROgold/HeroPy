@@ -68,6 +68,7 @@ from .handlers import stream_handler
 from .logger_mixin import LoggerMixin
 
 basicConfig(
+    format=BASIC_FORMAT,
     level=INFO,
     handlers=[stream_handler],
 )
