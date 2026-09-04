@@ -77,10 +77,10 @@ def test_pagination(api: APIModel[Item]) -> None:
 def test_unknown_field_ignored(api: APIModel[Item]) -> None:
     # a filter on a non-existent column is skipped, not an error
     rows = api.query(QueryRequest(filters=[QueryFilter(field="nope", op=Operator.eq, value=1)]))
-    assert len(rows) == 3
+    assert len(list(rows)) == 3
 
 
 def test_soft_deleted_excluded(api: APIModel[Item]) -> None:
     rows = api.query(QueryRequest())
     assert "gone" not in {r.name for r in rows}
-    assert len(rows) == 3
+    assert len(list(rows)) == 3
