@@ -1,4 +1,5 @@
 """Association table for users and secondary emails."""
+from __future__ import annotations
 
 from __future__ import annotations
 
