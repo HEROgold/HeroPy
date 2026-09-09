@@ -1,7 +1,6 @@
 """A module that provides a sentinel object which is falsy with all other objects."""
 
 from __future__ import annotations
-from warnings import deprecated
 
 import sys
 from typing import TYPE_CHECKING, Any

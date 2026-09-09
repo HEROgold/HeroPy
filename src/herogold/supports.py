@@ -174,7 +174,7 @@ class SupportsDelete(Protocol):
 @runtime_checkable
 class SupportsGet[Value, Owner](Protocol):
     @with_known_exception(AttributeError)
-    def __get__(self, instance: Owner, owner: type[Owner]) -> Value | Exception: ...
+    def __get__(self, instance: Owner, owner: type[Owner]) -> Value: ...
 
 @runtime_checkable
 class SupportsSet[Value, Owner](Protocol):

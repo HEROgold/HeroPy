@@ -38,7 +38,7 @@ class TempFile:
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: TracebackType | None,
-    ) -> None | Literal[False]:
+    ) -> Literal[False] | None:
         """On exit, if no exception occurred, replace the original file with the temp file."""
         if exc_type or exc_value or traceback:
             if exc_value:

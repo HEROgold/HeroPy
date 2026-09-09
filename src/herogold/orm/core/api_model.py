@@ -232,7 +232,7 @@ class APIModel[T: BaseModel]:
         self.model.add(item)
         return item
 
-    def update(self, item: T) -> None | int:
+    def update(self, item: T) -> int | None:
         """Update an existing record.
 
         Item can be a full model instance or a partial update with only the fields to be updated.
@@ -244,7 +244,7 @@ class APIModel[T: BaseModel]:
         self.model.update(item)
         return None
 
-    def delete(self, _id: int) -> None | int:
+    def delete(self, _id: int) -> int | None:
         """Delete a record by ID."""
         if not self.model.get(_id):
             return status.HTTP_404_NOT_FOUND

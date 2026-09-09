@@ -1,4 +1,5 @@
 """Password model with salted PBKDF2 hashing utilities."""
+from __future__ import annotations
 
 import hashlib
 import hmac
@@ -91,7 +92,7 @@ class Password(BaseModel, table=True):
         return self.expires_at <= current
 
     @classmethod
-    def create_for_user(cls, user_id: int, plaintext: str, *, iterations: int | None = None) -> "Password":
+    def create_for_user(cls, user_id: int, plaintext: str, *, iterations: int | None = None) -> Password:
         """Create a fully initialized password record for a user."""
         record = cls(
             user_id=user_id,

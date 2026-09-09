@@ -1,4 +1,5 @@
 """Association table for users and roles."""
+from __future__ import annotations
 
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, ForeignKey
