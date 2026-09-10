@@ -76,7 +76,7 @@ class BaseWorkerPool(ABC):
             p.join()
 
     @abstractmethod
-    def submit(self, action: Action) -> None | Awaitable[None]:
+    def submit(self, action: Action) -> Awaitable[None] | None:
         """Submit a task to be executed by the worker processes."""
 
     @abstractmethod
@@ -84,7 +84,7 @@ class BaseWorkerPool(ABC):
         """Retrieve all errors that occurred during task execution."""
 
     @abstractmethod
-    def wait(self) -> None | Awaitable[None]:
+    def wait(self) -> Awaitable[None] | None:
         """Wait for all worker processes to finish."""
 
 
