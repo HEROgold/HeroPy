@@ -39,7 +39,6 @@ class Build(CliOptions, subcommand="build"):
         default="all",
     )
 
-
 @entrypoint(CliOptions)
 def main(options: CliOptions) -> None:
     if isinstance(options, Deploy):
