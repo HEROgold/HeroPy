@@ -22,12 +22,11 @@ orm = [
 api = [
     "fastapi>=0.136.1",
 ]
-orm-api = ["herogold[orm]", "herogold[api]"]
-all = [
-    "herogold[orm-api]"
-]
 services = [
     "watchdog>=6.0.0",
+]
+all = [
+    "herogold[orm,api,services]"
 ]
 
 [project.urls]
