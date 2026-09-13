@@ -2,29 +2,24 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Sequence
+from collections.abc import Callable, Generator, Iterable
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict
 
-from sqlmodel import SQLModel, col, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql.elements import SQLCoreOperations
+from sqlmodel import Field, SQLModel, col, select
 
+from herogold.imports import ExtraImportContext
 from herogold.orm.core.model import ExtraData
 
-try:
-    from fastapi import APIRouter, status
-except ImportError as e:
-    msg = (
-        "Failed to import required dependencies for the orm[api] package. "
-        "Please ensure that 'api' extra is installed. "
-        "You can install them using 'herogold[orm-api]'."
-    )
-    raise ImportError(msg) from e
+with ExtraImportContext("herogold", "orm", "orm", "api"):
+    from fastapi import APIRouter, HTTPException, Response, status
 
 
 from .model import BaseModel
 
 if TYPE_CHECKING:
-    from sqlalchemy import ColumnElement
     from sqlmodel.sql.expression import SelectOfScalar
 
 
@@ -56,8 +51,18 @@ class QueryRequest(SQLModel):
     filters: list[QueryFilter] = []
     sort: str | None = None
     order: Literal["asc", "desc"] = "asc"
-    page: int = 1
-    limit: int = 100
+    page: int = Field(default=1, ge=1)
+    limit: int = Field(default=100, ge=1, le=1000)
+
+
+class PaginatedMeta(TypedDict):
+    """TypedDict for the metadata of a paginated response."""
+
+    page: int
+    size: int
+    total_pages: int
+    total_items: int
+    next: str | None
 
 
 class PaginatedResponse[T: BaseModel]:
@@ -65,11 +70,21 @@ class PaginatedResponse[T: BaseModel]:
 
     base_url: str = "/"
 
-    def __init__(self, model: type[T], page: int = 1, size: int = 100) -> None:
-        """Initialize the PaginatedResponse with page, size, and total items."""
+    def __init__(
+        self,
+        model: type[T],
+        page: int = 1,
+        size: int = 100,
+        query: SelectOfScalar[T] | None = None,
+    ) -> None:
+        """Initialize the PaginatedResponse with page, size, and an optional pre-filtered/sorted query.
+
+        When `query` is omitted, falls back to the default unfiltered pagination behavior.
+        """
         self.model = model
         self.page = page
         self.size = size
+        self._query = query
 
     @property
     def total_pages(self) -> int:
@@ -85,11 +100,11 @@ class PaginatedResponse[T: BaseModel]:
     def next(self) -> PaginatedResponse[T] | None:  # pyright: ignore[reportIndexIssue]
         """Generate the URL for the next page if it exists."""
         if self.page < self.total_pages:
-            return PaginatedResponse[T](self.model, self.page + 1)
+            return PaginatedResponse[T](self.model, self.page + 1, self.size, query=self._query)
         return None
 
     @property
-    def meta(self) -> dict[str, int | str | None]:
+    def meta(self) -> PaginatedMeta:
         """Return metadata about the pagination."""
         return {
             "page": self.page,
@@ -101,11 +116,35 @@ class PaginatedResponse[T: BaseModel]:
 
     def __iter__(self) -> Generator[T]:
         """Iterate over the items for the current page."""
+        if self._query is not None:
+            offset = (self.page - 1) * self.size
+            yield from self.model.session.exec(self._query.offset(offset).limit(self.size)).all()
+            return
+
+        if not self.model.id:
+            msg = f"Model {self.model.__name__} does not have an 'id' field for pagination."
+            raise ValueError(msg)
+
         offset = (self.model.id - 1) * self.size
         yield from self.model.session.exec(
             select(self.model).where(self.model.id >= offset).limit(self.size),
         ).all()
         yield from self.next or []
+
+
+class QueryResponse[T: BaseModel](TypedDict):
+    """TypedDict for the response of a QUERY request."""
+
+    items: list[T]
+    page: int
+    size: int
+    total_pages: int
+    total_items: int
+    next: str | None
+
+
+type SupportsOperations = Callable[[SQLCoreOperations[Any], Any], SQLCoreOperations[bool]]
+type OperatorMap = dict[Operator, SupportsOperations]
 
 
 class APIModel[T: BaseModel]:
@@ -115,10 +154,16 @@ class APIModel[T: BaseModel]:
         """Initialize the APIModel with a SQLModel instance, adding routes to the provided router."""
         self.model = model
         router.tags = [model.__name__, *router.tags]
-        default_responses: dict[int, dict[str, str]] = {
+        default_responses: dict[int | str, dict[str, Any]] = {
             200: {"description": "Successful Response"},
             404: {"description": "Not Found"},
         }
+        router.add_api_route(
+            "/",
+            self.options,
+            methods=["OPTIONS"],
+            include_in_schema=False,
+        )
         router.add_api_route(
             "/",
             self.get_all,
@@ -159,9 +204,19 @@ class APIModel[T: BaseModel]:
             "/",
             self.query,
             methods=["QUERY"],
-            response_model=list[model],  # ty:ignore[invalid-type-form]
-            responses=default_responses,
+            response_model=QueryResponse[model],  # ty: ignore[invalid-type-form]
+            responses={
+                200: {"description": "Successful Response"},
+                400: {"description": "Missing or inconsistent Content-Type"},
+                406: {"description": "Not Acceptable"},
+                415: {"description": "Unsupported Media Type"},
+                422: {"description": "Invalid query content"},
+            },
         )
+
+    def options(self) -> Response:
+        """Advertise the methods supported on the collection endpoint, including QUERY."""
+        return Response(status_code=status.HTTP_204_NO_CONTENT, headers={"Allow": "GET, POST, PUT, PATCH, QUERY"})
 
     def _param_builder(self, query_params: dict[str, str]) -> dict[str, str]:
         """Build query parameters for filtering."""
@@ -174,10 +229,7 @@ class APIModel[T: BaseModel]:
             q = q.where(getattr(self.model, key) == value)
         return q
 
-    # I don't like this mapping, but it works.
-    # It's missing type infor for c, v. But it's defined in the type hint, so it's okay.
-    # I'd like to see a replacement, that handles and cleans up Any here as well.
-    _operators: ClassVar[dict[Operator, Callable[[ColumnElement[Any], Any], ColumnElement[bool]]]] = {
+    _operators: ClassVar[OperatorMap] = {
         Operator.eq: lambda c, v: c == v,
         Operator.ne: lambda c, v: c != v,
         Operator.gt: lambda c, v: c > v,
@@ -189,19 +241,37 @@ class APIModel[T: BaseModel]:
         Operator.in_: lambda c, v: c.in_(v),
     }
 
-    def query(self, request: QueryRequest) -> Sequence[T]:
+    def validate_query_filters(self, filters: Iterable[QueryFilter]) -> Generator[QueryFilter, None, None]:
+        """Pre-query validation for the QUERY endpoint."""
+        for f in filters:
+            if f.field not in self.model.model_fields:
+                msg = f"Unknown filter field: {f.field!r}"
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, msg)
+            yield f
+
+    def query(self, request: QueryRequest) -> QueryResponse[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
         self.model.logger.debug("QUERY %s: %s", self.model.__name__, request, extra={"request": request})
         q = select(self.model).where(self.model.deleted_at == None)  # noqa: E711
-        for f in request.filters:
-            if not hasattr(self.model, f.field):
-                continue
-            q = q.where(self._operators[f.op](col(getattr(self.model, f.field)), f.value))
-        if request.sort and hasattr(self.model, request.sort):
+
+        if request.sort and request.sort not in self.model.model_fields:
+            msg = f"Unknown sort field: {request.sort!r}"
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, msg)
+
+        for f in self.validate_query_filters(request.filters):
+            try:
+                q = q.where(self._operators[f.op](col(getattr(self.model, f.field)), f.value))
+            except (TypeError, ValueError, SQLAlchemyError) as e:
+                msg = f"Invalid value for field {f.field!r} with operator {f.op!r}: {e}"
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, msg) from e
+
+        if request.sort:
             sort_col = col(getattr(self.model, request.sort))
-            q = q.order_by(sort_col.desc() if request.order.lower() == "desc" else sort_col.asc())
-        offset = (request.page - 1) * request.limit
-        return self.model.session.exec(q.offset(offset).limit(request.limit)).all()
+            sort_order = sort_col.desc if request.order.casefold() == "desc" else sort_col.asc
+            q = q.order_by(sort_order())
+
+        paginated = PaginatedResponse(self.model, request.page, request.limit, query=q)
+        return {"items": list(paginated), **paginated.meta}
 
     def get_all(
         self,
@@ -216,7 +286,7 @@ class APIModel[T: BaseModel]:
 
         if sort and hasattr(self.model, sort):
             sort_col = col(getattr(self.model, sort))
-            sort_order = sort_col.desc() if order.lower() == "desc" else sort_col.asc()
+            sort_order = sort_col.desc() if order.casefold() == "desc" else sort_col.asc()
             q = q.order_by(sort_order)
 
         yield from PaginatedResponse(self.model, page, size=limit)
