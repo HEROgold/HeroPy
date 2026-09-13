@@ -60,7 +60,7 @@ def create_sentinel() -> Any:  # noqa: ANN401
     if sys.version_info >= (3, 15):
         import warnings  # noqa: PLC0415
         warnings.deprecated(
-            "create_sentinel() is deprecated since Python 3.15. Use builtin.sentinel instead.",
+            "create_sentinel() is deprecated since Python 3.15. Use builtins.sentinel instead.",
             stacklevel=2,
         )
     return _Sentinel()
