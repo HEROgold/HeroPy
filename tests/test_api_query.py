@@ -56,7 +56,17 @@ def client() -> Iterator[TestClient]:
 def _query(client: TestClient, body: dict) -> list[dict]:
     resp = client.request("QUERY", "/", json=body)
     assert resp.status_code == 200, resp.text
-    return resp.json()
+    return resp.json()["items"]
+
+
+def test_operator_eq(client: TestClient) -> None:
+    rows = _query(client, {"filters": [{"field": "price", "op": "eq", "value": 20}]})
+    assert {r["name"] for r in rows} == {"big box"}
+
+
+def test_operator_ne(client: TestClient) -> None:
+    rows = _query(client, {"filters": [{"field": "price", "op": "ne", "value": 20}]})
+    assert {r["name"] for r in rows} == {"small box", "crate"}
 
 
 def test_operator_gt(client: TestClient) -> None:
@@ -64,8 +74,28 @@ def test_operator_gt(client: TestClient) -> None:
     assert {r["name"] for r in rows} == {"big box", "crate"}
 
 
+def test_operator_ge(client: TestClient) -> None:
+    rows = _query(client, {"filters": [{"field": "price", "op": "ge", "value": 20}]})
+    assert {r["name"] for r in rows} == {"big box", "crate"}
+
+
+def test_operator_lt(client: TestClient) -> None:
+    rows = _query(client, {"filters": [{"field": "price", "op": "lt", "value": 20}]})
+    assert {r["name"] for r in rows} == {"small box"}
+
+
+def test_operator_le(client: TestClient) -> None:
+    rows = _query(client, {"filters": [{"field": "price", "op": "le", "value": 20}]})
+    assert {r["name"] for r in rows} == {"small box", "big box"}
+
+
 def test_operator_like(client: TestClient) -> None:
     rows = _query(client, {"filters": [{"field": "name", "op": "like", "value": "%box%"}]})
+    assert {r["name"] for r in rows} == {"small box", "big box"}
+
+
+def test_operator_ilike(client: TestClient) -> None:
+    rows = _query(client, {"filters": [{"field": "name", "op": "ilike", "value": "%BOX%"}]})
     assert {r["name"] for r in rows} == {"small box", "big box"}
 
 
@@ -90,3 +120,44 @@ def test_soft_deleted_excluded(client: TestClient) -> None:
     rows = _query(client, {})
     assert "gone" not in {r["name"] for r in rows}
     assert len(rows) == 3
+
+
+def test_pagination_metadata(client: TestClient) -> None:
+    resp = client.request("QUERY", "/", json={"sort": "price", "order": "asc", "page": 1, "limit": 2})
+    body = resp.json()
+    assert body["page"] == 1
+    assert body["size"] == 2
+    assert body["total_items"] == 3
+    assert body["total_pages"] == 2
+    assert body["next"] is not None
+
+
+def test_unknown_filter_field_rejected(client: TestClient) -> None:
+    resp = client.request("QUERY", "/", json={"filters": [{"field": "session", "op": "eq", "value": 1}]})
+    assert resp.status_code == 422, resp.text
+
+
+def test_unknown_sort_field_rejected(client: TestClient) -> None:
+    resp = client.request("QUERY", "/", json={"sort": "logger"})
+    assert resp.status_code == 422, resp.text
+
+
+def test_invalid_page_rejected(client: TestClient) -> None:
+    resp = client.request("QUERY", "/", json={"page": 0})
+    assert resp.status_code == 422, resp.text
+
+
+def test_invalid_limit_rejected(client: TestClient) -> None:
+    resp = client.request("QUERY", "/", json={"limit": 0})
+    assert resp.status_code == 422, resp.text
+
+
+def test_in_operator_with_non_iterable_value_rejected(client: TestClient) -> None:
+    resp = client.request("QUERY", "/", json={"filters": [{"field": "price", "op": "in", "value": 42}]})
+    assert resp.status_code == 422, resp.text
+
+
+def test_query_advertised_in_allow_header(client: TestClient) -> None:
+    resp = client.options("/")
+    allow = resp.headers.get("allow", "")
+    assert "QUERY" in allow
