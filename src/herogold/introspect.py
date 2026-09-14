@@ -4,7 +4,6 @@ signature_of() returns a stable string form of a callable's signature, useful fo
 detecting when a callable's definition changed (e.g. to skip re-syncing unchanged
 commands or plugin ABIs).
 """
-
 from __future__ import annotations
 
 import inspect
