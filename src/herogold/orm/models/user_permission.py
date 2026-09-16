@@ -1,4 +1,5 @@
 """Association table for users and direct permissions."""
+
 from __future__ import annotations
 
 from sqlalchemy import UniqueConstraint

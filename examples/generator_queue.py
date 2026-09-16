@@ -41,13 +41,15 @@ def queue[**P, R](func: Callable[P, R], /) -> Generator[R | None, *P | None, NoR
                 input_ = yield func(*args)  # ty:ignore[missing-argument]
                 queue.pop(0)
 
+
 # Example
 if __name__ == "__main__":
+
     def add(x: int, y: int) -> int:
         return x + y
 
     q = queue(add)
-    while (x := next(q) or 1):
+    while x := next(q) or 1:
         print(f"Sending: {x}")
         q.send((x, 1))
         q.send({"x": x, "y": 9})

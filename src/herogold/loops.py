@@ -17,10 +17,12 @@ cpu_count = os.cpu_count() or 1
 def _square(value: int) -> int:
     return value * value
 
+
 def parallel[T, P](action: Callable[[P], T], data: Iterable[P]) -> Iterator[T]:
     """Run a function in parallel across multiple CPU cores."""
     with ProcessPoolExecutor(max_workers=cpu_count) as executor:
         yield from executor.map(action, data, chunksize=10)
+
 
 async def a_parallel[T, P](action: Callable[[P], T], data: AsyncIterable[P]) -> AsyncIterator[T]:
     """Run a function in parallel across multiple CPU cores from async code."""
@@ -29,6 +31,7 @@ async def a_parallel[T, P](action: Callable[[P], T], data: AsyncIterable[P]) -> 
     with ProcessPoolExecutor(max_workers=cpu_count) as executor:
         async for item in data:
             yield await loop.run_in_executor(executor, action, item)
+
 
 async def a_range(count: int) -> AsyncIterator[int]:
     """Asynchronous generator that yields values from 0 to count-1."""

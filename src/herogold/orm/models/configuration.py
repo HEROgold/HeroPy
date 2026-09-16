@@ -1,4 +1,5 @@
 """User configuration model."""
+
 from __future__ import annotations
 
 from sqlalchemy import UniqueConstraint

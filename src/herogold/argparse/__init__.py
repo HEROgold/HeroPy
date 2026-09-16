@@ -18,6 +18,7 @@ def entrypoint[N: Namespace](namespace: N | type[N]) -> Callable[[Callable[[N], 
 
     def wrapper(func: Callable[[N], None]) -> Callable[[], None]:
         """Inject the arguments into the function."""
+
         @wraps(func)
         def inner() -> None:
             raw = root_cls._parser.parse_args(sys.argv[1:])  # noqa: SLF001
@@ -30,6 +31,7 @@ def entrypoint[N: Namespace](namespace: N | type[N]) -> Callable[[Callable[[N], 
         return inner
 
     return wrapper
+
 
 __all__ = [
     "Actions",

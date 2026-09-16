@@ -1,4 +1,5 @@
 """Provides functionality for mangling and unmangling private attribute names in Python classes."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -7,6 +8,7 @@ from typing import Any
 class ManglingError(Exception):
     """Custom exception for mangling errors."""
 
+
 class InvalidNameError(ManglingError):
     """Raised when an invalid name is provided for mangling."""
 
@@ -14,6 +16,7 @@ class InvalidNameError(ManglingError):
         """Initialize the InvalidNameError with the invalid name."""
         msg = f"Invalid name '{name}' for mangling. Names must be valid Python identifiers and cannot start with a digit."
         super().__init__(msg)
+
 
 def mangle(cls: type, name: str) -> str:
     """Mangle a private attribute name.
@@ -31,6 +34,7 @@ def mangle(cls: type, name: str) -> str:
     if not name.isidentifier() or name[0].isdigit():
         raise InvalidNameError(name)
     return mangled
+
 
 def get_mangled_attribute(cls: type, owner: type, name: str) -> Any:  # noqa: ANN401
     """Get the value of a mangled private attribute.

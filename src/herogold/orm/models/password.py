@@ -1,4 +1,5 @@
 """Password model with salted PBKDF2 hashing utilities."""
+
 from __future__ import annotations
 
 import hashlib
