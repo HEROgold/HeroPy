@@ -1,4 +1,5 @@
 """Module that helps with tracking and automatically updating your project from production servers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

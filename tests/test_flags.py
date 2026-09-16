@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from enum import auto
@@ -8,6 +7,7 @@ from herogold.flags import IntFlag
 
 def test_flags_none_are_0():
     """Test that the none() method returns 0."""
+
     class TestFlag(IntFlag):
         A = auto()
         B = auto()
@@ -15,8 +15,10 @@ def test_flags_none_are_0():
 
     assert TestFlag.none() == 0
 
+
 def test_flags_all_are_set():
     """Test that the all() method returns a flag with all bits set."""
+
     class TestFlag(IntFlag):
         A = auto()
         B = auto()

@@ -1,4 +1,5 @@
 """A simple cache implementation that uses weak references to allow values to be garbage collected when they are no longer in use."""
+
 from __future__ import annotations
 
 from weakref import ref
@@ -25,7 +26,7 @@ class Cache[K, V](Container[K, V]):
             return r
 
         # If the weak reference is None, it means the value has been garbage collected.
-        del self._cache[instance] # Remove the key from the cache if the value has been garbage collected
+        del self._cache[instance]  # Remove the key from the cache if the value has been garbage collected
         msg = f"{instance} not found in cache"
         raise AttributeError(msg)
 

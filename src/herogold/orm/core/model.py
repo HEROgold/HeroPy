@@ -36,9 +36,11 @@ class ModelLogger(LoggerMixin):
     Avoids the issue of cls.logger raising AttributeError, property has no attribute `xxx`
     """
 
+
 def _cur_utc() -> datetime:
     """Return the current UTC datetime."""
     return datetime.now(UTC)
+
 
 class BaseModel(BaseSQLModel):
     """Base model class with custom methods."""
@@ -205,8 +207,9 @@ class BaseModel(BaseSQLModel):
         session = cls._get_session(session)
         return session.exec(select(cls).where(column == value))
 
+
 class ExtraData(BaseModel):
     """Model for storing extra data in JSONB format."""
 
     data: dict[str, Any] = Field(default_factory=dict, sa_column_kwargs={"type_": "JSONB"})
-    extra = None # Avoid recursive relationship with itself
+    extra = None  # Avoid recursive relationship with itself
