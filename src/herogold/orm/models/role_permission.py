@@ -1,4 +1,5 @@
 """Association table for roles and permissions."""
+
 from __future__ import annotations
 
 from __future__ import annotations
