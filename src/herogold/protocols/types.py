@@ -2,6 +2,7 @@
 
 These usually represent more complex protocols that combine multiple supports protocols into a single type.
 """
+
 from __future__ import annotations
 
 from herogold.supports import SupportsDelete, SupportsGet, SupportsSet

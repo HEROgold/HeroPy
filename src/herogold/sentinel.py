@@ -55,10 +55,12 @@ class _Sentinel:
 
 MISSING: Any = _Sentinel()
 
+
 def create_sentinel() -> Any:  # noqa: ANN401
     """Create a new sentinel object which is falsy with all other objects."""
     if sys.version_info >= (3, 15):
         import warnings  # noqa: PLC0415
+
         warnings.deprecated(
             "create_sentinel() is deprecated since Python 3.15. Use builtin.sentinel instead.",
             stacklevel=2,

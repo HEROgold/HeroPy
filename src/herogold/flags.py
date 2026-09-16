@@ -1,4 +1,5 @@
 """Improvements often used on flags."""
+
 from __future__ import annotations
 
 from enum import IntFlag as IntFlagBase

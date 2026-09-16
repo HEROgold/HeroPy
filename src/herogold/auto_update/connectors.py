@@ -1,4 +1,5 @@
 """Connectors for auto-updates."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
     from types import TracebackType
 
     from herogold.auto_update.sources import Source
+
 
 class Connector(ABC, LoggerMixin):
     """ABC for tracking different connectors for auto-updates."""
@@ -55,6 +57,7 @@ class Connector(ABC, LoggerMixin):
     def install(self) -> None:
         """Install the downloaded update."""
 
+
 class _Disconnected[T: Connector]:
     """A disconnected state for a connector, providing connection handling."""
 
@@ -64,6 +67,7 @@ class _Disconnected[T: Connector]:
     def connect(self) -> _Connected[T]:
         """Connect to the source and return a connected state."""
         return _Connected(self.connector)
+
 
 class _Connected[T: Connector]:
     """A connected state for a connector, providing update checking and installation."""

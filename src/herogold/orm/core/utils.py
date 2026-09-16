@@ -38,6 +38,7 @@ class Relationship[T: BaseModel]:
     """
 
     if TYPE_CHECKING:
+
         @overload
         def __get__(self, instance: None, owner: type[T]) -> type[T]: ...
         @overload

@@ -1,0 +1,58 @@
+default_language_version:
+  python: python3.15
+
+repos:
+  # Generic hygiene checks — cheap, language-agnostic safety nets.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-toml
+      - id: check-yaml
+      - id: check-ast
+      - id: check-docstring-first
+      - id: debug-statements
+      - id: name-tests-test
+        args: [--pytest-test-first]
+        files: ^tests/
+
+  # Keep uv.lock honest whenever pyproject.toml changes.
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.9.9
+    hooks:
+      - id: uv-lock
+
+  # Project-native tools, run through uv so versions match what's
+  # actually installed (`uv tool list` / `uvx <tool> --version`).
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: uvx ruff@0.16.5 format
+        language: system
+        types: [python]
+
+      - id: ruff-check
+        name: ruff check --fix
+        entry: uvx ruff@0.16.5 check --fix --force-exclude
+        language: system
+        types: [python]
+
+      - id: ty-check
+        name: ty check
+        entry: uvx ty@0.0.77 check
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: pyrefly-check
+        name: pyrefly check (fallback — run manually with `prek run pyrefly-check`)
+        entry: uvx pyrefly@1.3.1 check
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [manual]
