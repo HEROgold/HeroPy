@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Generator, Iterable
 
 
-def call_returning_exception[**P, T](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T | Exception:
+def _return_exception[**P, T](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T | Exception:
     """Call func and return any exception it raises, instead of letting it propagate."""
     try:
         return func(*args, **kwargs)
@@ -22,7 +22,7 @@ def call_returning_exception[**P, T](func: Callable[P, T], *args: P.args, **kwar
         return e
 
 
-async def a_call_returning_exception[**P, T](
+async def a_return_exception[**P, T](
     func: Callable[P, Awaitable[T]],
     *args: P.args,
     **kwargs: P.kwargs,
@@ -45,11 +45,11 @@ def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | Exception]:
     """
 
     def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T | Exception:
-        return call_returning_exception(func, *args, **kwargs)
+        return _return_exception(func, *args, **kwargs)
 
     async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T | Exception:
         a_func = cast("Callable[P, Awaitable[T]]", func)
-        return await a_call_returning_exception(a_func, *args, **kwargs)
+        return await a_return_exception(a_func, *args, **kwargs)
 
     return dual_wraps(func, sync_wrapper, async_wrapper)
 
@@ -62,6 +62,7 @@ def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable
     exception_types = tuple(exceptions)
 
     def classify[T](result: T | Exception) -> T | E:
+        """Ensure result is either the expected type or one of the known exception types."""
         if isinstance(result, exception_types):
             return result
         if isinstance(result, Exception):
@@ -76,11 +77,11 @@ def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable
         """Wrap a function and returns any thrown exception."""
 
         def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T | E:
-            return classify(call_returning_exception(func, *args, **kwargs))
+            return classify(_return_exception(func, *args, **kwargs))
 
         async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T | E:
             a_func = cast("Callable[P, Awaitable[T]]", func)
-            return classify(await a_call_returning_exception(a_func, *args, **kwargs))
+            return classify(await a_return_exception(a_func, *args, **kwargs))
 
         return dual_wraps(func, sync_wrapper, async_wrapper)
 
@@ -111,6 +112,7 @@ def with_group[**P, T](func: Callable[P, Iterable[T | Exception]]) -> Callable[P
 
 
 if __name__ == "__main__":
+    # TODO: move to tests
 
     @with_exception
     def test(i: int) -> float:  # noqa: D103
