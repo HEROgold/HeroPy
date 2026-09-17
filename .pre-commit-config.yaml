@@ -30,6 +30,12 @@ repos:
   # actually installed (`uv tool list` / `uvx <tool> --version`).
   - repo: local
     hooks:
+      - id: funcsort
+        name: funcsort
+        entry: uvx funcsort
+        language: system
+        types: [python]
+
       - id: ruff-format
         name: ruff format
         entry: uvx ruff@0.16.5 format
@@ -38,7 +44,7 @@ repos:
 
       - id: ruff-check
         name: ruff check --fix
-        entry: uvx ruff@0.16.5 check --fix --force-exclude
+        entry: uvx ruff@0.16.5 check --fix --unsafe-fixes --force-exclude
         language: system
         types: [python]
 

@@ -15,11 +15,6 @@ class Email(BaseModel, table=True):
     is_verified: bool = Field(default=False, index=True)
     verified_at: datetime | None = Field(default=None)
 
-    @staticmethod
-    def normalize(value: str) -> str:
-        """Normalize an email address before storage."""
-        return value.strip().lower()
-
     def set_email(self, value: str) -> None:
         """Set and normalize the email field in-place."""
         normalized = self.normalize(value)
@@ -37,3 +32,8 @@ class Email(BaseModel, table=True):
         """Clear verification status for this email."""
         self.is_verified = False
         self.verified_at = None
+
+    @staticmethod
+    def normalize(value: str) -> str:
+        """Normalize an email address before storage."""
+        return value.strip().lower()

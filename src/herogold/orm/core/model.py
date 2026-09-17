@@ -5,6 +5,7 @@ This module should make the SQLModel classes more like a `Repository` pattern.
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
@@ -21,7 +22,7 @@ from sqlmodel import Field, Session, Table, col, select
 from sqlmodel import SQLModel as BaseSQLModel
 
 from herogold.log import LoggerMixin
-from herogold.orm.core.utils import SELF, ModelMeta, Relationship
+from herogold.orm.core.utils import ModelMeta, Relationship
 from herogold.typing.check import contains_sub_type
 
 from .constants import session as db_session
@@ -29,14 +30,32 @@ from .errors import AlreadyExistsError, NotFoundError
 
 if TYPE_CHECKING:
     import logging
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from pydantic import ConfigDict
     from sqlalchemy.orm import Mapped
+    from sqlmodel.sql.expression import SelectOfScalar
 
 models: set[type[_BaseModel]] = set()
 def _current_utc() -> datetime:
     return datetime.now(UTC)
+
+
+class classproperty[T: BaseSQLModel]:  # noqa: N801
+    """Like `property`, but resolved on the class rather than an instance.
+
+    Stacking `@property` on top of `@classmethod` does not produce a working
+    class-level property, so a dedicated descriptor is needed. This also
+    supports `super().attr` lookups from subclass getters.
+    """
+
+    def __init__(self, fget: Callable[[type[T]], SelectOfScalar[T]]) -> None:
+        self.fget = fget
+
+    def __get__(self, obj: T, owner: type[T] | None = None) -> SelectOfScalar[T]:
+        if owner is None:
+            owner = type(obj)
+        return self.fget(owner)
 
 
 class ModelLogger(LoggerMixin):
@@ -63,13 +82,15 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
 
     if TYPE_CHECKING:
         # pyrefly: ignore [bad-assignment, bad-dataclass-descriptor]
-        custom_data: Relationship[CustomData] = None  # ty: ignore[invalid-assignment]
+        custom_data: Relationship[CustomData, _BaseModel] = None  # ty: ignore[invalid-assignment]
         # ``custom_data`` (a Relationship to the CustomData table) is attached below,
         # after CustomData is defined, because it targets a subclass of this class.
         __table__: ClassVar[Table]
         # __table__ is a normally hidden attribute.
         # For type completeness, we're adding it here.
 
+    query: ClassVar[SelectOfScalar[Self]]
+    """Default query for the model, may be overridden by subclasses."""
     session: ClassVar[Session] = db_session
     logger: ClassVar[logging.Logger] = ModelLogger().logger
     __count: ClassVar[int | None] = None
@@ -94,21 +115,6 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             return
         super().__setattr__(name, value)
 
-    @classmethod
-    def _get_session(cls, session: Session | None = None) -> Session:
-        """Get the usable session, either the provided one or the default."""
-        cls.logger.debug("Getting session: %s", session, extra={"session": session})
-        return session or cls.session
-
-    @classmethod
-    def count(cls) -> int:
-        """Return the total count of records in the model."""
-        if not cls.__count or cls.session.identity_map.check_modified():
-            cls.__count = cls.session.exec(
-                select(func.count(col(cls.id))),
-            ).one()
-        return cls.__count
-
     @property
     def relations(self) -> dict[str, type[_BaseModel]]:
         """Return a dict of related models and their values."""
@@ -118,34 +124,10 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             if info.annotation and issubclass(info.annotation, _BaseModel)
         }
 
-    @classmethod
-    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> SELF:
-        """Get a record from Database."""
-        cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
-        session = cls._get_session(session)
-
-        query = select(cls).where(cls.id == id_)
-        if with_for_update:
-            query = query.with_for_update()
-
-        if known := session.exec(query).first():
-            return known
-        msg = f"Record with {cls.__name__}.id={id_} not found."
-        raise NotFoundError(msg)
-
-    @classmethod
-    def get_all(cls: type[Self], session: Session | None = None) -> Sequence[SELF]:
-        """Get all records from Database."""
-        cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
-        session = cls._get_session(session)
-        return session.exec(select(cls)).all()
-
     def add(self, session: Session | None = None) -> None:
         """Add a record to Database."""
         self.logger.debug("Adding record: %s", self, extra={"record": self})
-        if self.id is not None:
-            msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
-            raise AlreadyExistsError(msg)
+        self._validate_existing_record()
         self._create_record(self._get_session(session))
 
     def update(self, session: Session | None = None) -> None:
@@ -170,8 +152,44 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             raise NotFoundError(msg)
         self._delete_record(self._get_session(session))
 
+    @classproperty
+    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805
+        """Return a default query for the model."""
+        return select(cls)
+
     @classmethod
-    def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[SELF]:
+    def count(cls) -> int:
+        """Return the total count of records in the model."""
+        if not cls.__count or cls.session.identity_map.check_modified():
+            cls.__count = cls.session.exec(
+                select(func.count(col(cls.id))),
+            ).one()
+        return cls.__count
+
+    @classmethod
+    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> Self:
+        """Get a record from Database."""
+        cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
+        session = cls._get_session(session)
+
+        query = select(cls).where(cls.id == id_)
+        if with_for_update:
+            query = query.with_for_update()
+
+        if known := session.exec(query).first():
+            return known
+        msg = f"Record with {cls.__name__}.id={id_} not found."
+        raise NotFoundError(msg)
+
+    @classmethod
+    def get_all(cls, session: Session | None = None) -> Sequence[Self]:
+        """Get all records from Database."""
+        cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
+        session = cls._get_session(session)
+        return session.exec(select(cls)).all()
+
+    @classmethod
+    def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[Self]:
         """Get a record from Database by field and value."""
         cls.logger.debug(
             "Getting record from field: %s, %s == %s",
@@ -183,8 +201,14 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         session = cls._get_session(session)
         return session.exec(select(cls).where(column == value))
 
+    def _validate_existing_record(self) -> None:
+        """Check if a record of this item already exists."""
+        if self.id is not None:
+            msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
+            raise AlreadyExistsError(msg)
+
     @abstractmethod
-    def _update_record(self, session: Session, entry: SELF) -> None:
+    def _update_record(self, session: Session, entry: Self) -> None:
         """Update the record in the database with the current instance's values.
 
         entry contains the current record in the database, and self contains the new values.
@@ -196,6 +220,13 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     def _delete_record(self, session: Session) -> None:
         """Delete the record in the database with the current instance's values."""
 
+    @classmethod
+    def _get_session(cls, session: Session | None = None) -> Session:
+        """Get the usable session, either the provided one or the default."""
+        cls.logger.debug("Getting session: %s", session, extra={"session": session})
+        return session or cls.session
+
+# TODO: move to its own module.
 class CustomData(_BaseModel, table=True):
     """Persisted extra-data table: a single JSONB blob per row.
 
@@ -220,7 +251,7 @@ class CustomData(_BaseModel, table=True):
         session.commit()
 
     @override
-    def _update_record(self, session: Session, entry: SELF) -> None:
+    def _update_record(self, session: Session, entry: Self) -> None:
         entry.data = self.data
         session = self._get_session(session)
         session.add(entry)
@@ -238,12 +269,10 @@ class CustomData(_BaseModel, table=True):
 # points at a subclass; CustomData was built above, so it never gains its own
 # ``custom_data`` link table (it stays a leaf).
 _custom_data = Relationship(CustomData)
-# pyrefly: ignore [bad-argument-type]
-_custom_data.__set_name__(_BaseModel, "custom_data")  # ty: ignore[invalid-argument-type]
+_custom_data.__set_name__(_BaseModel, "custom_data")
 _BaseModel.custom_data = _custom_data
 
-# TODO: rename to just "Model"
-# as _BaseModel name conflicts with this one currently
+
 class BaseModel(_BaseModel):
     """Base model class with custom methods."""
 
@@ -281,6 +310,11 @@ class BaseModel(_BaseModel):
             ),
         )
 
+    @classproperty
+    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805
+        """Return a default query for the model."""
+        return super().query.where(cls.deleted_at == None)  # noqa: E711
+
     @override
     @classmethod
     def count(cls) -> int:
@@ -299,7 +333,7 @@ class BaseModel(_BaseModel):
         session.commit()
 
     @override
-    def _update_record(self, session: Session, entry: SELF) -> None:
+    def _update_record(self, session: Session, entry: Self) -> None:
         self.logger.debug("Updating record: %s", self, extra={"record": self})
         session = self._get_session(session)
         for name, info in self.__class__.model_fields.items():
@@ -374,6 +408,14 @@ class DataModel(_BaseModel):
     )
 
     @override
+    def _validate_existing_record(self) -> None:
+        """Check if a record with the same id and timestamp already exists."""
+        with contextlib.suppress(NotFoundError):
+            if self.id and self.get(self.id, session=self._get_session()):
+                msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
+                raise AlreadyExistsError(msg)
+
+    @override
     def _create_record(self, session: Session) -> None:
         self.logger.debug("Creating record: %s", self, extra={"record": self})
         self.action = Actions.CREATE
@@ -381,7 +423,7 @@ class DataModel(_BaseModel):
         session.commit()
 
     @override
-    def _update_record(self, session: Session, entry: SELF) -> None:
+    def _update_record(self, session: Session, entry: Self) -> None:
         self.logger.debug("Updating record: %s", self, extra={"record": self})
         self.action = Actions.UPDATE
         for name, info in self.__class__.model_fields.items():

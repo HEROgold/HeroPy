@@ -6,7 +6,6 @@ from collections.abc import Callable, Generator, Iterable
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict
 
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import SQLCoreOperations
 from sqlmodel import Field, SQLModel, col, select
 
@@ -18,7 +17,7 @@ with ExtraImportContext("herogold", "orm", "orm", "api"):
     from fastapi import APIRouter, HTTPException, Response, status
 
 
-from .model import BaseModel
+from .model import _BaseModel
 
 if TYPE_CHECKING:
     from sqlmodel.sql.expression import SelectOfScalar
@@ -66,7 +65,7 @@ class PaginatedMeta(TypedDict):
     next: str | None
 
 
-class PaginatedResponse[T: BaseModel]:
+class PaginatedResponse[T: _BaseModel]:
     """A simple wrapper for paginated responses."""
 
     base_url: str = "/"
@@ -87,6 +86,23 @@ class PaginatedResponse[T: BaseModel]:
         self.size = size
         self._query = query
 
+    def __iter__(self) -> Generator[T]:
+        """Iterate over the items for the current page, then yield from the next page if it exists."""
+        if self._query is not None:
+            offset = (self.page - 1) * self.size
+            yield from self.model.session.exec(self._query.offset(offset).limit(self.size)).all()
+            return
+
+        if not self.model.id:
+            msg = f"Model {self.model.__name__} does not have an 'id' field for pagination."
+            raise ValueError(msg)
+
+        offset = (self.model.id - 1) * self.size
+        yield from self.model.session.exec(
+            select(self.model).where(self.model.id >= offset).limit(self.size),
+        ).all()
+        yield from self.next or []
+
     @property
     def total_pages(self) -> int:
         """Calculate the total number of pages based on total items and page size."""
@@ -98,7 +114,7 @@ class PaginatedResponse[T: BaseModel]:
         return f"{self.base_url}?page={self.page}&size={self.size}"
 
     @property
-    def next(self) -> PaginatedResponse[T] | None:  # pyright: ignore[reportIndexIssue]
+    def next(self) -> PaginatedResponse[T] | None:
         """Generate the URL for the next page if it exists."""
         if self.page < self.total_pages:
             return PaginatedResponse[T](self.model, self.page + 1, self.size, query=self._query)
@@ -115,25 +131,98 @@ class PaginatedResponse[T: BaseModel]:
             "next": self.next.url if self.next else None,
         }
 
-    def __iter__(self) -> Generator[T]:
-        """Iterate over the items for the current page."""
-        if self._query is not None:
-            offset = (self.page - 1) * self.size
-            yield from self.model.session.exec(self._query.offset(offset).limit(self.size)).all()
+
+class RequestFilter[T: _BaseModel]:
+    """An APIModel that supports filtering, sorting, and pagination."""
+
+    def __init__(self, model: type[T], request: QueryRequest, query: SelectOfScalar[T] | None = None) -> None:
+        """Initialize the RequestFilterer with a model, request, and optional query."""
+        self.model: type[T] = model
+        self.request: QueryRequest = request
+        # pyrefly: ignore [bad-assignment]
+        self.query: SelectOfScalar[T] = query if query is not None else model.query
+
+    # `v` is intentionally Any: filter values come straight from the request body
+    # (QueryFilter.value: Any) and are heterogeneous — scalar for eq/like, iterable for in_.
+    _operators: ClassVar[OperatorMap] = {
+        Operator.eq: lambda c, v: c == v,
+        Operator.ne: lambda c, v: c != v,
+        Operator.gt: lambda c, v: c > v,
+        Operator.ge: lambda c, v: c >= v,
+        Operator.lt: lambda c, v: c < v,
+        Operator.le: lambda c, v: c <= v,
+        Operator.like: lambda c, v: c.like(v),
+        Operator.ilike: lambda c, v: c.ilike(v),
+        Operator.in_: lambda c, v: c.in_(v),
+    }
+
+    def filter(self, **kwargs: str) -> RequestFilter[T]:
+        """Filter inplace records based on a QueryRequest, applying filters, sorting, and pagination."""
+        q = self._kwargs_filter(**kwargs) if kwargs else self.query
+        for f in self.request.filters:
+            if f.field not in self.model.model_fields:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter field: {f.field}")
+            operator = self._operators.get(f.op)
+            if f.op is Operator.in_ and not isinstance(f.value, Iterable):
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid value for 'in' operator: {f.value}")  # noqa: E501
+            if not operator:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter operator: {f.op}")
+            q = self.query.where(operator(col(getattr(self.model, f.field)), f.value))
+        return RequestFilter(self.model, self.request, q)
+
+    def sort(self) -> RequestFilter[T]:
+        """Sort inplace records based on a QueryRequest, applying sorting and pagination."""
+        q = self.query
+        if self.request.sort and self.request.sort not in self.model.model_fields:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid sort field: {self.request.sort}")
+        if self.request.sort and self.request.sort in self.model.model_fields:
+            sort_col = col(getattr(self.model, self.request.sort))
+            q = self.query.order_by(sort_col.desc() if self.request.order.lower() == "desc" else sort_col.asc())
+        return RequestFilter(self.model, self.request, q)
+
+    def _kwargs_filter(self, **kwargs: str) -> SelectOfScalar[T]:
+        """Filter inplace records based on keyword arguments."""
+        q = self.query
+        for key, value in kwargs.items():
+            if not hasattr(self.model, key):
+                continue
+            q = self.query.where(getattr(self.model, key) == value)
+        return q
+
+class CustomDataContainer[T: _BaseModel]:
+    """A container for managing custom data associated with a model."""
+
+    def __init__(self, item: T, data: dict[str, Any] | None) -> None:
+        """Initialize the CustomDataContainer with a model."""
+        self.item = item
+        self._data = data
+
+    def validate(self) -> None:
+        """Validate the size of ``data`` against the model's custom data size limit."""
+        if not self._data:
             return
+        limit = getattr(self.item, "custom_data_size_limit", DEFAULT_SIZE_LIMIT)
+        if isinstance(err := validate_size(self._data, limit), OutOfSpaceError):
+            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=str(err))
 
-        if not self.model.id:
-            msg = f"Model {self.model.__name__} does not have an 'id' field for pagination."
-            raise ValueError(msg)
+    def set(self) -> None:
+        """Persist ``data`` as a linked :class:`CustomData` row.
 
-        offset = (self.model.id - 1) * self.size
-        yield from self.model.session.exec(
-            select(self.model).where(self.model.id >= offset).limit(self.size),
-        ).all()
-        yield from self.next or []
+        Validates the size first; an oversize payload raises ``413``. On success a
+        ``CustomData`` row is created and linked to ``item`` via the association
+        table (``item.custom_data = row``), so ``item`` must already be persisted.
+        The per-model byte budget can be overridden with a ``custom_data_size_limit``
+        ClassVar on the model.
+        """
+        if not self._data:
+            return
+        self.validate()
+        row = CustomData(data=self._data)
+        row.add()
+        self.item.custom_data = row
 
 
-class QueryResponse[T: BaseModel](TypedDict):
+class QueryResponse[T: _BaseModel](TypedDict):
     """TypedDict for the response of a QUERY request."""
 
     items: list[T]
@@ -148,7 +237,7 @@ type SupportsOperations = Callable[[SQLCoreOperations[Any], Any], SQLCoreOperati
 type OperatorMap = dict[Operator, SupportsOperations]
 
 
-class APIModel[T: BaseModel]:
+class APIModel[T: _BaseModel]:
     """Base APIModel class with custom methods for API interactions."""
 
     def __init__(self, model: type[T], router: APIRouter) -> None:
@@ -159,6 +248,7 @@ class APIModel[T: BaseModel]:
             200: {"description": "Successful Response"},
             404: {"description": "Not Found"},
         }
+        # TODO: ensure rollback of failing routes/endpoints
         router.add_api_route(
             "/",
             self.options,
@@ -205,7 +295,7 @@ class APIModel[T: BaseModel]:
             "/",
             self.query,
             methods=["QUERY"],
-            response_model=QueryResponse[model],  # ty: ignore[invalid-type-form]
+            response_model=QueryResponse[T],  # ty: ignore[invalid-type-form]
             responses={
                 200: {"description": "Successful Response"},
                 400: {"description": "Missing or inconsistent Content-Type"},
@@ -219,78 +309,12 @@ class APIModel[T: BaseModel]:
         """Advertise the methods supported on the collection endpoint, including QUERY."""
         return Response(status_code=status.HTTP_204_NO_CONTENT, headers={"Allow": "GET, POST, PUT, PATCH, QUERY"})
 
-    def _param_builder(self, query_params: dict[str, str]) -> dict[str, str]:
-        """Build query parameters for filtering."""
-        return {key: value for key, value in query_params.items() if hasattr(self.model, key)}
-
-    def _build_filtered_query(self, query_params: dict[str, str]) -> SelectOfScalar[T]:
-        """Build SQLModel filters based on query parameters."""
-        q = select(self.model)
-        for key, value in self._param_builder(query_params).items():
-            q = q.where(getattr(self.model, key) == value)
-        return q
-
-    def _persist_custom_data(self, item: T, data: dict[str, Any] | None) -> None:
-        """Persist ``data`` as a linked :class:`CustomData` row.
-
-        Validates the size first; an oversize payload raises ``413``. On success a
-        ``CustomData`` row is created and linked to ``item`` via the association
-        table (``item.custom_data = row``), so ``item`` must already be persisted.
-        The per-model byte budget can be overridden with a ``custom_data_size_limit``
-        ClassVar on the model.
-        """
-        if not data:
-            return
-        limit = getattr(self.model, "custom_data_size_limit", DEFAULT_SIZE_LIMIT)
-        if isinstance(err := validate_size(data, limit), OutOfSpaceError):
-            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=str(err))
-        row = CustomData(data=dict(data))
-        row.add()
-        item.custom_data = row
-
-    _operators: ClassVar[OperatorMap] = {
-        Operator.eq: lambda c, v: c == v,
-        Operator.ne: lambda c, v: c != v,
-        Operator.gt: lambda c, v: c > v,
-        Operator.ge: lambda c, v: c >= v,
-        Operator.lt: lambda c, v: c < v,
-        Operator.le: lambda c, v: c <= v,
-        Operator.like: lambda c, v: c.like(v),
-        Operator.ilike: lambda c, v: c.ilike(v),
-        Operator.in_: lambda c, v: c.in_(v),
-    }
-
-    def validate_query_filters(self, filters: Iterable[QueryFilter]) -> Generator[QueryFilter, None, None]:
-        """Pre-query validation for the QUERY endpoint."""
-        for f in filters:
-            if f.field not in self.model.model_fields:
-                msg = f"Unknown filter field: {f.field!r}"
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, msg)
-            yield f
-
     def query(self, request: QueryRequest) -> QueryResponse[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
-        self.model.logger.debug("QUERY %s: %s", self.model.__name__, request, extra={"request": request})
-        q = select(self.model).where(self.model.deleted_at == None)  # noqa: E711
-
-        if request.sort and request.sort not in self.model.model_fields:
-            msg = f"Unknown sort field: {request.sort!r}"
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, msg)
-
-        for f in self.validate_query_filters(request.filters):
-            try:
-                q = q.where(self._operators[f.op](col(getattr(self.model, f.field)), f.value))
-            except (TypeError, ValueError, SQLAlchemyError) as e:
-                msg = f"Invalid value for field {f.field!r} with operator {f.op!r}: {e}"
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, msg) from e
-
-        if request.sort:
-            sort_col = col(getattr(self.model, request.sort))
-            sort_order = sort_col.desc if request.order.casefold() == "desc" else sort_col.asc
-            q = q.order_by(sort_order())
-
-        paginated = PaginatedResponse(self.model, request.page, request.limit, query=q)
-        return {"items": list(paginated), **paginated.meta}
+        q = RequestFilter(self.model, request).filter().sort().query
+        self.model.logger.debug("QUERY SQL: %s", q, extra={"query": str(q), "request": request})
+        page = PaginatedResponse(self.model, request.page, request.limit, q)
+        return {"items": list(page), **page.meta}
 
     def get_all(
         self,
@@ -298,26 +322,35 @@ class APIModel[T: BaseModel]:
         order: Literal["asc", "desc"] = "asc",
         page: int = 1,
         limit: int = 100,
-        **kwargs: str,  # Allows for dynamic fieldname filtering based on query parameters
+        **kwargs: str,  # Allows for dynamic fieldname filtering based on query parameters.
+        # ince we support Query, we dont need kwargs here?
     ) -> Generator[T]:
         """Get all records with optional sorting, pagination, and filtering."""
-        q = self._build_filtered_query(kwargs)
+        # TODO: update signature to explicitly define types on sort and kwargs.
+        # sort should be a FieldType, and kwargs should be a dict of field names to values.
+        request = QueryRequest(filters=[], sort=sort, order=order, page=page, limit=limit)
+        q = RequestFilter(self.model, request).filter(**kwargs).query
 
         if sort and hasattr(self.model, sort):
             sort_col = col(getattr(self.model, sort))
             sort_order = sort_col.desc() if order.casefold() == "desc" else sort_col.asc()
             q = q.order_by(sort_order)
 
-        yield from PaginatedResponse(self.model, page, size=limit)
+        yield from PaginatedResponse(self.model, page, limit, q)
 
     def get(self, _id: int) -> T | int:
         """Get a record by ID. Its extra data is available via ``inst.custom_data.data``."""
-        return self.model.get(_id) or status.HTTP_404_NOT_FOUND
+        inst = self.model.get(_id)
+        if inst is None:
+            return status.HTTP_404_NOT_FOUND
+        return inst
 
     def create(self, item: T, custom_data: dict[str, Any] | None = None) -> T:
         """Create a new record, then link any ``custom_data`` via the CustomData table."""
-        self.model.add(item)  # persist first so item.id exists for the link
-        self._persist_custom_data(item, custom_data)
+        c = CustomDataContainer(item, custom_data)
+        c.validate() # Validate before adding to ensure we don't create an item with invalid custom data
+        self.model.add(item)  # Create first so item.id exists for the link
+        c.set()
         return item
 
     def update(self, item: T, custom_data: dict[str, Any] | None = None) -> int | None:
@@ -327,8 +360,8 @@ class APIModel[T: BaseModel]:
         """
         if not item.id or not self.model.get(item.id):
             return status.HTTP_404_NOT_FOUND
+        CustomDataContainer(item, custom_data).set()
         self.model.update(item)
-        self._persist_custom_data(item, custom_data)
         return None
 
     def delete(self, _id: int) -> int | None:

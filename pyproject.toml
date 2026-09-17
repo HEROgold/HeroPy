@@ -5,28 +5,26 @@ description = "A single package containing personal utilities."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "confkit>=2.0.0",
-    "httpxyz>=0.31.2",
-    "sqlmodel>=0.0.38",
-    "typing-extensions>=4.15.0",
-    "watchdog>=6.0.0",
 ]
 authors = [{ name = "HEROgold" }]
 license = { text = "MIT" }
 
 [project.optional-dependencies]
+updater = [
+    "httpxyz[http2]>=0.42.1"
+]
 orm = [
-    "confkit>=2.0.0",
-    "sqlmodel>=0.0.38",
+    "confkit>=2.1.0",
+    "sqlmodel>=0.0.42",
 ]
 api = [
-    "fastapi>=0.136.1",
+    "fastapi>=0.141.1",
 ]
 services = [
     "watchdog>=6.0.0",
 ]
 all = [
-    "herogold[orm,api,services]"
+    "herogold[orm,api,services,updater]",
 ]
 
 [project.urls]
@@ -42,9 +40,10 @@ build-backend = "hatchling.build"
 [dependency-groups]
 test = [
     "herogold[all]",
-    "hypothesis>=6.155.2",
-    "psycopg2-binary>=2.9.12",
-    "pytest>=9.0.3",
+    "hypothesis>=6.168.0",
+    "psycopg2-binary>=2.9.13",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.ty.src]

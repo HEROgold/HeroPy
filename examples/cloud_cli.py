@@ -188,16 +188,6 @@ class ConditionTag(RuleAdd, subcommand="tag"):
     tag = Argument("tag", help="Tag key=value to match", default="env=prod")
 
 
-def _command_path(cls: type[CloudCli]) -> str:
-    """Reconstruct the dotted subcommand chain for `cls`, e.g. compute.instances.create."""
-    names: list[str] = []
-    node = cls
-    while node is not CloudCli:
-        names.append(node.__name__)
-        node = node.__bases__[0]
-    return " -> ".join(reversed(names)) or cls.__name__
-
-
 @entrypoint(CloudCli)
 def main(options: CloudCli) -> None:
     resolved = type(options)
@@ -209,6 +199,16 @@ def main(options: CloudCli) -> None:
             if isinstance(value, Argument) and name not in seen:
                 seen.add(name)
                 print(f"  {name} = {getattr(options, name)!r}")
+
+
+def _command_path(cls: type[CloudCli]) -> str:
+    """Reconstruct the dotted subcommand chain for `cls`, e.g. compute.instances.create."""
+    names: list[str] = []
+    node = cls
+    while node is not CloudCli:
+        names.append(node.__name__)
+        node = node.__bases__[0]
+    return " -> ".join(reversed(names)) or cls.__name__
 
 
 if __name__ == "__main__":

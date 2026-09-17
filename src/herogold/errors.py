@@ -14,46 +14,6 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Generator, Iterable
 
 
-def _return_exception[**P, T](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T | Exception:
-    """Call func and return any exception it raises, instead of letting it propagate."""
-    try:
-        return func(*args, **kwargs)
-    except Exception as e:  # noqa: BLE001
-        return e
-
-
-async def a_return_exception[**P, T](
-    func: Callable[P, Awaitable[T]],
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> T | Exception:
-    """Await func and return any exception it raises, instead of letting it propagate."""
-    try:
-        return await func(*args, **kwargs)
-    except Exception as e:  # noqa: BLE001
-        return e
-
-
-@overload
-def with_exception[**P, T](func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T | Exception]]: ...
-@overload
-def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | Exception]: ...
-def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | Exception]:
-    """Wrap a function and returns any thrown exception.
-
-    Supports both sync and async functions.
-    """
-
-    def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T | Exception:
-        return _return_exception(func, *args, **kwargs)
-
-    async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T | Exception:
-        a_func = cast("Callable[P, Awaitable[T]]", func)
-        return await a_return_exception(a_func, *args, **kwargs)
-
-    return dual_wraps(func, sync_wrapper, async_wrapper)
-
-
 def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable[[Callable[P, F | E]], Callable[P, F | E]]:
     """Wrap a function and returns any thrown exception if it's any instance of the provided exception types.
 
@@ -87,18 +47,22 @@ def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable
 
     return with_exception
 
-
-def with_group[**P, T](func: Callable[P, Iterable[T | Exception]]) -> Callable[P, Iterable[T] | ExceptionGroup]:
+# TD: Iterable[float | Exception] is correct, when we are expecting Iterable[float] due to the group catching Exceptions.
+# ty is unable to properly infer the type of the Exception, throwing a fit.
+def with_group[**P, T, E: Exception](func: Callable[P, Iterable[T | E]]) -> Callable[P, Iterable[T] | ExceptionGroup[E]]:
     """Collect exceptions from an iterable of results and raise them as an ExceptionGroup."""
 
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> Iterable[T] | ExceptionGroup:
-        results: Iterable[T | Exception] = func(*args, **kwargs)
-        exceptions: list[Exception] = []
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> Iterable[T] | ExceptionGroup[E]:
+        results: Iterable[T | E] = func(*args, **kwargs)
+        exceptions: list[E] = []
         values: list[T] = []
 
         for i in results:
             if isinstance(i, Exception):
-                exceptions.append(i)
+                # TD: Bugreport, Cant use isinstance on typevar E, only on Exception
+                # But we KNOW i is of type E as E is the only valid option for Exception.
+                # due to results only containing T | E, where E must be a subclass of Exception.
+                exceptions.append(i)  # ty: ignore[invalid-argument-type]
             else:
                 values.append(i)
 
@@ -109,6 +73,46 @@ def with_group[**P, T](func: Callable[P, Iterable[T | Exception]]) -> Callable[P
         return values
 
     return wrapper
+
+
+@overload
+def with_exception[**P, T](func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T | Exception]]: ...
+@overload
+def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | Exception]: ...
+def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | Exception]:
+    """Wrap a function and returns any thrown exception.
+
+    Supports both sync and async functions.
+    """
+
+    def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T | Exception:
+        return _return_exception(func, *args, **kwargs)
+
+    async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T | Exception:
+        a_func = cast("Callable[P, Awaitable[T]]", func)
+        return await a_return_exception(a_func, *args, **kwargs)
+
+    return dual_wraps(func, sync_wrapper, async_wrapper)
+
+
+async def a_return_exception[**P, T](
+    func: Callable[P, Awaitable[T]],
+    *args: P.args,
+    **kwargs: P.kwargs,
+) -> T | Exception:
+    """Await func and return any exception it raises, instead of letting it propagate."""
+    try:
+        return await func(*args, **kwargs)
+    except Exception as e:  # noqa: BLE001
+        return e
+
+
+def _return_exception[**P, T](func: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T | Exception:
+    """Call func and return any exception it raises, instead of letting it propagate."""
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:  # noqa: BLE001
+        return e
 
 
 if __name__ == "__main__":
@@ -131,7 +135,7 @@ if __name__ == "__main__":
 
     r1: int | float | Exception = test(0)
     r2: float | ZeroDivisionError = test2(0)
-    r3: Iterable[int | float] | ExceptionGroup[Exception] = test_group()
+    r3: Iterable[float] | ExceptionGroup[Exception] = test_group()
     r4: Generator[int | float | Exception, None, None] = test_generator()
 
     print(r1)  # noqa: T201

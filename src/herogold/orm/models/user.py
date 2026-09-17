@@ -21,11 +21,6 @@ class User(BaseModel, table=True):
     )
     primary_email = Relationship(Email, optional=True)
 
-    @staticmethod
-    def normalize_username(value: str) -> str:
-        """Normalize username before persistence."""
-        return value.strip().lower()
-
     def set_username(self, value: str) -> None:
         """Set and normalize a username."""
         normalized = self.normalize_username(value)
@@ -45,3 +40,8 @@ class User(BaseModel, table=True):
     def set_primary_email(self, email_id: int | None) -> None:
         """Set or clear the primary email reference."""
         self.primary_email_id = email_id
+
+    @staticmethod
+    def normalize_username(value: str) -> str:
+        """Normalize username before persistence."""
+        return value.strip().lower()

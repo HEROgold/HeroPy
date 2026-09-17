@@ -1,32 +1,20 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar
 
 import pytest
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import StaticPool
+from sqlalchemy import BigInteger, StaticPool
+from sqlalchemy.ext.compiler import compiles
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from herogold.orm.core.api_model import APIModel
-from herogold.orm.core.model import BaseModel, DataModel, _BaseModel
+from herogold.orm.core.model import Actions, BaseModel, DataModel, _BaseModel
 from herogold.orm.custom_data import OutOfSpaceError, validate_size
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-
-
-class Widget(BaseModel, table=True):
-    name: str
-
-
-class Tiny(BaseModel, table=True):
-    name: str
-    custom_data_size_limit: ClassVar[int] = 64  # a small budget so a modest payload overflows
-
-
-class History(BaseModel, table=True):
-    label: str
-
 
 
 @pytest.fixture
@@ -53,8 +41,22 @@ def session() -> Iterator[Session]:
         engine.dispose()  # release the sqlite file lock on Windows; file is kept
 
 
+class Widget(BaseModel, table=True):
+    name: str
+
+
+class Tiny(BaseModel, table=True):
+    name: str
+    custom_data_size_limit: ClassVar[int] = 64  # a small budget so a modest payload overflows
+
+
+class History(DataModel, table=True):
+    label: str
+
+
 @pytest.fixture
 def api(session: Session) -> APIModel[Widget]:
+    # pyrefly: ignore [bad-return]
     return APIModel(Widget, APIRouter())
 
 
@@ -119,15 +121,17 @@ def test_no_custom_data_leaves_link_empty(api: APIModel[Widget]) -> None:
 
 def test_datamodel_create_persists_and_links(session: Session) -> None:
     api = APIModel(History, APIRouter())
-    item = History(label="v1")
+    item = History(label="v1", id=1, timestamp=datetime.now())  # noqa: DTZ005
     api.create(item, {"note": "first"})
 
     fetched = api.get(item.id)
     assert isinstance(fetched, History)
     assert fetched.custom_data is not None
     assert fetched.custom_data.data == {"note": "first"}
+    # the composite-PK link table carries both owner PK columns
     link = SQLModel.metadata.tables["history_custom_data"]
-    assert {"history_id", "custom_data_id"} <= {c.name for c in link.columns}
+    assert {"history_id", "history_timestamp", "custom_data_id"} <= {c.name for c in link.columns}
+    assert item.action is Actions.CREATE
 
 
 # --- overflow -> 413 --------------------------------------------------------
@@ -139,3 +143,9 @@ def test_overflow_returns_413(session: Session) -> None:
     with pytest.raises(HTTPException) as excinfo:
         tiny_api.create(item, {f"k{i}": i for i in range(50)})  # over the 64-byte limit
     assert excinfo.value.status_code == 413
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
+    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT.
+    return "INTEGER"
+
