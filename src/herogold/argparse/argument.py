@@ -233,7 +233,8 @@ class Namespace(ArgparseNamespace):
         """Walk the subcommand registry to find the class matching the parsed subcommand chain."""
         current = cls
         while current._subparsers is not None:  # noqa: SLF001
-            chosen = getattr(raw, current._subparsers_dest, None)  # noqa: SLF001
+            # pyrefly: ignore [no-matching-overload]
+            chosen = getattr(raw, current._subparsers_dest, None)  # noqa: SLF001  # ty: ignore[no-matching-overload]
             if chosen is None:
                 break
             current = current._subcommand_registry[chosen]  # noqa: SLF001
