@@ -207,12 +207,6 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     def _delete_record(self, session: Session) -> None:
         """Delete the record in the database with the current instance's values."""
 
-    @classmethod
-    def _get_session(cls, session: Session | None = None) -> Session:
-        """Get the usable session, either the provided one or the default."""
-        cls.logger.debug("Getting session: %s", session, extra={"session": session})
-        return session or cls.session
-
 # TODO: move to its own module.
 class CustomData(_BaseModel, table=True):
     """Persisted extra-data table: a single JSONB blob per row.
