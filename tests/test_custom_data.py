@@ -1,19 +1,45 @@
 from __future__ import annotations
 
+<<<<<<< HEAD
+=======
+from pathlib import Path
+>>>>>>> d02a7b1 (ORM changes)
 from typing import TYPE_CHECKING, ClassVar
 
 import pytest
 from fastapi import APIRouter, HTTPException
+<<<<<<< HEAD
 from sqlalchemy import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from herogold.orm.core.api_model import APIModel
 from herogold.orm.core.model import BaseModel, DataModel, _BaseModel
 from herogold.orm.custom_data import OutOfSpaceError, validate_size
+=======
+from sqlalchemy import BigInteger
+from sqlalchemy.ext.compiler import compiles
+from sqlmodel import Session, SQLModel, create_engine, select
+
+from herogold.orm.api_model import APIModel
+from herogold.orm.custom_data import OutOfSpaceError, validate_size
+from herogold.orm.model import Actions, BaseModel, DataModel, _BaseModel
+>>>>>>> d02a7b1 (ORM changes)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+<<<<<<< HEAD
+=======
+# The persisted database is written here and deliberately NOT deleted on teardown
+# so it can be inspected after the run (e.g. with a sqlite viewer).
+DB_PATH = Path(__file__).with_name("_custom_data.sqlite")
+
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):  # noqa: ANN001, ANN202, ARG001
+    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT.
+    return "INTEGER"
+>>>>>>> d02a7b1 (ORM changes)
 
 
 class Widget(BaseModel, table=True):
@@ -25,15 +51,32 @@ class Tiny(BaseModel, table=True):
     custom_data_size_limit: ClassVar[int] = 64  # a small budget so a modest payload overflows
 
 
+<<<<<<< HEAD
 class History(BaseModel, table=True):
     label: str
 
 
+=======
+class History(DataModel, table=True):
+    label: str
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _fresh_db() -> None:
+    # Start from a clean file ONCE per module, then let rows accumulate across the
+    # tests so the final on-disk database holds real, inspectable data.
+    DB_PATH.unlink(missing_ok=True)
+
+>>>>>>> d02a7b1 (ORM changes)
 
 @pytest.fixture
 def session() -> Iterator[Session]:
     # On-disk engine (not in-memory) so the file survives for inspection.
+<<<<<<< HEAD
     engine = create_engine(url="sqlite:///:memory:", poolclass=StaticPool)
+=======
+    engine = create_engine(f"sqlite:///{DB_PATH}")
+>>>>>>> d02a7b1 (ORM changes)
     SQLModel.metadata.create_all(engine)  # idempotent; keeps accumulated rows
     sess = Session(engine)
     # `session` is a ClassVar on _BaseModel; set it on the root (reaches CustomData,
@@ -55,7 +98,11 @@ def session() -> Iterator[Session]:
 
 
 @pytest.fixture
+<<<<<<< HEAD
 def api(session: Session) -> APIModel[Widget]:
+=======
+def api(session: Session) -> APIModel[Widget]:  # noqa: ARG001
+>>>>>>> d02a7b1 (ORM changes)
     return APIModel(Widget, APIRouter())
 
 
@@ -92,7 +139,11 @@ def test_basemodel_create_persists_and_links(api: APIModel[Widget], session: Ses
     assert fetched.custom_data.data == {"colour": "red", "tags": [1, 2, 3]}
     # exactly one CustomData row was created and one link row exists
     link = SQLModel.metadata.tables["widget_custom_data"]
+<<<<<<< HEAD
     rows = session.exec(select(link.c.widget_id, link.c.custom_data_id).where(link.c.widget_id == item.id)).all()
+=======
+    rows = session.execute(select(link.c.widget_id, link.c.custom_data_id).where(link.c.widget_id == item.id)).all()
+>>>>>>> d02a7b1 (ORM changes)
     assert len(rows) == 1
 
 
@@ -115,7 +166,11 @@ def test_no_custom_data_leaves_link_empty(api: APIModel[Widget]) -> None:
     assert fetched.custom_data is None
 
 
+<<<<<<< HEAD
 # --- API round-trip on History ----------------------------------------------
+=======
+# --- API round-trip on DataModel (composite PK) -----------------------------
+>>>>>>> d02a7b1 (ORM changes)
 
 
 def test_datamodel_create_persists_and_links(session: Session) -> None:
@@ -127,14 +182,25 @@ def test_datamodel_create_persists_and_links(session: Session) -> None:
     assert isinstance(fetched, History)
     assert fetched.custom_data is not None
     assert fetched.custom_data.data == {"note": "first"}
+<<<<<<< HEAD
     link = SQLModel.metadata.tables["history_custom_data"]
     assert {"history_id", "custom_data_id"} <= {c.name for c in link.columns}
+=======
+    # the composite-PK link table carries both owner PK columns
+    link = SQLModel.metadata.tables["history_custom_data"]
+    assert {"history_id", "history_timestamp", "custom_data_id"} <= {c.name for c in link.columns}
+    assert item.action is Actions.CREATE
+>>>>>>> d02a7b1 (ORM changes)
 
 
 # --- overflow -> 413 --------------------------------------------------------
 
 
+<<<<<<< HEAD
 def test_overflow_returns_413(session: Session) -> None:
+=======
+def test_overflow_returns_413(session: Session) -> None:  # noqa: ARG001
+>>>>>>> d02a7b1 (ORM changes)
     tiny_api = APIModel(Tiny, APIRouter())
     item = Tiny(name="big")
     with pytest.raises(HTTPException) as excinfo:

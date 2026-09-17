@@ -63,7 +63,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
 
     if TYPE_CHECKING:
         # pyrefly: ignore [bad-assignment, bad-dataclass-descriptor]
-        custom_data: Relationship[CustomData] = None  # ty: ignore[invalid-assignment]
+        custom_data: Relationship[CustomData, _BaseModel] = None  # ty: ignore[invalid-assignment]
         # ``custom_data`` (a Relationship to the CustomData table) is attached below,
         # after CustomData is defined, because it targets a subclass of this class.
         __table__: ClassVar[Table]
@@ -134,7 +134,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         raise NotFoundError(msg)
 
     @classmethod
-    def get_all(cls: type[Self], session: Session | None = None) -> Sequence[SELF]:
+    def get_all(cls, session: Session | None = None) -> Sequence[SELF]:
         """Get all records from Database."""
         cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
         session = cls._get_session(session)
@@ -196,6 +196,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     def _delete_record(self, session: Session) -> None:
         """Delete the record in the database with the current instance's values."""
 
+# TODO: move to its own module.
 class CustomData(_BaseModel, table=True):
     """Persisted extra-data table: a single JSONB blob per row.
 
@@ -238,12 +239,10 @@ class CustomData(_BaseModel, table=True):
 # points at a subclass; CustomData was built above, so it never gains its own
 # ``custom_data`` link table (it stays a leaf).
 _custom_data = Relationship(CustomData)
-# pyrefly: ignore [bad-argument-type]
-_custom_data.__set_name__(_BaseModel, "custom_data")  # ty: ignore[invalid-argument-type]
+_custom_data.__set_name__(_BaseModel, "custom_data")
 _BaseModel.custom_data = _custom_data
 
-# TODO: rename to just "Model"
-# as _BaseModel name conflicts with this one currently
+
 class BaseModel(_BaseModel):
     """Base model class with custom methods."""
 

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Generator, Iterable, Sequence
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict
 
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import SQLCoreOperations
 from sqlmodel import Field, SQLModel, col, select
 
@@ -18,7 +17,7 @@ with ExtraImportContext("herogold", "orm", "orm", "api"):
     from fastapi import APIRouter, HTTPException, Response, status
 
 
-from .model import BaseModel
+from .model import BaseModel, _BaseModel
 
 if TYPE_CHECKING:
     from sqlmodel.sql.expression import SelectOfScalar
@@ -66,7 +65,7 @@ class PaginatedMeta(TypedDict):
     next: str | None
 
 
-class PaginatedResponse[T: BaseModel]:
+class PaginatedResponse[T: _BaseModel]:
     """A simple wrapper for paginated responses."""
 
     base_url: str = "/"
@@ -131,6 +130,51 @@ class PaginatedResponse[T: BaseModel]:
             select(self.model).where(self.model.id >= offset).limit(self.size),
         ).all()
         yield from self.next or []
+
+class RequestFilterer[T: _BaseModel]:
+    """An APIModel that supports filtering, sorting, and pagination."""
+
+    def __init__(self, model: type[T], request: QueryRequest, query: SelectOfScalar[T] | None = None) -> None:
+        """Initialize the RequestFilterer with a model, request, and optional query."""
+        self.model: type[T] = model
+        self.request: QueryRequest = request
+        self.q: SelectOfScalar[T] = query or select(model)
+
+    # `v` is intentionally Any: filter values come straight from the request body
+    # (QueryFilter.value: Any) and are heterogeneous — scalar for eq/like, iterable for in_.
+    _operators: ClassVar[OperatorMap] = {
+        Operator.eq: lambda c, v: c == v,
+        Operator.ne: lambda c, v: c != v,
+        Operator.gt: lambda c, v: c > v,
+        Operator.ge: lambda c, v: c >= v,
+        Operator.lt: lambda c, v: c < v,
+        Operator.le: lambda c, v: c <= v,
+        Operator.like: lambda c, v: c.like(v),
+        Operator.ilike: lambda c, v: c.ilike(v),
+        Operator.in_: lambda c, v: c.in_(v),
+    }
+
+    def filter(self) -> RequestFilterer[T]:
+        """Filter inplace records based on a QueryRequest, applying filters, sorting, and pagination."""
+        q = self.q
+        for f in self.request.filters:
+            if not hasattr(self.model, f.field):
+                continue
+            q = self.q.where(self._operators[f.op](col(getattr(self.model, f.field)), f.value))
+        return RequestFilterer(self.model, self.request, q)
+
+    def sort(self) -> RequestFilterer[T]:
+        """Sort inplace records based on a QueryRequest, applying sorting and pagination."""
+        q = self.q
+        if self.request.sort and hasattr(self.model, self.request.sort):
+            sort_col = col(getattr(self.model, self.request.sort))
+            q = self.q.order_by(sort_col.desc() if self.request.order.lower() == "desc" else sort_col.asc())
+        return RequestFilterer(self.model, self.request, q)
+
+    @property
+    def query(self) -> SelectOfScalar[T]:
+        """Return the final query after applying filters and sorting."""
+        return self.q
 
 
 class QueryResponse[T: BaseModel](TypedDict):
@@ -205,7 +249,7 @@ class APIModel[T: BaseModel]:
             "/",
             self.query,
             methods=["QUERY"],
-            response_model=QueryResponse[model],  # ty: ignore[invalid-type-form]
+            response_model=Sequence[model],  # ty: ignore[invalid-type-form]
             responses={
                 200: {"description": "Successful Response"},
                 400: {"description": "Missing or inconsistent Content-Type"},
@@ -248,17 +292,6 @@ class APIModel[T: BaseModel]:
         row.add()
         item.custom_data = row
 
-    _operators: ClassVar[OperatorMap] = {
-        Operator.eq: lambda c, v: c == v,
-        Operator.ne: lambda c, v: c != v,
-        Operator.gt: lambda c, v: c > v,
-        Operator.ge: lambda c, v: c >= v,
-        Operator.lt: lambda c, v: c < v,
-        Operator.le: lambda c, v: c <= v,
-        Operator.like: lambda c, v: c.like(v),
-        Operator.ilike: lambda c, v: c.ilike(v),
-        Operator.in_: lambda c, v: c.in_(v),
-    }
 
     def validate_query_filters(self, filters: Iterable[QueryFilter]) -> Generator[QueryFilter, None, None]:
         """Pre-query validation for the QUERY endpoint."""
@@ -268,29 +301,13 @@ class APIModel[T: BaseModel]:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, msg)
             yield f
 
-    def query(self, request: QueryRequest) -> QueryResponse[T]:
+    def query(self, request: QueryRequest) -> Sequence[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
-        self.model.logger.debug("QUERY %s: %s", self.model.__name__, request, extra={"request": request})
-        q = select(self.model).where(self.model.deleted_at == None)  # noqa: E711
+        q = RequestFilterer(self.model, request).filter().sort().query
+        offset = (request.page - 1) * request.limit
+        self.model.logger.debug("QUERY SQL: %s", q, extra={"query": str(q), "request": request})
+        return self.model.session.exec(q.offset(offset).limit(request.limit)).all()
 
-        if request.sort and request.sort not in self.model.model_fields:
-            msg = f"Unknown sort field: {request.sort!r}"
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, msg)
-
-        for f in self.validate_query_filters(request.filters):
-            try:
-                q = q.where(self._operators[f.op](col(getattr(self.model, f.field)), f.value))
-            except (TypeError, ValueError, SQLAlchemyError) as e:
-                msg = f"Invalid value for field {f.field!r} with operator {f.op!r}: {e}"
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, msg) from e
-
-        if request.sort:
-            sort_col = col(getattr(self.model, request.sort))
-            sort_order = sort_col.desc if request.order.casefold() == "desc" else sort_col.asc
-            q = q.order_by(sort_order())
-
-        paginated = PaginatedResponse(self.model, request.page, request.limit, query=q)
-        return {"items": list(paginated), **paginated.meta}
 
     def get_all(
         self,
