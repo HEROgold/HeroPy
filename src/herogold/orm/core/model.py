@@ -5,6 +5,7 @@ This module should make the SQLModel classes more like a `Repository` pattern.
 
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from enum import Enum, auto
@@ -78,6 +79,20 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         """Register subclass in models set."""
         super().__init_subclass__(**kwargs)
         models.add(cls)
+
+    @override
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Route ``Relationship``-backed attributes to the descriptor's ``__set__``.
+
+        Pydantic's own ``__setattr__`` only special-cases ``property``/``cached_property``
+        for non-field attributes; any other descriptor (like ``Relationship``) is rejected
+        as an unknown field, so it has to be handled here before delegating.
+        """
+        descriptor = inspect.getattr_static(type(self), name, None)
+        if isinstance(descriptor, Relationship):
+            descriptor.__set__(self, value)
+            return
+        super().__setattr__(name, value)
 
     @classmethod
     def _get_session(cls, session: Session | None = None) -> Session:
