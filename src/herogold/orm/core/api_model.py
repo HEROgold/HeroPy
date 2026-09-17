@@ -86,6 +86,23 @@ class PaginatedResponse[T: _BaseModel]:
         self.size = size
         self._query = query
 
+    def __iter__(self) -> Generator[T]:
+        """Iterate over the items for the current page, then yield from the next page if it exists."""
+        if self._query is not None:
+            offset = (self.page - 1) * self.size
+            yield from self.model.session.exec(self._query.offset(offset).limit(self.size)).all()
+            return
+
+        if not self.model.id:
+            msg = f"Model {self.model.__name__} does not have an 'id' field for pagination."
+            raise ValueError(msg)
+
+        offset = (self.model.id - 1) * self.size
+        yield from self.model.session.exec(
+            select(self.model).where(self.model.id >= offset).limit(self.size),
+        ).all()
+        yield from self.next or []
+
     @property
     def total_pages(self) -> int:
         """Calculate the total number of pages based on total items and page size."""
@@ -114,22 +131,6 @@ class PaginatedResponse[T: _BaseModel]:
             "next": self.next.url if self.next else None,
         }
 
-    def __iter__(self) -> Generator[T]:
-        """Iterate over the items for the current page, then yield from the next page if it exists."""
-        if self._query is not None:
-            offset = (self.page - 1) * self.size
-            yield from self.model.session.exec(self._query.offset(offset).limit(self.size)).all()
-            return
-
-        if not self.model.id:
-            msg = f"Model {self.model.__name__} does not have an 'id' field for pagination."
-            raise ValueError(msg)
-
-        offset = (self.model.id - 1) * self.size
-        yield from self.model.session.exec(
-            select(self.model).where(self.model.id >= offset).limit(self.size),
-        ).all()
-        yield from self.next or []
 
 class RequestFilter[T: _BaseModel]:
     """An APIModel that supports filtering, sorting, and pagination."""
@@ -154,15 +155,6 @@ class RequestFilter[T: _BaseModel]:
         Operator.in_: lambda c, v: c.in_(v),
     }
 
-    def _kwargs_filter(self, **kwargs: str) -> SelectOfScalar[T]:
-        """Filter inplace records based on keyword arguments."""
-        q = self.query
-        for key, value in kwargs.items():
-            if not hasattr(self.model, key):
-                continue
-            q = self.query.where(getattr(self.model, key) == value)
-        return q
-
     def filter(self, **kwargs: str) -> RequestFilter[T]:
         """Filter inplace records based on a QueryRequest, applying filters, sorting, and pagination."""
         q = self._kwargs_filter(**kwargs) if kwargs else self.query
@@ -179,6 +171,15 @@ class RequestFilter[T: _BaseModel]:
             sort_col = col(getattr(self.model, self.request.sort))
             q = self.query.order_by(sort_col.desc() if self.request.order.lower() == "desc" else sort_col.asc())
         return RequestFilter(self.model, self.request, q)
+
+    def _kwargs_filter(self, **kwargs: str) -> SelectOfScalar[T]:
+        """Filter inplace records based on keyword arguments."""
+        q = self.query
+        for key, value in kwargs.items():
+            if not hasattr(self.model, key):
+                continue
+            q = self.query.where(getattr(self.model, key) == value)
+        return q
 
 class CustomDataContainer[T: _BaseModel]:
     """A container for managing custom data associated with a model."""
@@ -300,23 +301,11 @@ class APIModel[T: BaseModel]:
         """Advertise the methods supported on the collection endpoint, including QUERY."""
         return Response(status_code=status.HTTP_204_NO_CONTENT, headers={"Allow": "GET, POST, PUT, PATCH, QUERY"})
 
-    def _param_builder(self, query_params: dict[str, str]) -> dict[str, str]:
-        """Build query parameters for filtering."""
-        return {key: value for key, value in query_params.items() if hasattr(self.model, key)}
-
-    def _build_filtered_query(self, query_params: dict[str, str]) -> SelectOfScalar[T]:
-        """Build SQLModel filters based on query parameters."""
-        q = select(self.model)
-        for key, value in self._param_builder(query_params).items():
-            q = q.where(getattr(self.model, key) == value)
-        return q
-
     def query(self, request: QueryRequest) -> Generator[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
         q = RequestFilter(self.model, request).filter().sort().query
         self.model.logger.debug("QUERY SQL: %s", q, extra={"query": str(q), "request": request})
         yield from PaginatedResponse(self.model, request.page, request.limit, q)
-
 
     def get_all(
         self,

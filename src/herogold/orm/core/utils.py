@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, TypeVar, overload
+from typing import TYPE_CHECKING, NamedTuple, TypeGuard, TypeVar, overload
 
 from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, and_
 from sqlmodel import SQLModel, select
@@ -80,51 +80,15 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
         """Record the attribute name (link tables are built later, per subclass)."""
         self.name = name
 
-    def _resolve_target(self, owner: type[OT]) -> type[_BaseModel]:
+    def _resolve_target(self, owner: type[OT]) -> type[T]:
         """Resolve ``SELF`` to the owner; otherwise return the declared target."""
-        return owner if self.related_model is SELF else self.related_model
+        if self._is_self_referential(owner):
+            return owner
+        return self.related_model
 
-    def build_link_for(self, owner: type[OT]) -> None:
-        """Build (once) the association table joining ``owner`` to the target.
-
-        Called from :class:`ModelMeta` for each concrete ``table=True`` subclass.
-        Idempotent per owner and guarded against duplicate metadata registration.
-        """
-        if owner in self._links:
-            return
-        target = self._resolve_target(owner)
-        link_name = f"{owner.__tablename__}_{self.name}"
-        metadata = owner.metadata
-
-        owner_pk = [c.name for c in owner.__table__.primary_key.columns]
-        target_pk = [c.name for c in target.__table__.primary_key.columns]
-        # Column names are prefixed by the owner tablename / the attribute name so
-        # the self-referential case (owner is target) does not collide.
-        owner_cols = [f"{owner.__tablename__}_{pk}" for pk in owner_pk]
-        target_cols = [f"{self.name}_{pk}" for pk in target_pk]
-
-        if link_name in metadata.tables:
-            table = metadata.tables[link_name]
-        else:
-            columns = [
-                Column(col, pk_col.type, ForeignKey(f"{owner.__tablename__}.{pk}"), primary_key=True)
-                for col, pk, pk_col in zip(owner_cols, owner_pk, owner.__table__.primary_key.columns, strict=True)
-            ]
-            columns += [
-                Column(col, pk_col.type, ForeignKey(f"{target.__tablename__}.{pk}"), primary_key=True)
-                for col, pk, pk_col in zip(target_cols, target_pk, target.__table__.primary_key.columns, strict=True)
-            ]
-            table = Table(
-                link_name,
-                metadata,
-                *columns,
-                # single-valued: at most one link per owner row
-                UniqueConstraint(*owner_cols, name=f"uq_{link_name}"),
-                # secondary index for reverse (target -> owners) lookups
-                Index(f"ix_{link_name}_tgt", *target_cols),
-            )
-
-        self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
+    def _is_self_referential(self, owner: type[OT]) -> TypeGuard[type[T]]:
+        """Return True if the relationship is self-referential for the given owner."""
+        return self.related_model is SELF or owner is self.related_model
 
     # No matching overload found for `Relationship.__get__` called with (User, type[User]).
     #   Possible overloads:
@@ -134,7 +98,6 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
     #   in function `herogold.orm.core.utils.Relationship.__get__`
     @overload
     def __get__(self, instance: None, owner: type[OT]) -> type[_BaseModel]: ...
-
     @overload
     def __get__(self, instance: T, owner: type[OT]) -> _BaseModel | None: ...
 
@@ -187,6 +150,49 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
             info.table.delete().where(and_(*(info.table.c[oc] == v for oc, v in owner_vals.items()))),
         )
         session.commit()
+
+    def build_link_for(self, owner: type[OT]) -> None:
+        """Build (once) the association table joining ``owner`` to the target.
+
+        Called from :class:`ModelMeta` for each concrete ``table=True`` subclass.
+        Idempotent per owner and guarded against duplicate metadata registration.
+        """
+        if owner in self._links:
+            return
+        target = self._resolve_target(owner)
+        link_name = f"{owner.__tablename__}_{self.name}"
+        metadata = owner.metadata
+
+        owner_pk = [c.name for c in owner.__table__.primary_key.columns]
+        target_pk = [c.name for c in target.__table__.primary_key.columns]
+        # Column names are prefixed by the owner tablename / the attribute name so
+        # the self-referential case (owner is target) does not collide.
+        owner_cols = [f"{owner.__tablename__}_{pk}" for pk in owner_pk]
+        target_cols = [f"{self.name}_{pk}" for pk in target_pk]
+
+        if link_name in metadata.tables:
+            table = metadata.tables[link_name]
+        else:
+            columns = [
+                Column(col, pk_col.type, ForeignKey(f"{owner.__tablename__}.{pk}"), primary_key=True)
+                for col, pk, pk_col in zip(owner_cols, owner_pk, owner.__table__.primary_key.columns, strict=True)
+            ]
+            columns += [
+                Column(col, pk_col.type, ForeignKey(f"{target.__tablename__}.{pk}"), primary_key=True)
+                for col, pk, pk_col in zip(target_cols, target_pk, target.__table__.primary_key.columns, strict=True)
+            ]
+            table = Table(
+                link_name,
+                metadata,
+                *columns,
+                # single-valued: at most one link per owner row
+                UniqueConstraint(*owner_cols, name=f"uq_{link_name}"),
+                # secondary index for reverse (target -> owners) lookups
+                Index(f"ix_{link_name}_tgt", *target_cols),
+            )
+
+        self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
+
 
 
 class ModelMeta(type(SQLModel)):

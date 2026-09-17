@@ -28,25 +28,6 @@ class StateMachine[State: Enum, Event: Enum, Context](LoggerMixin):
 
     transitions: Transition[State, Event, Context] = field(default_factory=dict)
 
-    def _add(
-        self,
-        from_: State,
-        event: Event,
-        to: State,
-        func: Action[Context],
-    ) -> None:
-        """Add a transition to the state machine."""
-        self.logger.debug("Adding transition: {%s} + {%s} -> {%s}", from_, event, to)
-        self.transitions[(from_, event)] = (to, func)
-
-    def _next(self, state: State, event: Event) -> tuple[State, Action[Context]]:
-        """Return the next state and action for a given state and event."""
-        try:
-            return self.transitions[(state, event)]
-        except KeyError as e:
-            msg = f"Cannot {event.name} when {state.name}"
-            raise InvalidTransitionError(msg) from e
-
     def handle(self, ctx: Context, state: State, event: Event) -> State:
         """Handle an event and return the next state."""
         self.logger.debug("Handling event: {%s} in state: {%s}", event, state)
@@ -72,3 +53,22 @@ class StateMachine[State: Enum, Event: Enum, Context](LoggerMixin):
             return func
 
         return decorator
+
+    def _add(
+        self,
+        from_: State,
+        event: Event,
+        to: State,
+        func: Action[Context],
+    ) -> None:
+        """Add a transition to the state machine."""
+        self.logger.debug("Adding transition: {%s} + {%s} -> {%s}", from_, event, to)
+        self.transitions[(from_, event)] = (to, func)
+
+    def _next(self, state: State, event: Event) -> tuple[State, Action[Context]]:
+        """Return the next state and action for a given state and event."""
+        try:
+            return self.transitions[(state, event)]
+        except KeyError as e:
+            msg = f"Cannot {event.name} when {state.name}"
+            raise InvalidTransitionError(msg) from e

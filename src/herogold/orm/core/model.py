@@ -21,7 +21,7 @@ from sqlmodel import Field, Session, Table, col, select
 from sqlmodel import SQLModel as BaseSQLModel
 
 from herogold.log import LoggerMixin
-from herogold.orm.core.utils import SELF, ModelMeta, Relationship
+from herogold.orm.core.utils import ModelMeta, Relationship
 from herogold.typing.check import contains_sub_type
 
 from .constants import session as db_session
@@ -119,7 +119,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         }
 
     @classmethod
-    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> SELF:
+    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> Self:
         """Get a record from Database."""
         cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
         session = cls._get_session(session)
@@ -134,7 +134,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         raise NotFoundError(msg)
 
     @classmethod
-    def get_all(cls, session: Session | None = None) -> Sequence[SELF]:
+    def get_all(cls, session: Session | None = None) -> Sequence[Self]:
         """Get all records from Database."""
         cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
         session = cls._get_session(session)
@@ -171,7 +171,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         self._delete_record(self._get_session(session))
 
     @classmethod
-    def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[SELF]:
+    def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[Self]:
         """Get a record from Database by field and value."""
         cls.logger.debug(
             "Getting record from field: %s, %s == %s",
@@ -184,7 +184,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         return session.exec(select(cls).where(column == value))
 
     @abstractmethod
-    def _update_record(self, session: Session, entry: SELF) -> None:
+    def _update_record(self, session: Session, entry: Self) -> None:
         """Update the record in the database with the current instance's values.
 
         entry contains the current record in the database, and self contains the new values.
@@ -195,6 +195,12 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     @abstractmethod
     def _delete_record(self, session: Session) -> None:
         """Delete the record in the database with the current instance's values."""
+
+    @classmethod
+    def _get_session(cls, session: Session | None = None) -> Session:
+        """Get the usable session, either the provided one or the default."""
+        cls.logger.debug("Getting session: %s", session, extra={"session": session})
+        return session or cls.session
 
 # TODO: move to its own module.
 class CustomData(_BaseModel, table=True):
@@ -221,7 +227,7 @@ class CustomData(_BaseModel, table=True):
         session.commit()
 
     @override
-    def _update_record(self, session: Session, entry: SELF) -> None:
+    def _update_record(self, session: Session, entry: Self) -> None:
         entry.data = self.data
         session = self._get_session(session)
         session.add(entry)
@@ -298,7 +304,7 @@ class BaseModel(_BaseModel):
         session.commit()
 
     @override
-    def _update_record(self, session: Session, entry: SELF) -> None:
+    def _update_record(self, session: Session, entry: Self) -> None:
         self.logger.debug("Updating record: %s", self, extra={"record": self})
         session = self._get_session(session)
         for name, info in self.__class__.model_fields.items():
@@ -380,7 +386,7 @@ class DataModel(_BaseModel):
         session.commit()
 
     @override
-    def _update_record(self, session: Session, entry: SELF) -> None:
+    def _update_record(self, session: Session, entry: Self) -> None:
         self.logger.debug("Updating record: %s", self, extra={"record": self})
         self.action = Actions.UPDATE
         for name, info in self.__class__.model_fields.items():

@@ -55,37 +55,14 @@ class LoggerMixin:
                 base.__logger = logger  # noqa: SLF001
 
     @classmethod
-    def __setup_global_logger(cls) -> None:
-        """Set up the global logger that captures all logs."""
-        global_logger = getLogger()
-        global_logger.setLevel(DEBUG)
-
-        # Create global file handler
-        global_log_file = Path(cls.__log_directory) / "_global.log"
-        file_handler = FileHandler(global_log_file)
-        file_handler.setFormatter(cls.__formatter)
-        file_handler.setLevel(INFO)
-
-        # Add handler to root logger
-        global_logger.addHandler(file_handler)
-
-        # Store reference
-        LoggerMixin.__global_logger = global_logger
+    def set_log_directory(cls, directory: str) -> None:
+        """Change the log directory."""
+        cls.__log_directory = ensure_log_directory(directory)
 
     @classmethod
-    def __setup_class_logger(cls, logger: Logger, class_name: str) -> None:
-        """Set up a logger specific to a class."""
-        logger.setLevel(DEBUG)
-
-        # Create class-specific file handler
-        class_log_file = Path(cls.__log_directory) / f"{class_name}.log"
-        file_handler = FileHandler(class_log_file)
-        file_handler.setFormatter(cls.__formatter)
-        file_handler.setLevel(DEBUG)
-
-        # Add handler to logger
-        logger.addHandler(file_handler)
-        logger.addHandler(StreamHandler())
+    def set_log_format(cls, formatter: Formatter) -> None:
+        """Change the log format."""
+        cls.__formatter = formatter
 
     @property
     def logger(self) -> Logger:
@@ -118,11 +95,34 @@ class LoggerMixin:
         self.__logger = value
 
     @classmethod
-    def set_log_directory(cls, directory: str) -> None:
-        """Change the log directory."""
-        cls.__log_directory = ensure_log_directory(directory)
+    def __setup_global_logger(cls) -> None:
+        """Set up the global logger that captures all logs."""
+        global_logger = getLogger()
+        global_logger.setLevel(DEBUG)
+
+        # Create global file handler
+        global_log_file = Path(cls.__log_directory) / "_global.log"
+        file_handler = FileHandler(global_log_file)
+        file_handler.setFormatter(cls.__formatter)
+        file_handler.setLevel(INFO)
+
+        # Add handler to root logger
+        global_logger.addHandler(file_handler)
+
+        # Store reference
+        LoggerMixin.__global_logger = global_logger
 
     @classmethod
-    def set_log_format(cls, formatter: Formatter) -> None:
-        """Change the log format."""
-        cls.__formatter = formatter
+    def __setup_class_logger(cls, logger: Logger, class_name: str) -> None:
+        """Set up a logger specific to a class."""
+        logger.setLevel(DEBUG)
+
+        # Create class-specific file handler
+        class_log_file = Path(cls.__log_directory) / f"{class_name}.log"
+        file_handler = FileHandler(class_log_file)
+        file_handler.setFormatter(cls.__formatter)
+        file_handler.setLevel(DEBUG)
+
+        # Add handler to logger
+        logger.addHandler(file_handler)
+        logger.addHandler(StreamHandler())
