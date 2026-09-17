@@ -5,6 +5,7 @@ This module should make the SQLModel classes more like a `Repository` pattern.
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
@@ -140,12 +141,16 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         session = cls._get_session(session)
         return session.exec(select(cls)).all()
 
-    def add(self, session: Session | None = None) -> None:
-        """Add a record to Database."""
-        self.logger.debug("Adding record: %s", self, extra={"record": self})
+    def _validate_existing_record(self) -> None:
+        """Check if a record of this item already exists."""
         if self.id is not None:
             msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
             raise AlreadyExistsError(msg)
+
+    def add(self, session: Session | None = None) -> None:
+        """Add a record to Database."""
+        self.logger.debug("Adding record: %s", self, extra={"record": self})
+        self._validate_existing_record()
         self._create_record(self._get_session(session))
 
     def update(self, session: Session | None = None) -> None:
@@ -377,6 +382,14 @@ class DataModel(_BaseModel):
         default_factory=dict,
         sa_column=Column(JSON().with_variant(JSONB(), "postgresql")),
     )
+
+    @override
+    def _validate_existing_record(self) -> None:
+        """Check if a record with the same id and timestamp already exists."""
+        with contextlib.suppress(NotFoundError):
+            if self.id and self.get(self.id, session=self._get_session()):
+                msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
+                raise AlreadyExistsError(msg)
 
     @override
     def _create_record(self, session: Session) -> None:
