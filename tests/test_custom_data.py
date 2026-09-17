@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar
 
 import pytest
@@ -125,7 +126,7 @@ def test_no_custom_data_leaves_link_empty(api: APIModel[Widget]) -> None:
 
 def test_datamodel_create_persists_and_links(session: Session) -> None:
     api = APIModel(History, APIRouter())
-    item = History(label="v1")
+    item = History(label="v1", id=1, timestamp=datetime.now())  # noqa: DTZ005
     api.create(item, {"note": "first"})
 
     fetched = api.get(item.id)
@@ -148,8 +149,3 @@ def test_overflow_returns_413(session: Session) -> None:
         tiny_api.create(item, {f"k{i}": i for i in range(50)})  # over the 64-byte limit
     assert excinfo.value.status_code == 413
 
-
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
-    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT.
-    return "INTEGER"
