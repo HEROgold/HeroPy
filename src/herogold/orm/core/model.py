@@ -30,7 +30,7 @@ from .errors import AlreadyExistsError, NotFoundError
 
 if TYPE_CHECKING:
     import logging
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from pydantic import ConfigDict
     from sqlalchemy.orm import Mapped
@@ -39,6 +39,23 @@ if TYPE_CHECKING:
 models: set[type[_BaseModel]] = set()
 def _current_utc() -> datetime:
     return datetime.now(UTC)
+
+
+class classproperty[T: BaseSQLModel]:  # noqa: N801
+    """Like `property`, but resolved on the class rather than an instance.
+
+    Stacking `@property` on top of `@classmethod` does not produce a working
+    class-level property, so a dedicated descriptor is needed. This also
+    supports `super().attr` lookups from subclass getters.
+    """
+
+    def __init__(self, fget: Callable[[type[T]], SelectOfScalar[T]]) -> None:
+        self.fget = fget
+
+    def __get__(self, obj: T, owner: type[T] | None = None) -> SelectOfScalar[T]:
+        if owner is None:
+            owner = type(obj)
+        return self.fget(owner)
 
 
 class ModelLogger(LoggerMixin):
@@ -72,6 +89,8 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         # __table__ is a normally hidden attribute.
         # For type completeness, we're adding it here.
 
+    query: ClassVar[SelectOfScalar[Self]]
+    """Default query for the model, may be overridden by subclasses."""
     session: ClassVar[Session] = db_session
     logger: ClassVar[logging.Logger] = ModelLogger().logger
     __count: ClassVar[int | None] = None
@@ -176,10 +195,10 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             raise NotFoundError(msg)
         self._delete_record(self._get_session(session))
 
-    @property
-    def query(self) -> SelectOfScalar[Self]:
+    @classproperty
+    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805
         """Return a default query for the model."""
-        return select(self.__class__)
+        return select(cls)
 
     @classmethod
     def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[Self]:
@@ -336,10 +355,10 @@ class BaseModel(_BaseModel):
         session.add(entry)
         session.commit()
 
-    @property
-    def query(self) -> SelectOfScalar[Self]:
+    @classproperty
+    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805
         """Return a default query for the model."""
-        return super().query.where(self.__class__.deleted_at == None)  # noqa: E711
+        return super().query.where(cls.deleted_at == None)  # noqa: E711
 
     @override
     def _delete_record(self, session: Session) -> None:

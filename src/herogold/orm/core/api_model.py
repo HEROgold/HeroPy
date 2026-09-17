@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Sequence
+from collections.abc import Callable, Generator, Sequence, Iterable
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict
 
@@ -161,13 +161,20 @@ class RequestFilter[T: _BaseModel]:
         q = self._kwargs_filter(**kwargs) if kwargs else self.query
         for f in self.request.filters:
             if f.field not in self.model.model_fields:
-                continue
-            q = self.query.where(self._operators[f.op](col(getattr(self.model, f.field)), f.value))
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter field: {f.field}")
+            operator = self._operators.get(f.op)
+            if f.op is Operator.in_ and not isinstance(f.value, Iterable):
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid value for 'in' operator: {f.value}")  # noqa: E501
+            if not operator:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter operator: {f.op}")
+            q = self.query.where(operator(col(getattr(self.model, f.field)), f.value))
         return RequestFilter(self.model, self.request, q)
 
     def sort(self) -> RequestFilter[T]:
         """Sort inplace records based on a QueryRequest, applying sorting and pagination."""
         q = self.query
+        if self.request.sort and self.request.sort not in self.model.model_fields:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid sort field: {self.request.sort}")
         if self.request.sort and self.request.sort in self.model.model_fields:
             sort_col = col(getattr(self.model, self.request.sort))
             q = self.query.order_by(sort_col.desc() if self.request.order.lower() == "desc" else sort_col.asc())
@@ -288,7 +295,7 @@ class APIModel[T: _BaseModel]:
             "/",
             self.query,
             methods=["QUERY"],
-            response_model=Sequence[model],  # ty: ignore[invalid-type-form]
+            response_model=QueryResponse[T],  # ty: ignore[invalid-type-form]
             responses={
                 200: {"description": "Successful Response"},
                 400: {"description": "Missing or inconsistent Content-Type"},
@@ -302,11 +309,12 @@ class APIModel[T: _BaseModel]:
         """Advertise the methods supported on the collection endpoint, including QUERY."""
         return Response(status_code=status.HTTP_204_NO_CONTENT, headers={"Allow": "GET, POST, PUT, PATCH, QUERY"})
 
-    def query(self, request: QueryRequest) -> Generator[T]:
+    def query(self, request: QueryRequest) -> QueryResponse[T]:
         """Run a safe, idempotent query per RFC 10008 (HTTP QUERY)."""
         q = RequestFilter(self.model, request).filter().sort().query
         self.model.logger.debug("QUERY SQL: %s", q, extra={"query": str(q), "request": request})
-        yield from PaginatedResponse(self.model, request.page, request.limit, q)
+        page = PaginatedResponse(self.model, request.page, request.limit, q)
+        return {"items": list(page), **page.meta}
 
     def get_all(
         self,
