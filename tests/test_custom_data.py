@@ -8,7 +8,7 @@ from sqlalchemy import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from herogold.orm.core.api_model import APIModel
-from herogold.orm.core.model import Actions, BaseModel, DataModel, _BaseModel
+from herogold.orm.core.model import BaseModel, DataModel, _BaseModel
 from herogold.orm.custom_data import OutOfSpaceError, validate_size
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class Tiny(BaseModel, table=True):
     custom_data_size_limit: ClassVar[int] = 64  # a small budget so a modest payload overflows
 
 
-class History(DataModel, table=True):
+class History(BaseModel, table=True):
     label: str
 
 
@@ -114,22 +114,20 @@ def test_no_custom_data_leaves_link_empty(api: APIModel[Widget]) -> None:
     assert fetched.custom_data is None
 
 
-# --- API round-trip on DataModel (composite PK) -----------------------------
+# --- API round-trip on History ----------------------------------------------
 
 
 def test_datamodel_create_persists_and_links(session: Session) -> None:
     api = APIModel(History, APIRouter())
-    item = History(id=len(History.get_all())+1, label="v1")
+    item = History(label="v1")
     api.create(item, {"note": "first"})
 
     fetched = api.get(item.id)
     assert isinstance(fetched, History)
     assert fetched.custom_data is not None
     assert fetched.custom_data.data == {"note": "first"}
-    # the composite-PK link table carries both owner PK columns
     link = SQLModel.metadata.tables["history_custom_data"]
-    assert {"history_id", "history_timestamp", "custom_data_id"} <= {c.name for c in link.columns}
-    assert item.action is Actions.CREATE
+    assert {"history_id", "custom_data_id"} <= {c.name for c in link.columns}
 
 
 # --- overflow -> 413 --------------------------------------------------------

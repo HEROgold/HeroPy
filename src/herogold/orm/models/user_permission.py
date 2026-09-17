@@ -1,10 +1,6 @@
 """Association table for users and direct permissions."""
 from __future__ import annotations
 
-from __future__ import annotations
-
-from __future__ import annotations
-
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, ForeignKey
 

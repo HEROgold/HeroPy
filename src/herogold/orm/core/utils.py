@@ -126,11 +126,12 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
 
         self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
 
-    # No matching overload found for function `herogold.orm.core.utils.Relationship.__get__` called with arguments: (User, type[User])
+    # No matching overload found for `Relationship.__get__` called with (User, type[User]).
     #   Possible overloads:
     #     (instance: None, owner: type[Any]) -> type[_BaseModel] [closest match]
     #     (instance: Email, owner: type[Any]) -> _BaseModel | None
-    #   Argument `User` is not assignable to parameter `instance` with type `None` in function `herogold.orm.core.utils.Relationship.__get__`
+    #   Argument `User` is not assignable to parameter `instance` with type `None`
+    #   in function `herogold.orm.core.utils.Relationship.__get__`
     @overload
     def __get__(self, instance: None, owner: type[OT]) -> type[_BaseModel]: ...
 
