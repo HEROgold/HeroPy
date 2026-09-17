@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 
     from pydantic import ConfigDict
     from sqlalchemy.orm import Mapped
+    from sqlmodel.sql.expression import SelectOfScalar
 
 models: set[type[_BaseModel]] = set()
 def _current_utc() -> datetime:
@@ -174,6 +175,11 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             msg = f"Record with {self.__class__.__name__}.id={self.id} not found for deletion."
             raise NotFoundError(msg)
         self._delete_record(self._get_session(session))
+
+    @property
+    def query(self) -> SelectOfScalar[Self]:
+        """Return a default query for the model."""
+        return select(self.__class__)
 
     @classmethod
     def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[Self]:
@@ -335,6 +341,11 @@ class BaseModel(_BaseModel):
         entry.updated_at = _current_utc()
         session.add(entry)
         session.commit()
+
+    @property
+    def query(self) -> SelectOfScalar[Self]:
+        """Return a default query for the model."""
+        return super().query.where(self.__class__.deleted_at == None)  # noqa: E711
 
     @override
     def _delete_record(self, session: Session) -> None:
