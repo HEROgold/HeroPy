@@ -17,7 +17,7 @@ with ExtraImportContext("herogold", "orm", "orm", "api"):
     from fastapi import APIRouter, HTTPException, Response, status
 
 
-from .model import BaseModel, _BaseModel
+from .model import _BaseModel
 
 if TYPE_CHECKING:
     from sqlmodel.sql.expression import SelectOfScalar
@@ -214,7 +214,7 @@ class CustomDataContainer[T: _BaseModel]:
         self.item.custom_data = row
 
 
-class QueryResponse[T: BaseModel](TypedDict):
+class QueryResponse[T: _BaseModel](TypedDict):
     """TypedDict for the response of a QUERY request."""
 
     items: list[T]
@@ -229,7 +229,7 @@ type SupportsOperations = Callable[[SQLCoreOperations[Any], Any], SQLCoreOperati
 type OperatorMap = dict[Operator, SupportsOperations]
 
 
-class APIModel[T: BaseModel]:
+class APIModel[T: _BaseModel]:
     """Base APIModel class with custom methods for API interactions."""
 
     def __init__(self, model: type[T], router: APIRouter) -> None:
