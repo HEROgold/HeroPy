@@ -115,21 +115,6 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             return
         super().__setattr__(name, value)
 
-    @classmethod
-    def _get_session(cls, session: Session | None = None) -> Session:
-        """Get the usable session, either the provided one or the default."""
-        cls.logger.debug("Getting session: %s", session, extra={"session": session})
-        return session or cls.session
-
-    @classmethod
-    def count(cls) -> int:
-        """Return the total count of records in the model."""
-        if not cls.__count or cls.session.identity_map.check_modified():
-            cls.__count = cls.session.exec(
-                select(func.count(col(cls.id))),
-            ).one()
-        return cls.__count
-
     @property
     def relations(self) -> dict[str, type[_BaseModel]]:
         """Return a dict of related models and their values."""
@@ -138,34 +123,6 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             for name, info in self.__class__.model_fields.items()
             if info.annotation and issubclass(info.annotation, _BaseModel)
         }
-
-    @classmethod
-    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> Self:
-        """Get a record from Database."""
-        cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
-        session = cls._get_session(session)
-
-        query = select(cls).where(cls.id == id_)
-        if with_for_update:
-            query = query.with_for_update()
-
-        if known := session.exec(query).first():
-            return known
-        msg = f"Record with {cls.__name__}.id={id_} not found."
-        raise NotFoundError(msg)
-
-    @classmethod
-    def get_all(cls, session: Session | None = None) -> Sequence[Self]:
-        """Get all records from Database."""
-        cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
-        session = cls._get_session(session)
-        return session.exec(select(cls)).all()
-
-    def _validate_existing_record(self) -> None:
-        """Check if a record of this item already exists."""
-        if self.id is not None:
-            msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
-            raise AlreadyExistsError(msg)
 
     def add(self, session: Session | None = None) -> None:
         """Add a record to Database."""
@@ -201,6 +158,37 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         return select(cls)
 
     @classmethod
+    def count(cls) -> int:
+        """Return the total count of records in the model."""
+        if not cls.__count or cls.session.identity_map.check_modified():
+            cls.__count = cls.session.exec(
+                select(func.count(col(cls.id))),
+            ).one()
+        return cls.__count
+
+    @classmethod
+    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> Self:
+        """Get a record from Database."""
+        cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
+        session = cls._get_session(session)
+
+        query = select(cls).where(cls.id == id_)
+        if with_for_update:
+            query = query.with_for_update()
+
+        if known := session.exec(query).first():
+            return known
+        msg = f"Record with {cls.__name__}.id={id_} not found."
+        raise NotFoundError(msg)
+
+    @classmethod
+    def get_all(cls, session: Session | None = None) -> Sequence[Self]:
+        """Get all records from Database."""
+        cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
+        session = cls._get_session(session)
+        return session.exec(select(cls)).all()
+
+    @classmethod
     def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[Self]:
         """Get a record from Database by field and value."""
         cls.logger.debug(
@@ -212,6 +200,12 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         )
         session = cls._get_session(session)
         return session.exec(select(cls).where(column == value))
+
+    def _validate_existing_record(self) -> None:
+        """Check if a record of this item already exists."""
+        if self.id is not None:
+            msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
+            raise AlreadyExistsError(msg)
 
     @abstractmethod
     def _update_record(self, session: Session, entry: Self) -> None:
@@ -225,6 +219,12 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     @abstractmethod
     def _delete_record(self, session: Session) -> None:
         """Delete the record in the database with the current instance's values."""
+
+    @classmethod
+    def _get_session(cls, session: Session | None = None) -> Session:
+        """Get the usable session, either the provided one or the default."""
+        cls.logger.debug("Getting session: %s", session, extra={"session": session})
+        return session or cls.session
 
 # TODO: move to its own module.
 class CustomData(_BaseModel, table=True):
@@ -310,6 +310,11 @@ class BaseModel(_BaseModel):
             ),
         )
 
+    @classproperty
+    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805
+        """Return a default query for the model."""
+        return super().query.where(cls.deleted_at == None)  # noqa: E711
+
     @override
     @classmethod
     def count(cls) -> int:
@@ -354,11 +359,6 @@ class BaseModel(_BaseModel):
         entry.updated_at = _current_utc()
         session.add(entry)
         session.commit()
-
-    @classproperty
-    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805
-        """Return a default query for the model."""
-        return super().query.where(cls.deleted_at == None)  # noqa: E711
 
     @override
     def _delete_record(self, session: Session) -> None:

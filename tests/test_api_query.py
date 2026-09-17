@@ -23,13 +23,6 @@ class Item(BaseModel, table=True):
     price: int
 
 
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
-    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT,
-    # so render BaseModel's BigInteger id as INTEGER for the in-memory test engine.
-    return "INTEGER"
-
-
 @pytest.fixture
 def api(session: Session) -> Iterator[APIModel[Item]]:
     try:
@@ -64,12 +57,6 @@ def client() -> Iterator[TestClient]:
     finally:
         BaseModel.session.close()
         BaseModel.session = original
-
-
-def _query(client: TestClient, body: dict) -> list[dict]:
-    resp = client.request("QUERY", "/", json=body)
-    assert resp.status_code == 200, resp.text
-    return resp.json()["items"]
 
 
 def test_client_operator_eq(client: TestClient) -> None:
@@ -326,3 +313,16 @@ def test_api_query_advertised_in_allow_header(api: APIModel[Item]) -> None:
     assert "QUERY" in resp.headers.get("allow", "")
     rows = api.query(QueryRequest())["items"]
     assert len(rows) == 3
+
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
+    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT,
+    # so render BaseModel's BigInteger id as INTEGER for the in-memory test engine.
+    return "INTEGER"
+
+
+def _query(client: TestClient, body: dict) -> list[dict]:
+    resp = client.request("QUERY", "/", json=body)
+    assert resp.status_code == 200, resp.text
+    return resp.json()["items"]

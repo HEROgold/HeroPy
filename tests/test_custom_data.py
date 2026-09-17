@@ -16,24 +16,6 @@ from herogold.orm.custom_data import OutOfSpaceError, validate_size
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
-    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT.
-    return "INTEGER"
-
-
-class Widget(BaseModel, table=True):
-    name: str
-
-
-class Tiny(BaseModel, table=True):
-    name: str
-    custom_data_size_limit: ClassVar[int] = 64  # a small budget so a modest payload overflows
-
-
-class History(DataModel, table=True):
-    label: str
-
 
 @pytest.fixture
 def session() -> Iterator[Session]:
@@ -57,6 +39,19 @@ def session() -> Iterator[Session]:
             else:
                 cls.session = original
         engine.dispose()  # release the sqlite file lock on Windows; file is kept
+
+
+class Widget(BaseModel, table=True):
+    name: str
+
+
+class Tiny(BaseModel, table=True):
+    name: str
+    custom_data_size_limit: ClassVar[int] = 64  # a small budget so a modest payload overflows
+
+
+class History(DataModel, table=True):
+    label: str
 
 
 @pytest.fixture
@@ -148,4 +143,9 @@ def test_overflow_returns_413(session: Session) -> None:
     with pytest.raises(HTTPException) as excinfo:
         tiny_api.create(item, {f"k{i}": i for i in range(50)})  # over the 64-byte limit
     assert excinfo.value.status_code == 413
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
+    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT.
+    return "INTEGER"
 

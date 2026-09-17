@@ -13,11 +13,6 @@ class Role(BaseModel, table=True):
     description: str | None = Field(default=None, max_length=255)
     is_system: bool = Field(default=False, index=True)
 
-    @staticmethod
-    def normalize_name(value: str) -> str:
-        """Normalize role names for consistency."""
-        return value.strip().lower().replace(" ", "_")
-
     def set_name(self, value: str) -> None:
         """Set role name with normalization and validation."""
         normalized = self.normalize_name(value)
@@ -25,3 +20,8 @@ class Role(BaseModel, table=True):
             msg = "Role name cannot be empty."
             raise ValueError(msg)
         self.name = normalized
+
+    @staticmethod
+    def normalize_name(value: str) -> str:
+        """Normalize role names for consistency."""
+        return value.strip().lower().replace(" ", "_")

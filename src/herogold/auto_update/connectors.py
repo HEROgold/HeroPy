@@ -208,6 +208,18 @@ class CommandRunner:
         """Add a command to the list of commands to run."""
         self.commands.append(command)
 
+    @with_group
+    def run(self) -> Generator[list[bytes] | UpdateError, None, None]:
+        """Run the commands in a subprocess and check for success.
+
+        Removes commands from the list after successful execution.
+        """
+        while self.commands:
+            command = self.commands.popleft()
+            self._send(command)
+            output = self._read_output(command)
+            yield self._check_success(command, output)
+
     def _send(self, command: CLI) -> None:
         """Send a command to the subprocess."""
         self.stdin.write(f"{command.command}\n".encode())
@@ -244,18 +256,6 @@ class CommandRunner:
             {self.stderr.read().decode() if self.stderr else 'No error message available.'}""",
         )
         raise UpdateError(error_msg)
-
-    @with_group
-    def run(self) -> Generator[list[bytes] | UpdateError, None, None]:
-        """Run the commands in a subprocess and check for success.
-
-        Removes commands from the list after successful execution.
-        """
-        while self.commands:
-            command = self.commands.popleft()
-            self._send(command)
-            output = self._read_output(command)
-            yield self._check_success(command, output)
 
 class GitHub(HTTP):
     """GitHub based connector for auto-updates."""
@@ -295,25 +295,6 @@ class GitHub(HTTP):
         response = self.client.get(self.source.url)
         response.raise_for_status()
         return _Downloaded(self.install, response.content)
-
-    def _git_pull(self) -> _Installed:
-        """Pull the latest changes from the git repository."""
-        self.cmd.add(CLI("git pull"))
-        results = self.cmd.run()
-        if isinstance(results, ExceptionGroup):
-            msg = "Failed to pull latest changes from git repository."
-            raise CommandError(msg)
-        return _Installed(success=True)
-
-    def _extract_zip(self, data: bytes) -> _Installed:
-        """Extract the downloaded zip file to the root directory."""
-        with NamedTemporaryFile(delete=False, suffix=".zip") as _zip:
-            _zip.write(data)
-            _zip.flush()
-            _zip.seek(0)
-            z = ZipFile(_zip.name)
-            z.extractall(self.root_directory)
-        return _Installed(success=True)
 
     @override
     def install(self, data: bytes) -> _Installed:
@@ -356,6 +337,25 @@ class GitHub(HTTP):
             case _, _:
                 msg = "Invalid combination of git repo and zip installation."
                 raise ValueError(msg)
+
+    def _git_pull(self) -> _Installed:
+        """Pull the latest changes from the git repository."""
+        self.cmd.add(CLI("git pull"))
+        results = self.cmd.run()
+        if isinstance(results, ExceptionGroup):
+            msg = "Failed to pull latest changes from git repository."
+            raise CommandError(msg)
+        return _Installed(success=True)
+
+    def _extract_zip(self, data: bytes) -> _Installed:
+        """Extract the downloaded zip file to the root directory."""
+        with NamedTemporaryFile(delete=False, suffix=".zip") as _zip:
+            _zip.write(data)
+            _zip.flush()
+            _zip.seek(0)
+            z = ZipFile(_zip.name)
+            z.extractall(self.root_directory)
+        return _Installed(success=True)
 
     def _is_git_repo(self) -> bool:
         """Check if the root directory contains a .git directory."""

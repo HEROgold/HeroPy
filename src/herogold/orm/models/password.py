@@ -32,37 +32,6 @@ class Password(BaseModel, table=True):
     is_active: bool = Field(default=True, index=True)
     expires_at: datetime | None = Field(default=None, index=True)
 
-    @staticmethod
-    def _normalize_plaintext(plaintext: str) -> str:
-        """Validate and normalize plaintext password input."""
-        if not plaintext:
-            msg = "Password cannot be empty."
-            raise ValueError(msg)
-        return plaintext
-
-    @classmethod
-    def generate_salt(cls, size: int = 16) -> str:
-        """Generate a URL-safe random salt."""
-        if size < cls.MIN_SALT_SIZE:
-            msg = f"Salt size must be at least {cls.MIN_SALT_SIZE} bytes."
-            raise ValueError(msg)
-        return urlsafe_b64encode(secrets.token_bytes(size)).decode("ascii")
-
-    @classmethod
-    def derive_hash(cls, plaintext: str, salt: str, iterations: int) -> str:
-        """Derive a PBKDF2-HMAC-SHA256 hash from a plaintext password."""
-        normalized = cls._normalize_plaintext(plaintext)
-        if iterations < cls.MIN_ITERATIONS:
-            msg = f"Iterations must be at least {cls.MIN_ITERATIONS}."
-            raise ValueError(msg)
-        dk = hashlib.pbkdf2_hmac(
-            "sha256",
-            normalized.encode("utf-8"),
-            urlsafe_b64decode(salt.encode("ascii")),
-            iterations,
-        )
-        return urlsafe_b64encode(dk).decode("ascii")
-
     def set_password(self, plaintext: str) -> None:
         """Set salt and hash from plaintext for this record."""
         self.algorithm = self.DEFAULT_ALGORITHM
@@ -92,6 +61,29 @@ class Password(BaseModel, table=True):
         return self.expires_at <= current
 
     @classmethod
+    def generate_salt(cls, size: int = 16) -> str:
+        """Generate a URL-safe random salt."""
+        if size < cls.MIN_SALT_SIZE:
+            msg = f"Salt size must be at least {cls.MIN_SALT_SIZE} bytes."
+            raise ValueError(msg)
+        return urlsafe_b64encode(secrets.token_bytes(size)).decode("ascii")
+
+    @classmethod
+    def derive_hash(cls, plaintext: str, salt: str, iterations: int) -> str:
+        """Derive a PBKDF2-HMAC-SHA256 hash from a plaintext password."""
+        normalized = cls._normalize_plaintext(plaintext)
+        if iterations < cls.MIN_ITERATIONS:
+            msg = f"Iterations must be at least {cls.MIN_ITERATIONS}."
+            raise ValueError(msg)
+        dk = hashlib.pbkdf2_hmac(
+            "sha256",
+            normalized.encode("utf-8"),
+            urlsafe_b64decode(salt.encode("ascii")),
+            iterations,
+        )
+        return urlsafe_b64encode(dk).decode("ascii")
+
+    @classmethod
     def create_for_user(cls, user_id: int, plaintext: str, *, iterations: int | None = None) -> Password:
         """Create a fully initialized password record for a user."""
         record = cls(
@@ -102,3 +94,11 @@ class Password(BaseModel, table=True):
         )
         record.set_password(plaintext)
         return record
+
+    @staticmethod
+    def _normalize_plaintext(plaintext: str) -> str:
+        """Validate and normalize plaintext password input."""
+        if not plaintext:
+            msg = "Password cannot be empty."
+            raise ValueError(msg)
+        return plaintext
