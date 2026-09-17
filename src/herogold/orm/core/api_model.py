@@ -139,7 +139,8 @@ class RequestFilter[T: _BaseModel]:
         """Initialize the RequestFilterer with a model, request, and optional query."""
         self.model: type[T] = model
         self.request: QueryRequest = request
-        self.query: SelectOfScalar[T] = query or select(model)
+        # pyrefly: ignore [bad-assignment]
+        self.query: SelectOfScalar[T] = query if query is not None else model.query
 
     # `v` is intentionally Any: filter values come straight from the request body
     # (QueryFilter.value: Any) and are heterogeneous — scalar for eq/like, iterable for in_.
@@ -159,7 +160,7 @@ class RequestFilter[T: _BaseModel]:
         """Filter inplace records based on a QueryRequest, applying filters, sorting, and pagination."""
         q = self._kwargs_filter(**kwargs) if kwargs else self.query
         for f in self.request.filters:
-            if not hasattr(self.model, f.field):
+            if f.field not in self.model.model_fields:
                 continue
             q = self.query.where(self._operators[f.op](col(getattr(self.model, f.field)), f.value))
         return RequestFilter(self.model, self.request, q)
@@ -167,7 +168,7 @@ class RequestFilter[T: _BaseModel]:
     def sort(self) -> RequestFilter[T]:
         """Sort inplace records based on a QueryRequest, applying sorting and pagination."""
         q = self.query
-        if self.request.sort and hasattr(self.model, self.request.sort):
+        if self.request.sort and self.request.sort in self.model.model_fields:
             sort_col = col(getattr(self.model, self.request.sort))
             q = self.query.order_by(sort_col.desc() if self.request.order.lower() == "desc" else sort_col.asc())
         return RequestFilter(self.model, self.request, q)
