@@ -6,15 +6,13 @@ It is used to define the subscription plan for a user.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import datetime
+from decimal import Decimal
+
+import dinero.currencies as _currencies
+from dinero.types import Currency
 
 from herogold.orm.core.model import BaseModel
-
-if TYPE_CHECKING:
-    from datetime import datetime
-    from decimal import Decimal
-
-    from dinero.types import Currency
 
 
 class BillingPlan(BaseModel, table=True):
@@ -22,5 +20,17 @@ class BillingPlan(BaseModel, table=True):
 
     name: str
     price: Decimal
-    currency: Currency
+    # Stored as the ISO currency code (e.g. "USD"); dinero.types.Currency is a
+    # TypedDict, not a column type, so the full dict is looked up on access
+    # via `currency_info` instead of persisted directly.
+    currency: str
     until: datetime
+
+    @property
+    def currency_info(self) -> Currency:
+        """Resolve the stored currency code to its full dinero ``Currency`` dict."""
+        try:
+            return getattr(_currencies, self.currency.upper())
+        except AttributeError as exc:
+            msg = f"Unknown currency code: {self.currency!r}"
+            raise ValueError(msg) from exc
