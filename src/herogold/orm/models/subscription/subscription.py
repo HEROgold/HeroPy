@@ -33,11 +33,11 @@ class Subscription(DataModel, table=True):
     user = Relationship(User)
     status: SubscriptionStatus
     plan = Relationship(BillingPlan)
-    features: Features
+    features = Relationship(Features)
 
     def has_paid(self) -> bool:
-        """Check if a subscription has been paid."""
-        return self.payed_until() < datetime.now(tz=UTC)
+        """Check if a subscription is currently within its paid period."""
+        return self.payed_until() > datetime.now(tz=UTC)
 
     def payed_until(self) -> datetime:
         """Get the date until which the subscription has been paid."""
@@ -45,4 +45,9 @@ class Subscription(DataModel, table=True):
         if plan is None:
             msg = "Subscription has no billing plan."
             raise ValueError(msg)
-        return plan.until
+        until = plan.until
+        # Some backends (e.g. SQLite) drop tzinfo on round-trip; treat a naive
+        # value as UTC rather than raising when compared against an aware "now".
+        if until.tzinfo is None:
+            return until.replace(tzinfo=UTC)
+        return until
