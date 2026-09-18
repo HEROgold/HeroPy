@@ -15,8 +15,14 @@ authors = [{ name = "HEROgold" }]
 license = { text = "MIT" }
 
 [project.optional-dependencies]
-orm = [
+config = [
     "confkit>=2.0.0",
+]
+currency = [
+    "dinero>=0.4.0",
+]
+orm = [
+    "herogold[config,currency]",
     "sqlmodel>=0.0.38",
 ]
 api = [
