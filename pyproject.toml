@@ -13,8 +13,14 @@ license = { text = "MIT" }
 updater = [
     "httpxyz[http2]>=0.42.1"
 ]
-orm = [
+config = [
     "confkit>=2.1.0",
+]
+currency = [
+    "dinero>=0.4.0",
+]
+orm = [
+    "herogold[config,currency]",
     "sqlmodel>=0.0.42",
 ]
 api = [
