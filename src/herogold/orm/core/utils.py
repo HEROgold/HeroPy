@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, TypeVar, overload
+from typing import TYPE_CHECKING, NamedTuple, TypeGuard, TypeVar, overload
 
 from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, and_
 from sqlmodel import SQLModel, select
@@ -46,9 +46,10 @@ class LinkInfo[T: _BaseModel](NamedTuple):
     target_cols: list[str]
     """Link-table column names referencing the target PK."""
     target: type[T]
+    """Target model class (the type parameter of the ``Relationship``)."""
 
 
-class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
+class Relationship[T: _BaseModel](LoggerMixin):
     """Descriptor for a single-valued relationship backed by an association table.
 
     Instead of adding a foreign-key column to the owner, each concrete
@@ -74,41 +75,48 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
         self.optional = optional
         self.related_model = related_model
         # Per-owner registry: a single inherited descriptor serves many subclasses.
-        self._links: dict[type, LinkInfo[_BaseModel]] = {}
+        self._links: dict[type, LinkInfo[T]] = {}
 
     def __set_name__(self, owner: type[_BaseModel], name: str) -> None:
         """Record the attribute name (link tables are built later, per subclass)."""
+        self.owner = owner
         self.name = name
 
-    def _resolve_target(self, owner: type[OT]) -> type[_BaseModel]:
-        """Resolve ``SELF`` to the owner; otherwise return the declared target."""
-        return owner if self.related_model is SELF else self.related_model
+    def _is_self_referential(self, owner: object) -> TypeGuard[type[T]]:
+        """Return True if the relationship is self-referential (target is ``SELF``)."""
+        return owner is SELF
 
-    def build_link_for(self, owner: type[OT]) -> None:
+    def _resolve_target_model(self) -> type[T]:
+        """Resolve ``SELF`` to the owner; otherwise return the declared target."""
+        if self._is_self_referential(self.owner):
+            return self.owner
+        return self.related_model
+
+    def build_link(self) -> None:
         """Build (once) the association table joining ``owner`` to the target.
 
         Called from :class:`ModelMeta` for each concrete ``table=True`` subclass.
         Idempotent per owner and guarded against duplicate metadata registration.
         """
-        if owner in self._links:
+        if self.owner in self._links:
             return
-        target = self._resolve_target(owner)
-        link_name = f"{owner.__tablename__}_{self.name}"
-        metadata = owner.metadata
+        target = self._resolve_target_model()
+        link_name = f"{self.owner.__tablename__}_{self.name}"
+        metadata = self.owner.metadata
 
-        owner_pk = [c.name for c in owner.__table__.primary_key.columns]
+        owner_pk = [c.name for c in self.owner.__table__.primary_key.columns]
         target_pk = [c.name for c in target.__table__.primary_key.columns]
         # Column names are prefixed by the owner tablename / the attribute name so
         # the self-referential case (owner is target) does not collide.
-        owner_cols = [f"{owner.__tablename__}_{pk}" for pk in owner_pk]
+        owner_cols = [f"{self.owner.__tablename__}_{pk}" for pk in owner_pk]
         target_cols = [f"{self.name}_{pk}" for pk in target_pk]
 
         if link_name in metadata.tables:
             table = metadata.tables[link_name]
         else:
             columns = [
-                Column(col, pk_col.type, ForeignKey(f"{owner.__tablename__}.{pk}"), primary_key=True)
-                for col, pk, pk_col in zip(owner_cols, owner_pk, owner.__table__.primary_key.columns, strict=True)
+                Column(col, pk_col.type, ForeignKey(f"{self.owner.__tablename__}.{pk}"), primary_key=True)
+                for col, pk, pk_col in zip(owner_cols, owner_pk, self.owner.__table__.primary_key.columns, strict=True)
             ]
             columns += [
                 Column(col, pk_col.type, ForeignKey(f"{target.__tablename__}.{pk}"), primary_key=True)
@@ -124,30 +132,24 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
                 Index(f"ix_{link_name}_tgt", *target_cols),
             )
 
-        self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
-
-    # No matching overload found for `Relationship.__get__` called with (User, type[User]).
-    #   Possible overloads:
-    #     (instance: None, owner: type[Any]) -> type[_BaseModel] [closest match]
-    #     (instance: Email, owner: type[Any]) -> _BaseModel | None
-    #   Argument `User` is not assignable to parameter `instance` with type `None`
-    #   in function `herogold.orm.core.utils.Relationship.__get__`
-    @overload
-    def __get__(self, instance: None, owner: type[OT]) -> type[_BaseModel]: ...
+        self._links[self.owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
 
     @overload
-    def __get__(self, instance: T, owner: type[OT]) -> _BaseModel | None: ...
+    def __get__(self, instance: None, _: object) -> type[T]: ...
 
-    # I'd like to have return type be concrete, and not _BaseModel.
-    def __get__(self, instance: T | None, owner: type[OT]) -> type[_BaseModel] | _BaseModel | None:
+    @overload
+    def __get__(self, instance: T, _: object) -> T | None: ...
+
+    def __get__(self, instance: T | None, _: object) -> type[T] | T | None:
         """Class access returns the target class; instance access joins the link table."""
         if instance is None:
-            return self._resolve_target(owner)
-        info = self._links.get(type(instance))
+            return self._resolve_target_model()
+        cls = type(instance)
+        info = self._links.get(cls)
         if info is None:
             return None
         # pyrefly: ignore [missing-attribute]
-        session = type(instance).session
+        session = cls.session
         join_cond = and_(*(
             info.table.c[tc] == info.target.__table__.c[tp]
             for tc, tp in zip(info.target_cols, info.target_pk, strict=True)
@@ -157,6 +159,10 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
             for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)
         ))
         return session.exec(select(info.target).join(info.table, join_cond).where(where_cond)).first()
+
+    def _table_conditions(self, info: LinkInfo[T], values: dict[str, object]) -> list:
+        """Return a list of SQLAlchemy conditions for the link table and owner values."""
+        return [info.table.c[column] == value for column, value in values.items()]
 
     def __set__(self, instance: _BaseModel, value: T) -> None:
         """Persist ``value`` if needed and replace the owner's single link row."""
@@ -171,7 +177,7 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
         owner_vals = {oc: getattr(instance, op) for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)}
         target_vals = {tc: getattr(value, tp) for tc, tp in zip(info.target_cols, info.target_pk, strict=True)}
         session.exec(
-            info.table.delete().where(and_(*(info.table.c[oc] == v for oc, v in owner_vals.items()))),
+            info.table.delete().where(and_(*self._table_conditions(info, owner_vals))),
         )
         session.exec(info.table.insert().values(**owner_vals, **target_vals))
         session.commit()
@@ -182,13 +188,17 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
         if info is None:
             return
         session = type(instance).session
-        owner_vals = {oc: getattr(instance, op) for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)}
+        owner_vals = {
+            oc: getattr(instance, op)
+            for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)
+        }
         session.exec(
-            info.table.delete().where(and_(*(info.table.c[oc] == v for oc, v in owner_vals.items()))),
+            info.table.delete().where(and_(*self._table_conditions(info, owner_vals))),
         )
         session.commit()
 
 
+# pyrefly: ignore [invalid-inheritance]
 class ModelMeta(type(SQLModel)):
     """Metaclass that builds association tables for each concrete model.
 
@@ -210,4 +220,5 @@ class ModelMeta(type(SQLModel)):
                     continue
                 seen.add(attr_name)
                 if isinstance(attr, Relationship):
-                    attr.build_link_for(cls)
+                    attr.owner = cls
+                    attr.build_link()

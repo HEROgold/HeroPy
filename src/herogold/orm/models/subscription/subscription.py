@@ -3,15 +3,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING
 
 from herogold.orm.core.model import BaseModel, DataModel
+from herogold.orm.core.utils import Relationship
+from herogold.orm.models.user import User
 
-if TYPE_CHECKING:
-
-    from herogold.orm.models.user import User
-
-    from .plan import BillingPlan
+from .plan import BillingPlan
 
 
 class SubscriptionStatus(StrEnum):
@@ -33,9 +30,9 @@ class Features(BaseModel, table=True):
 class Subscription(DataModel, table=True):
     """Subscription model."""
 
-    user: User
+    user = Relationship(User)
     status: SubscriptionStatus
-    plan: BillingPlan
+    plan = Relationship(BillingPlan)
     features: Features
 
     def has_paid(self) -> bool:
@@ -44,4 +41,5 @@ class Subscription(DataModel, table=True):
 
     def payed_until(self) -> datetime:
         """Get the date until which the subscription has been paid."""
-        return self.plan.until
+        # pyrefly does correctly infer the type of self.plan, ty doesn't.
+        return self.plan.until  # ty: ignore[invalid-attribute-access]
