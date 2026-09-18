@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, TypeGuard, TypeVar, overload
+from typing import TYPE_CHECKING, NamedTuple, TypeGuard, TypeVar, cast, overload
 
 from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, and_
 from sqlmodel import SQLModel, select
@@ -48,7 +48,7 @@ class LinkInfo[T: _BaseModel](NamedTuple):
     target: type[T]
 
 
-class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
+class Relationship[T: _BaseModel](LoggerMixin):
     """Descriptor for a single-valued relationship backed by an association table.
 
     Instead of adding a foreign-key column to the owner, each concrete
@@ -110,19 +110,12 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
         )
         session.commit()
 
-    # No matching overload found for `Relationship.__get__` called with (User, type[User]).
-    #   Possible overloads:
-    #     (instance: None, owner: type[Any]) -> type[_BaseModel] [closest match]
-    #     (instance: Email, owner: type[Any]) -> _BaseModel | None
-    #   Argument `User` is not assignable to parameter `instance` with type `None`
-    #   in function `herogold.orm.core.utils.Relationship.__get__`
     @overload
-    def __get__(self, instance: None, owner: type[OT]) -> type[_BaseModel]: ...
+    def __get__(self, instance: None, owner: type[_BaseModel]) -> type[T]: ...
     @overload
-    def __get__(self, instance: T, owner: type[OT]) -> _BaseModel | None: ...
+    def __get__(self, instance: _BaseModel, owner: type[_BaseModel]) -> T | None: ...
 
-    # I'd like to have return type be concrete, and not _BaseModel.
-    def __get__(self, instance: T | None, owner: type[OT]) -> type[_BaseModel] | _BaseModel | None:
+    def __get__(self, instance: _BaseModel | None, owner: type[_BaseModel]) -> type[T] | T | None:
         """Class access returns the target class; instance access joins the link table."""
         if instance is None:
             return self._resolve_target(owner)
@@ -139,9 +132,9 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
             info.table.c[oc] == getattr(instance, op)
             for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)
         ))
-        return session.exec(select(info.target).join(info.table, join_cond).where(where_cond)).first()
+        return cast("T | None", session.exec(select(info.target).join(info.table, join_cond).where(where_cond)).first())
 
-    def build_link_for(self, owner: type[OT]) -> None:
+    def build_link_for(self, owner: type[_BaseModel]) -> None:
         """Build (once) the association table joining ``owner`` to the target.
 
         Called from :class:`ModelMeta` for each concrete ``table=True`` subclass.
@@ -183,13 +176,13 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
 
         self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
 
-    def _resolve_target(self, owner: type[OT]) -> type[T]:
+    def _resolve_target(self, owner: type[_BaseModel]) -> type[T]:
         """Resolve ``SELF`` to the owner; otherwise return the declared target."""
         if self._is_self_referential(owner):
             return owner
         return self.related_model
 
-    def _is_self_referential(self, owner: type[OT]) -> TypeGuard[type[T]]:
+    def _is_self_referential(self, owner: type[_BaseModel]) -> TypeGuard[type[T]]:
         """Return True if the relationship is self-referential for the given owner."""
         return self.related_model is SELF or owner is self.related_model
 
