@@ -33,13 +33,18 @@ class Subscription(DataModel, table=True):
     user = Relationship(User)
     status: SubscriptionStatus
     plan = Relationship(BillingPlan)
-    features: Features
+    features = Relationship(Features)
 
     def has_paid(self) -> bool:
-        """Check if a subscription has been paid."""
-        return self.payed_until() < datetime.now(tz=UTC)
+        """Check if a subscription is currently within its paid period."""
+        return self.payed_until() > datetime.now(tz=UTC)
 
     def payed_until(self) -> datetime:
         """Get the date until which the subscription has been paid."""
         # pyrefly does correctly infer the type of self.plan, ty doesn't.
-        return self.plan.until  # ty: ignore[invalid-attribute-access]
+        until = self.plan.until  # ty: ignore[invalid-attribute-access]
+        # Some backends (e.g. SQLite) drop tzinfo on round-trip; treat a naive
+        # value as UTC rather than raising when compared against an aware "now".
+        if until.tzinfo is None:
+            return until.replace(tzinfo=UTC)
+        return until

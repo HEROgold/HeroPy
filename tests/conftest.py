@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import sys
+from itertools import count
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy import BigInteger, StaticPool, create_engine
+from sqlalchemy import BigInteger, StaticPool, create_engine, event
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.schema import CreateTable
 from sqlmodel import Session, SQLModel
@@ -40,6 +41,26 @@ def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
     return "INTEGER"
 
 
+def _assign_composite_pk_ids(session: Session, _flush_context: object, _instances: object) -> None:
+    """Assign ``id`` for composite-PK rows before insert.
+
+    Real databases (Postgres/MSSQL) auto-generate the ``id`` half of a composite
+    primary key via SERIAL/IDENTITY. SQLite has no equivalent for multi-column
+    primary keys (see ``_no_autoincrement_on_composite_pk`` below), so the
+    in-memory test engine never populates ``id`` on its own. This mirrors that
+    behavior for tests only, with a per-table counter local to each test.
+    """
+    counters: dict[str, count[int]] = session.info.setdefault("_composite_pk_id_counters", {})
+    for obj in session.new:
+        table = getattr(obj, "__table__", None)
+        if table is None or len(table.primary_key.columns) <= 1:
+            continue
+        if getattr(obj, "id", None) is not None:
+            continue
+        counter = counters.setdefault(table.name, count(1))
+        obj.id = next(counter)
+
+
 @pytest.fixture
 def session() -> Iterator[Session]:
     # StaticPool keeps a single shared connection so create_all and the Session
@@ -48,6 +69,7 @@ def session() -> Iterator[Session]:
     SQLModel.metadata.create_all(engine)
     original = BaseModel.session
     sess = Session(engine)
+    event.listen(sess, "before_flush", _assign_composite_pk_ids)
 
     originals = {cls: cls.__dict__.get("session") for cls in (_BaseModel, BaseModel)}
     for cls in (_BaseModel, BaseModel):
@@ -55,6 +77,7 @@ def session() -> Iterator[Session]:
     try:
         yield sess
     finally:
+        event.remove(sess, "before_flush", _assign_composite_pk_ids)
         sess.close()
         for cls, original in originals.items():
             if original is None:
