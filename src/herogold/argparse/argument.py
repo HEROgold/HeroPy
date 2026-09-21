@@ -9,7 +9,9 @@ from argparse import SUPPRESS, Action, ArgumentParser
 from argparse import Namespace as ArgparseNamespace
 from collections.abc import Callable, Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, ClassVar, NoReturn, Self, TypeVar, override
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self, TypeVar, override
+
+from herogold.typing.signature import copy_signature
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
@@ -61,11 +63,11 @@ _SUBCOMMANDS_METAVAR = "<command>"
 _HIDDEN_HELP_OPTIONS = frozenset({"-h", "--help", "--help-full"})
 _HELP_FULL_TEXT = "Show this command's help and every nested subcommand's help, as a tree."
 
-
 class ColorArgumentParser(ArgumentParser):
     """ArgumentParser with colored help and error output."""
 
-    def __init__(self, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
+    @copy_signature(ArgumentParser.__init__)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
         """Initialize the ColorArgumentParser."""
         super().__init__(*args, **kwargs)
         # Not `self.usage` (an ArgumentParser constructor attribute): setting that instead makes
