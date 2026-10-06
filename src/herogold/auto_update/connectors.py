@@ -1,18 +1,27 @@
-"""Connectors for auto-updates."""
+"""Connectors for auto-updates.
+
+A connector checks a :class:`Source` for an update, downloads it and installs it:
+
+- :class:`HTTP` downloads a single file to a destination path.
+- :class:`GitCheckout` fast-forwards a git checkout to its upstream branch.
+- :class:`GitHubRelease` replaces an installed copy with the latest GitHub release.
+"""
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from abc import ABC, abstractmethod
+from io import BytesIO
 from pathlib import Path
-from tempfile import NamedTemporaryFile
-from tkinter import filedialog
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Self, override
 from zipfile import ZipFile
 
 from httpxyz import Client, HTTPStatusError
 
-from herogold.command import CLI, CommandRunner
-from herogold.errors import with_known_exception
+from herogold.command import CommandError
+from herogold.errors import HerogoldError, with_known_exception
 from herogold.log import LoggerMixin
 
 if TYPE_CHECKING:
@@ -22,16 +31,16 @@ if TYPE_CHECKING:
     from herogold.auto_update.sources import Github as GitHubSource
     from herogold.auto_update.sources import Source
 
-class UpdateError(Exception):
+
+class UpdateError(HerogoldError):
     """Custom exception for update errors."""
 
-class CommandError(UpdateError):
-    """Custom exception for command execution errors."""
 
 class _State:
     """State for tracking an update."""
 
     __slots__ = ()
+
 
 class _Downloaded(_State):
     """Represents a downloaded update."""
@@ -45,12 +54,14 @@ class _Downloaded(_State):
         """Install the downloaded update."""
         return self.installer(self.data)
 
+
 class _Installed(_State):
     """Represents an installed update."""
 
     def __init__(self, *, success: bool) -> None:
         """Initialize the installed update with the given success status."""
         self.success: bool = success
+
 
 class Connector(ABC, LoggerMixin):
     """ABC for tracking different connectors for auto-updates."""
@@ -133,13 +144,13 @@ class _Connected[T: Connector]:
 
 
 class HTTP(Connector):
-    """HTTP(s) based connector for auto-updates."""
+    """Download the file at the source URL to ``destination``."""
 
-    def __init__(self, source: Source) -> None:
-        """Initialize the HTTP connector with the given source."""
+    def __init__(self, source: Source, destination: Path, client: Client | None = None) -> None:
+        """Initialize the HTTP connector with the given source and destination file."""
         super().__init__(source)
-        self.client = Client(http2=True)
-        self.client.headers.update({"Accept": "application/json"})
+        self.destination = destination
+        self.client = client or Client(http2=True, follow_redirects=True)
 
     @override
     def __enter__(self) -> _Connected[Self]:
@@ -157,159 +168,124 @@ class HTTP(Connector):
     @with_known_exception(HTTPStatusError)
     def download(self) -> _Downloaded:
         """Download the update from the source."""
-        result = self.client.get(self.source.url)
-        return _Downloaded(self.install, result.content)
-
-    @override
-    def install(self, data: bytes) -> _Installed:
-        """Install the downloaded update."""
-        loc = Path(filedialog.askopenfilename())
-        with loc.open("wb") as f:
-            f.write(data)
-        return _Installed(success=True)
-
-class GitHub(HTTP):
-    """GitHub based connector for auto-updates."""
-
-    def __init__(self, source: GitHubSource, root_directory: Path) -> None:
-        """Initialize the Git connector with the given source."""
-        super().__init__(source)
-        # due to source: GithubSource, we know that source is a subclass of Source, so this is valid
-        # However, using self.source in this class, assumes source is of type Source
-        # Even though, super().__init__(source) could be narrowed to GitHubSource.
-        self.root_directory = root_directory
-        self.cmd = CommandRunner([CLI(f"cd {self.root_directory}")])
-
-    @property
-    @override
-    def has_update(self) -> bool:
-        """Check if there is an update available from the source."""
-        is_git = self._is_git_repo()
-        same_hash = self._has_same_commit_hash()
-        if isinstance(same_hash, Exception):
-            return False
-        return is_git and not same_hash
-
-    @override
-    @with_known_exception(HTTPStatusError)
-    def download(self) -> _Downloaded:
-        """Download the update from the source."""
-        if self._is_git_repo():
-            self.cmd.add(CLI("git fetch --all"))
-            results = self.cmd.run()
-            if isinstance(results, ExceptionGroup):
-                msg = "Failed to fetch latest changes from git repository."
-                raise CommandError(msg)
-            return _Downloaded(self.install, b"")
-
-        # TODO(HEROgold): actually get the latest release .zip file.  # noqa: TD003
         response = self.client.get(self.source.url)
         response.raise_for_status()
         return _Downloaded(self.install, response.content)
 
     @override
     def install(self, data: bytes) -> _Installed:
-        """Install the downloaded zip."""
-        match self._is_git_repo(), data:
-            case True, b"":
-                return self._git_pull()
-            case False, b"":
-                msg = "No data to install and not a git repository."
-                raise UpdateError(msg)
-            case False, _:
-                return self._extract_zip(data)
-            case True, _:
-                msg = "Unexpected data received for git repository."
-                raise UpdateError(msg)
-            case _, _:
-                msg = "Unexpected state in install method."
-                raise UpdateError(msg)
-
-    def apply_git_update(self) -> None:
-        """Apply the update from a git repository."""
-
-    def apply_zip_update(self) -> None:
-        """Apply the update from a zip file."""
-        _zip = self.download()
-        if isinstance(_zip, HTTPStatusError):
-            raise _zip
-        _zip.install()
-
-    def apply_update(self) -> None:
-        """Apply the update from the Github source."""
-        # We know that self.source is of type GitHubSource.
-        # Pyrefly seems to have trouble inferring that.
-        self.source: GitHubSource # type: ignore[assignment]
-        match self._is_git_repo(), self.source.is_zip:
-            case True, False:
-                self.apply_git_update()
-            case False, True:
-                self.apply_zip_update()
-            case _, _:
-                msg = "Invalid combination of git repo and zip installation."
-                raise ValueError(msg)
-
-    def _git_pull(self) -> _Installed:
-        """Pull the latest changes from the git repository."""
-        self.cmd.add(CLI("git pull"))
-        results = self.cmd.run()
-        if isinstance(results, ExceptionGroup):
-            msg = "Failed to pull latest changes from git repository."
-            raise CommandError(msg)
+        """Write the downloaded file to ``destination``."""
+        self.destination.write_bytes(data)
         return _Installed(success=True)
 
-    def _extract_zip(self, data: bytes) -> _Installed:
-        """Extract the downloaded zip file to the root directory."""
-        with NamedTemporaryFile(delete=False, suffix=".zip") as _zip:
-            _zip.write(data)
-            _zip.flush()
-            _zip.seek(0)
-            z = ZipFile(_zip.name)
-            z.extractall(self.root_directory)
+
+class GitCheckout(Connector):
+    """Update a git checkout by fast-forwarding it to its upstream branch.
+
+    Git runs as an argument list (no shell), so ``root_directory`` is never
+    interpreted as shell syntax.
+    """
+
+    def __init__(self, source: Source, root_directory: Path) -> None:
+        """Initialize the connector for the checkout at ``root_directory``."""
+        super().__init__(source)
+        self.root_directory = root_directory
+
+    @property
+    @override
+    def has_update(self) -> bool:
+        """Fetch, then report whether the upstream branch is ahead of ``HEAD``."""
+        self._git("fetch", "--quiet")
+        return self._git("rev-parse", "HEAD") != self._git("rev-parse", "@{u}")
+
+    @override
+    @with_known_exception(CommandError)
+    def download(self) -> _Downloaded:
+        """Fetch the upstream changes; ``install`` applies them."""
+        self._git("fetch", "--quiet")
+        return _Downloaded(self.install, b"")
+
+    @override
+    def install(self, data: bytes) -> _Installed:
+        """Fast-forward to the fetched upstream commit."""
+        self._git("pull", "--ff-only", "--quiet")
         return _Installed(success=True)
 
-    def _is_git_repo(self) -> bool:
-        """Check if the root directory contains a .git directory."""
-        git_directory = self.root_directory / ".git"
-        return git_directory.is_dir()
-
-    @with_known_exception(CommandError)
-    def _has_same_commit_hash(self) -> bool:
-        """Check if the local git repository has the same commit hash as the remote."""
-        self.cmd.add(CLI("git fetch --all"))
-        local_commit_hash = self._get_local_commit_hash()
-        source_commit_hash = self._get_remote_commit_hash()
-        if isinstance(local_commit_hash, Exception) or isinstance(source_commit_hash, Exception):
-            msg = "Failed to get commit hashes for comparison."
+    def _git(self, *args: str) -> str:
+        """Run ``git <args>`` in the checkout and return its stripped stdout."""
+        git = shutil.which("git")
+        if git is None:
+            msg = "git is not installed."
             raise CommandError(msg)
-        return source_commit_hash == local_commit_hash
-
-    @with_known_exception(CommandError)
-    def _get_remote_commit_hash(self) -> str:
-        """Get the latest commit hash from the remote repository."""
-        self.cmd.add(CLI("git rev-parse @{u}"))
-        results = self.cmd.run()
-        if isinstance(results, ExceptionGroup):
-            msg = "Failed to get remote commit hash."
+        result = subprocess.run(  # noqa: S603
+            [git, *args],
+            cwd=self.root_directory,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            msg = f"git {' '.join(args)} failed: {result.stderr.strip()}"
             raise CommandError(msg)
+        return result.stdout.strip()
 
-        results = list(results)
-        last = results[-1]
-        if isinstance(last, Exception):
-            raise last
-        return last[-1].decode()
 
-    @with_known_exception(CommandError)
-    def _get_local_commit_hash(self) -> str:
-        """Get the latest commit hash from the local repository."""
-        self.cmd.add(CLI("git rev-parse HEAD"))
-        results = self.cmd.run()
-        if isinstance(results, ExceptionGroup):
-            msg = "Failed to get local commit hash."
-            raise CommandError(msg)
+class GitHubRelease(Connector):
+    """Replace an installed copy at ``root_directory`` with the latest GitHub release.
 
-        results = list(results)
-        last = results[-1]
-        if isinstance(last, Exception):
-            raise last
-        return last[-1].decode()
+    ``current_version`` is the installed version (e.g. ``importlib.metadata.version(...)``);
+    an update is available when the latest release tag differs from it (a leading ``v``
+    is ignored on both).
+    """
+
+    def __init__(
+        self,
+        source: GitHubSource,
+        root_directory: Path,
+        current_version: str,
+        client: Client | None = None,
+    ) -> None:
+        """Initialize the connector for the installation at ``root_directory``."""
+        super().__init__(source)
+        self.github: GitHubSource = source
+        self.root_directory = root_directory
+        self.current_version = current_version
+        self.client = client or Client(follow_redirects=True, headers={"Accept": "application/vnd.github+json"})
+        self._release: dict[str, object] | None = None
+
+    @property
+    @override
+    def has_update(self) -> bool:
+        """Return whether the latest release tag differs from ``current_version``."""
+        tag = str(self._latest_release()["tag_name"])
+        return tag.removeprefix("v") != self.current_version.removeprefix("v")
+
+    @override
+    @with_known_exception(HTTPStatusError)
+    def download(self) -> _Downloaded:
+        """Download the latest release's source archive."""
+        response = self.client.get(str(self._latest_release()["zipball_url"]))
+        response.raise_for_status()
+        return _Downloaded(self.install, response.content)
+
+    @override
+    def install(self, data: bytes) -> _Installed:
+        """Extract the archive and copy its contents over ``root_directory``.
+
+        GitHub archives wrap everything in a single ``<owner>-<repo>-<sha>/`` folder;
+        its contents (not the folder itself) are copied.
+        """
+        with TemporaryDirectory() as tmp, ZipFile(BytesIO(data)) as archive:
+            archive.extractall(tmp)
+            entries = list(Path(tmp).iterdir())
+            top = entries[0] if len(entries) == 1 and entries[0].is_dir() else Path(tmp)
+            shutil.copytree(top, self.root_directory, dirs_exist_ok=True)
+        return _Installed(success=True)
+
+    def _latest_release(self) -> dict[str, object]:
+        """Fetch (once) the latest release metadata from the GitHub API."""
+        if self._release is None:
+            response = self.client.get(self.github.api_latest_release)
+            response.raise_for_status()
+            self._release = response.json()
+        return self._release

@@ -25,11 +25,22 @@ class Github(Source):
     @override
     def __str__(self) -> str:
         """Return a string representation of the Github source."""
-        host = self.url.host
-        path_parts = self.url.path.split("/")
-        owner = path_parts[1]
-        repo = path_parts[2]
-        return f"{self.url.scheme}://{host}/{owner}/{repo}"
+        return f"{self.url.scheme}://{self.url.host}/{self.owner}/{self.repo}"
+
+    @property
+    def owner(self) -> str:
+        """Return the repository owner, the first URL path segment."""
+        return self.url.path.split("/")[1]
+
+    @property
+    def repo(self) -> str:
+        """Return the repository name, the second URL path segment."""
+        return self.url.path.split("/")[2]
+
+    @property
+    def api_latest_release(self) -> str:
+        """Return the GitHub REST API URL for the latest release."""
+        return f"https://api.github.com/repos/{self.owner}/{self.repo}/releases/latest"
 
     @property
     def base_url(self) -> str:

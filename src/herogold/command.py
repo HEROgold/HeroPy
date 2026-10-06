@@ -11,13 +11,13 @@ from subprocess import PIPE, Popen
 from textwrap import dedent
 from typing import TYPE_CHECKING, LiteralString, override
 
-from herogold.errors import with_group, with_known_exception
+from herogold.errors import HerogoldError, with_group, with_known_exception
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
 
 
-class CommandError(Exception):
+class CommandError(HerogoldError):
     """Raised when a command fails to execute successfully."""
 
 class CommandState(Enum):

@@ -5,13 +5,15 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from herogold.errors import HerogoldError
+
 # Matches names that are true dunders: a non-underscore char immediately before
 # the trailing ``__`` (e.g. ``__init__``, ``__var__``).  Names like ``___``
 # do not match and will be treated as private (mangled) names.
 _DUNDER_RE = re.compile(r"^__.*[^_]__$")
 
 
-class ManglingError(Exception):
+class ManglingError(HerogoldError):
     """Custom exception for mangling errors."""
 
 

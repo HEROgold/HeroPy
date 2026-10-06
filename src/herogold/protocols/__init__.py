@@ -8,8 +8,10 @@ from ._protocols import (
     DataDescriptorMeta,
     Descriptor,
     DescriptorMeta,
+    Filterable,
     NonDataDescriptor,
     NonDataDescriptorMeta,
+    Sortable,
 )
 from .types import DataDescriptorType, DescriptorType, NonDataDescriptorType
 from .url_specification import URLSpec
@@ -22,8 +24,10 @@ __all__ = [
     "Descriptor",
     "DescriptorMeta",
     "DescriptorType",
+    "Filterable",
     "NonDataDescriptor",
     "NonDataDescriptorMeta",
     "NonDataDescriptorType",
+    "Sortable",
     "URLSpec",
 ]

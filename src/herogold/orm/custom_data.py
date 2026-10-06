@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from sys import getsizeof
 
-from herogold.errors import with_known_exception
+from herogold.errors import HerogoldError, with_known_exception
 
 DEFAULT_SIZE_LIMIT = 1024 * 10
 """Default byte budget for a model's custom data (the old descriptor default)."""
 
 
-class OutOfSpaceError(ValueError):
+class OutOfSpaceError(HerogoldError, ValueError):
     """Raised when the custom data exceeds the size limit."""
 
     def __init__(self, size: int, limit: int) -> None:

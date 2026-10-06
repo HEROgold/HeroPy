@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from functools import partial
+from importlib.metadata import version
 from pathlib import Path
 from typing import overload
 
-from herogold.auto_update.connectors import Connector, GitHub
+from herogold.auto_update.connectors import Connector, GitCheckout, GitHubRelease
 from herogold.auto_update.sources import Github, Source
 
 
@@ -63,8 +64,13 @@ def main() -> None:
     1. Check + Download using a Source and subclasses.
     2. Install using a Connector and subclasses.
     """
-    src = Github("https://github.com/HEROgold/funcsort/releases")
-    connector = partial(GitHub, root_directory=Path(__file__).parent.parent.parent.parent)
+    src = Github("https://github.com/HEROgold/HeroPy")
+    root = Path(__file__).parent.parent.parent.parent
+    # A git checkout updates from its upstream branch; an installed copy from the latest release.
+    if (root / ".git").is_dir():
+        connector = partial(GitCheckout, root_directory=root)
+    else:
+        connector = partial(GitHubRelease, root_directory=root, current_version=version("herogold"))
     updater = AutoUpdater(
         source=src,
         connector=connector,

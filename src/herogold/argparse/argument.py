@@ -9,45 +9,13 @@ from argparse import SUPPRESS, Action, ArgumentParser
 from argparse import Namespace as ArgparseNamespace
 from collections.abc import Callable, Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self, TypeVar, override
-
-from herogold.typing.signature import copy_signature
+from typing import TYPE_CHECKING, ClassVar, NoReturn, Self, TypeVar, override
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
 from herogold.colors import Bold, colorize
 from herogold.sentinel import MISSING
-
-# TODO(HEROgold): fix following --help and no --help differences.  # noqa: TD003
-"""
-$ uvx funcsort --help
-usage: usage:
-
-Sort class methods and module-level functions into configurable groups
-
-positional arguments:
-  paths                 Python files or directories to sort
-
-options:
-  -h, --help            show this help message and exit
-  --check               Check without modifying files - bool
-  --no-check
-  --diff                Show a diff of the changes - bool
-  --no-diff
-  --recursive           Recurse into directories - bool
-  --no-recursive
-  --sort-module         Sort module-level functions - bool
-  --no-sort-module
-  --respect-dependencies
-                        Never move a definition above code that uses it at import time - bool
-  --no-respect-dependencies
-  --exclude EXCLUDE     Exclude files/dirs matching a glob pattern - str
-
-$ uvx funcsort
-usage: usage:
-error: the following arguments are required: paths
-"""
 
 # Prefer to use later versions. For typevar support defaults.
 # Better yet, switch to 3.14+
@@ -66,14 +34,10 @@ _HELP_FULL_TEXT = "Show this command's help and every nested subcommand's help, 
 class ColorArgumentParser(ArgumentParser):
     """ArgumentParser with colored help and error output."""
 
-    @copy_signature(ArgumentParser.__init__)
-    def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
-        """Initialize the ColorArgumentParser."""
-        super().__init__(*args, **kwargs)
-        # Not `self.usage` (an ArgumentParser constructor attribute): setting that instead makes
-        # argparse treat "usage: " as the whole usage string, doubling argparse's own hardcoded
-        # "usage: " prefix into "usage: usage: ".
-        self.usage_marker: str = "usage: "
+    # Not `usage` (an ArgumentParser constructor attribute): setting that instead makes
+    # argparse treat "usage: " as the whole usage string, doubling argparse's own hardcoded
+    # "usage: " prefix into "usage: usage: ".
+    usage_marker: ClassVar[str] = "usage: "
 
     @property
     def cls(self) -> type[Self]:
@@ -154,18 +118,22 @@ class ColorArgumentParser(ArgumentParser):
         Options are already listed individually below, so `[--flag VALUE]` tokens collapse to one
         generic placeholder; the subcommand metavar is dropped for the same reason.
         """
-        if self.usage_marker is None:
-            return line
         remainder = line[len(self.usage_marker) :].removeprefix(self.prog)
         has_options = re.search(r"\[[^\]]*\]", remainder) is not None
         tail = f" {self.format_command('[--argument OPTION]')}" if has_options else ""
         return self.format_heading(self.usage_marker) + self.format_program(self.prog) + tail
 
+    @override
+    def format_usage(self) -> str:
+        """Collapse and colorize the usage line, matching the one at the top of ``--help``.
+
+        Used by ``print_usage``, so error output shows the same usage line as ``--help``.
+        """
+        merged = " ".join(line.strip() for line in super().format_usage().splitlines())
+        return self.format_usage_line(merged) + "\n"
+
     def format_help(self) -> str:
         """Override to colorize help text and simplify usage line."""
-        if self.usage_marker is None:
-            return super().format_help()
-
         lines = super().format_help().splitlines()
 
         # A long usage line wraps onto indented continuation lines; merge them before collapsing,
