@@ -19,36 +19,6 @@ if TYPE_CHECKING:
 from herogold.colors import Bold, colorize
 from herogold.sentinel import MISSING
 
-# TODO(HEROgold): fix following --help and no --help differences.  # noqa: TD003
-"""
-$ uvx funcsort --help
-usage: usage:
-
-Sort class methods and module-level functions into configurable groups
-
-positional arguments:
-  paths                 Python files or directories to sort
-
-options:
-  -h, --help            show this help message and exit
-  --check               Check without modifying files - bool
-  --no-check
-  --diff                Show a diff of the changes - bool
-  --no-diff
-  --recursive           Recurse into directories - bool
-  --no-recursive
-  --sort-module         Sort module-level functions - bool
-  --no-sort-module
-  --respect-dependencies
-                        Never move a definition above code that uses it at import time - bool
-  --no-respect-dependencies
-  --exclude EXCLUDE     Exclude files/dirs matching a glob pattern - str
-
-$ uvx funcsort
-usage: usage:
-error: the following arguments are required: paths
-"""
-
 # Prefer to use later versions. For typevar support defaults.
 # Better yet, switch to 3.14+
 if sys.version_info >= (3, 14):
@@ -160,6 +130,17 @@ class ColorArgumentParser(ArgumentParser):
         has_options = re.search(r"\[[^\]]*\]", remainder) is not None
         tail = f" {self.format_command('[--argument OPTION]')}" if has_options else ""
         return self.format_heading(self.usage_marker) + self.format_program(self.prog) + tail
+
+    @override
+    def format_usage(self) -> str:
+        """Collapse and colorize the usage line, matching the one at the top of ``--help``.
+
+        Used by ``print_usage``, so error output shows the same usage line as ``--help``.
+        """
+        if self.usage_marker is None:
+            return super().format_usage()
+        merged = " ".join(line.strip() for line in super().format_usage().splitlines())
+        return self.format_usage_line(merged) + "\n"
 
     def format_help(self) -> str:
         """Override to colorize help text and simplify usage line."""

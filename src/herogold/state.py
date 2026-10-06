@@ -5,11 +5,11 @@ Copied and modified from: https://github.com/ArjanCodes/examples/blob/main/2026/
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import cast
 
+from herogold.errors import HerogoldError
 from herogold.log.logger_mixin import LoggerMixin
 
 type Action[Context] = Callable[[Context], None]
@@ -19,7 +19,7 @@ type Transition[State, Event, Context] = dict[CurrentState[State, Event], NextSt
 type TransitionDecorator[Context] = Callable[[Action[Context]], Action[Context]]
 
 
-class InvalidTransitionError(Exception):
+class InvalidTransitionError(HerogoldError):
     """Raised when an invalid transition is attempted."""
 
 
@@ -38,18 +38,17 @@ class StateMachine[State: Enum, Event: Enum, Context](LoggerMixin):
 
     def add(
         self,
-        from_: State | Iterable[State],
+        *from_: State,
         event: Event,
         to_state: State,
     ) -> TransitionDecorator[Context]:
-        """Add a transition to the state machine.
+        """Add a transition from each of ``from_`` to ``to_state`` on ``event``.
 
         Can be used as a decorator to add the action for the transition.
         """
-        from_states = (cast("State", from_),) if isinstance(from_, Enum) else from_
 
         def decorator(func: Action[Context]) -> Action[Context]:
-            for i in from_states:
+            for i in from_:
                 self._add(i, event, to_state, func)
             return func
 

@@ -1,8 +1,26 @@
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Protocol, Self, runtime_checkable
 
 from herogold.supports import SupportsDelete, SupportsGet, SupportsSet
+
+
+@runtime_checkable
+class Filterable(Protocol):
+    """An object that returns a narrowed-down copy of itself."""
+
+    def filter(self, **kwargs: object) -> Self:
+        """Return a copy restricted by ``kwargs`` (and any filters the object carries)."""
+        ...
+
+
+@runtime_checkable
+class Sortable(Protocol):
+    """An object that returns an ordered copy of itself."""
+
+    def sort(self) -> Self:
+        """Return a copy ordered by the sort criteria the object carries."""
+        ...
 
 
 @runtime_checkable
