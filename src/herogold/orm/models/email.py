@@ -36,4 +36,4 @@ class Email(BaseModel, table=True):
     @staticmethod
     def normalize(value: str) -> str:
         """Normalize an email address before storage."""
-        return value.strip().lower()
+        return value.strip().casefold()

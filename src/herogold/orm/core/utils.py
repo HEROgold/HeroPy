@@ -11,6 +11,8 @@ from herogold.log import LoggerMixin
 from herogold.sentinel import create_sentinel
 
 if TYPE_CHECKING:
+    from sqlalchemy import ColumnElement
+
     # Imported for typing only: ``_BaseModel`` appears solely in (stringized)
     # annotations and the lazily-evaluated PEP 695 bound ``Relationship[T: _BaseModel]``.
     # Importing it at runtime creates a circular import (model -> utils -> model).
@@ -46,6 +48,25 @@ class LinkInfo[T: _BaseModel](NamedTuple):
     target_cols: list[str]
     """Link-table column names referencing the target PK."""
     target: type[T]
+
+    def owner_values(self, owner: _BaseModel) -> dict[str, object]:
+        """Map the link-table owner columns to ``owner``'s primary-key values."""
+        return {col: getattr(owner, pk) for col, pk in zip(self.owner_cols, self.owner_pk, strict=True)}
+
+    def target_values(self, target: _BaseModel) -> dict[str, object]:
+        """Map the link-table target columns to ``target``'s primary-key values."""
+        return {col: getattr(target, pk) for col, pk in zip(self.target_cols, self.target_pk, strict=True)}
+
+    def owner_filter(self, owner: _BaseModel) -> ColumnElement[bool]:
+        """Match the link row(s) belonging to ``owner``."""
+        return and_(*(self.table.c[col] == value for col, value in self.owner_values(owner).items()))
+
+    def target_join(self) -> ColumnElement[bool]:
+        """Join condition between the link table and the target table."""
+        return and_(*(
+            self.table.c[col] == self.target.__table__.c[pk]
+            for col, pk in zip(self.target_cols, self.target_pk, strict=True)
+        ))
 
 
 class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
@@ -90,12 +111,8 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
         if value.id is None:
             value.add()
         session = type(instance).session
-        owner_vals = {oc: getattr(instance, op) for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)}
-        target_vals = {tc: getattr(value, tp) for tc, tp in zip(info.target_cols, info.target_pk, strict=True)}
-        session.exec(
-            info.table.delete().where(and_(*(info.table.c[oc] == v for oc, v in owner_vals.items()))),
-        )
-        session.exec(info.table.insert().values(**owner_vals, **target_vals))
+        session.exec(info.table.delete().where(info.owner_filter(instance)))
+        session.exec(info.table.insert().values(**info.owner_values(instance), **info.target_values(value)))
         session.commit()
 
     def __delete__(self, instance: _BaseModel) -> None:
@@ -104,10 +121,7 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
         if info is None:
             return
         session = type(instance).session
-        owner_vals = {oc: getattr(instance, op) for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)}
-        session.exec(
-            info.table.delete().where(and_(*(info.table.c[oc] == v for oc, v in owner_vals.items()))),
-        )
+        session.exec(info.table.delete().where(info.owner_filter(instance)))
         session.commit()
 
     # No matching overload found for `Relationship.__get__` called with (User, type[User]).
@@ -131,15 +145,8 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
             return None
         # pyrefly: ignore [missing-attribute]
         session = type(instance).session
-        join_cond = and_(*(
-            info.table.c[tc] == info.target.__table__.c[tp]
-            for tc, tp in zip(info.target_cols, info.target_pk, strict=True)
-        ))
-        where_cond = and_(*(
-            info.table.c[oc] == getattr(instance, op)
-            for oc, op in zip(info.owner_cols, info.owner_pk, strict=True)
-        ))
-        return session.exec(select(info.target).join(info.table, join_cond).where(where_cond)).first()
+        query = select(info.target).join(info.table, info.target_join()).where(info.owner_filter(instance))
+        return session.exec(query).first()
 
     def build_link_for(self, owner: type[OT]) -> None:
         """Build (once) the association table joining ``owner`` to the target.

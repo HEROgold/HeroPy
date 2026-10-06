@@ -24,4 +24,4 @@ class Role(BaseModel, table=True):
     @staticmethod
     def normalize_name(value: str) -> str:
         """Normalize role names for consistency."""
-        return value.strip().lower().replace(" ", "_")
+        return value.strip().casefold().replace(" ", "_")
