@@ -1,4 +1,4 @@
-"""A simple cache that uses weak references, so values can be garbage collected once they are no longer in use."""
+"""A simple cache implementation using weak references so values can be garbage collected when unused."""
 
 from __future__ import annotations
 

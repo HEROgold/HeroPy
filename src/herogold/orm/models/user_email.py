@@ -1,5 +1,4 @@
 """Association table for users and secondary emails."""
-
 from __future__ import annotations
 
 from sqlalchemy import UniqueConstraint

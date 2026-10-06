@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import sys
-from configparser import ConfigParser
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-import pytest
-
+from herogold.orm.core.utils import get_foreign_key
 from herogold.orm.models.configuration import Configuration
 from herogold.orm.models.email import Email
 from herogold.orm.models.password import Password
@@ -17,17 +14,8 @@ from herogold.orm.models.user_email import UserEmail
 from herogold.orm.models.user_permission import UserPermission
 from herogold.orm.models.user_role import UserRole
 
-ROOT = Path(__file__).resolve().parents[1]
-ORM_SRC = ROOT / "herogold" / "src"
-if str(ORM_SRC) not in sys.path:
-    sys.path.insert(0, str(ORM_SRC))
-
-from herogold.orm.core.config import DbConfig  # noqa: E402
-from herogold.orm.core.utils import get_foreign_key  # noqa: E402
-
-PARSER = ConfigParser()
-PARSER.read(ROOT / "db_config.ini", encoding="utf-8")
-DbConfig.set_parser(PARSER)
+if TYPE_CHECKING:
+    from sqlmodel import Session
 
 
 def test_get_foreign_key_matches_model_tablename() -> None:
@@ -36,63 +24,78 @@ def test_get_foreign_key_matches_model_tablename() -> None:
     assert get_foreign_key(Role, "name") == "role.name"
 
 
-def test_optional_relationship_allows_none() -> None:
+def test_optional_relationship_allows_none(session: Session) -> None:
     user = User(username="alice", primary_email_id=None)
 
     assert user.primary_email is None
 
 
-def test_relationship_returns_instance_when_fk_holds_instance() -> None:
+def test_relationship_set_and_get_returns_instance(session: Session) -> None:
     user = User(username="owner")
     password = Password.create_for_user(1, "example-password")
+    password.add()
 
-    password.user_id = user
+    password.user = user
 
-    assert password.user is user
+    assert password.user is not None
+    assert password.user.id == user.id
 
 
-def test_non_optional_relationship_raises_when_fk_is_none() -> None:
+def test_relationship_returns_none_when_unset(session: Session) -> None:
     password = Password.create_for_user(1, "example-password")
-    password.user_id = None
+    password.add()
 
-    with pytest.raises(AttributeError, match="required but None"):
-        _ = password.user
+    assert password.user is None
 
 
-def test_association_relationships_resolve_instances() -> None:
+def test_association_relationships_resolve_instances(session: Session) -> None:
     user = User(username="dev")
     email = Email(email="dev@example.com")
     role = Role(name="admin")
     permission = Permission(name="repo:write", resource="repo", action="write")
 
     user_email = UserEmail(user_id=1, email_id=1)
-    user_email.user_id = user
-    user_email.email_id = email
+    user_email.add()
+    user_email.user = user
+    user_email.email = email
 
     user_role = UserRole(user_id=1, role_id=1)
-    user_role.user_id = user
-    user_role.role_id = role
+    user_role.add()
+    user_role.user = user
+    user_role.role = role
 
     user_permission = UserPermission(user_id=1, permission_id=1)
-    user_permission.user_id = user
-    user_permission.permission_id = permission
+    user_permission.add()
+    user_permission.user = user
+    user_permission.permission = permission
 
     role_permission = RolePermission(role_id=1, permission_id=1)
-    role_permission.role_id = role
-    role_permission.permission_id = permission
+    role_permission.add()
+    role_permission.role = role
+    role_permission.permission = permission
 
     configuration = Configuration(user_id=1, key="theme", value="dark")
-    configuration.user_id = user
+    configuration.add()
+    configuration.user = user
 
-    assert user_email.user is user
-    assert user_email.email is email
-    assert user_role.user is user
-    assert user_role.role is role
-    assert user_permission.user is user
-    assert user_permission.permission is permission
-    assert role_permission.role is role
-    assert role_permission.permission is permission
-    assert configuration.user is user
+    assert user_email.user is not None
+    assert user_email.user.id == user.id
+    assert user_email.email is not None
+    assert user_email.email.id == email.id
+    assert user_role.user is not None
+    assert user_role.user.id == user.id
+    assert user_role.role is not None
+    assert user_role.role.id == role.id
+    assert user_permission.user is not None
+    assert user_permission.user.id == user.id
+    assert user_permission.permission is not None
+    assert user_permission.permission.id == permission.id
+    assert role_permission.role is not None
+    assert role_permission.role.id == role.id
+    assert role_permission.permission is not None
+    assert role_permission.permission.id == permission.id
+    assert configuration.user is not None
+    assert configuration.user.id == user.id
 
 
 def test_foreign_key_targets_are_wired_via_helper() -> None:

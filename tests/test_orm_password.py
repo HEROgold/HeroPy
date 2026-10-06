@@ -1,23 +1,8 @@
 from __future__ import annotations
 
-import sys
-from configparser import ConfigParser
-from pathlib import Path
-
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-ORM_SRC = ROOT / "herogold" / "src"
-if str(ORM_SRC) not in sys.path:
-    sys.path.insert(0, str(ORM_SRC))
-
-from herogold.orm.core.config import DbConfig  # noqa: E402
-
-PARSER = ConfigParser()
-PARSER.read(ROOT / "db_config.ini", encoding="utf-8")
-DbConfig.set_parser(PARSER)
-
-from herogold.orm.models.password import Password  # noqa: E402
+from herogold.orm.models.password import Password
 
 
 def test_password_create_for_user_hashes_with_salt() -> None:
