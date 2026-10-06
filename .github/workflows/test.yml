@@ -16,6 +16,9 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # uv-managed Python ships tkinter; the runner's system Python does not.
+      UV_PYTHON_PREFERENCE: only-managed
 
     steps:
     - uses: actions/checkout@v4
