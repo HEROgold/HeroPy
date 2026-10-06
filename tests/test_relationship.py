@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_type
 
 import pytest
 from sqlalchemy import BigInteger, StaticPool
 from sqlalchemy.ext.compiler import compiles
 from sqlmodel import Session, SQLModel, create_engine
 
+import herogold.orm
 from herogold.orm.core.model import BaseModel, _BaseModel
-from herogold.orm.core.utils import SELF, Relationship, get_foreign_key
+from herogold.orm.core.utils import SELF, Relationship, SelfRelationship, get_foreign_key
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -26,6 +27,10 @@ class HasRel(BaseModel, table=True):
 
 class HasOpt(BaseModel, table=True):
     other = Relationship(Other, optional=True)
+
+
+class Tree(BaseModel, table=True):
+    parent = SelfRelationship()
 
 
 class Node(BaseModel, table=True):
@@ -115,3 +120,28 @@ def test_foreign_key_helper_accepts_generic() -> None:
 @compiles(BigInteger, "sqlite")
 def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
     return "INTEGER"
+
+
+def test_self_relationship_is_typed_as_owner(session: Session) -> None:
+    root = Tree()
+    root.add()
+    leaf = Tree()
+    leaf.add()
+    leaf.parent = root
+
+    parent = leaf.parent
+    assert_type(parent, Tree | None)
+    assert_type(Tree.parent, type[Tree])
+    assert parent is not None
+    assert parent.id == root.id
+
+
+def test_explicit_target_is_typed_as_target(session: Session) -> None:
+    owner = HasRel()
+    owner.add()
+    assert_type(owner.other, Other | None)
+
+
+@pytest.mark.parametrize("name", herogold.orm.__all__)
+def test_orm_lazy_exports_resolve(name: str) -> None:
+    assert getattr(herogold.orm, name) is not None

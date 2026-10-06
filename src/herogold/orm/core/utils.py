@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, TypeGuard, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 
 from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, and_
 from sqlmodel import SQLModel, select
@@ -11,7 +11,14 @@ from herogold.log import LoggerMixin
 from herogold.sentinel import create_sentinel
 
 if TYPE_CHECKING:
+    import sys
+
     from sqlalchemy import ColumnElement
+
+    if sys.version_info >= (3, 13):
+        from typing import TypeIs
+    else:
+        from typing_extensions import TypeIs
 
     # Imported for typing only: ``_BaseModel`` appears solely in (stringized)
     # annotations and the lazily-evaluated PEP 695 bound ``Relationship[T: _BaseModel]``.
@@ -165,9 +172,31 @@ class Relationship[T: _BaseModel](LoggerMixin):
             return owner
         return self.related_model
 
-    def _is_self_referential(self, owner: type[_BaseModel]) -> TypeGuard[type[T]]:
+    def _is_self_referential(self, owner: type[_BaseModel]) -> TypeIs[type[T]]:
         """Return True if the relationship is self-referential for the given owner."""
         return self.related_model is SELF or owner is self.related_model
+
+
+class SelfRelationship(Relationship[Any]):
+    """A :class:`Relationship` from a model to itself, typed as the owning model.
+
+    ``Relationship(SELF)`` cannot know its owner when it is created, so its target
+    type is unknown. This descriptor's ``__get__`` is generic over the owner instead:
+    ``parent = SelfRelationship()`` on ``Node`` makes ``node.parent`` a ``Node | None``.
+    """
+
+    def __init__(self, *, optional: bool = True) -> None:
+        """Initialise a relationship that targets the owning model."""
+        super().__init__(SELF, optional=optional)
+
+    if TYPE_CHECKING:
+
+        @overload
+        def __get__[O: _BaseModel](self, instance: None, owner: type[O]) -> type[O]: ...
+        @overload
+        def __get__[O: _BaseModel](self, instance: O, owner: type[O]) -> O | None: ...
+        def __get__(self, instance: _BaseModel | None, owner: type[_BaseModel]) -> Any:
+            """Typing-only signature; the runtime ``__get__`` is inherited from :class:`Relationship`."""
 
 
 
