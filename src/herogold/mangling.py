@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from herogold.errors import HerogoldError
 
-class ManglingError(Exception):
+
+class ManglingError(HerogoldError):
     """Custom exception for mangling errors."""
 
 

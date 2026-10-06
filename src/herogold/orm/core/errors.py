@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from herogold.errors import HerogoldError
 
-class NotFoundError(ValueError):
+
+class NotFoundError(HerogoldError, ValueError):
     """Custom exception for records not found in the database."""
 
 
-class AlreadyExistsError(ValueError):
+class AlreadyExistsError(HerogoldError, ValueError):
     """Custom exception for already existing records in the database."""

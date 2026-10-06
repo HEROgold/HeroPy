@@ -3,7 +3,14 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from herogold.errors import with_exception, with_group, with_known_exception
+import pytest
+
+from herogold.auto_update.connectors import CommandError, UpdateError
+from herogold.errors import HerogoldError, with_exception, with_group, with_known_exception
+from herogold.mangling import InvalidNameError, ManglingError
+from herogold.orm.core.errors import AlreadyExistsError, NotFoundError
+from herogold.orm.custom_data import OutOfSpaceError
+from herogold.state import InvalidTransitionError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -120,3 +127,20 @@ def test_with_group_returns_exception_group_when_any_exception_occurs() -> None:
     assert isinstance(result, ExceptionGroup)
     assert len(result.exceptions) == 1
     assert isinstance(result.exceptions[0], ZeroDivisionError)
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [
+        AlreadyExistsError,
+        CommandError,
+        InvalidNameError,
+        InvalidTransitionError,
+        ManglingError,
+        NotFoundError,
+        OutOfSpaceError,
+        UpdateError,
+    ],
+)
+def test_package_exceptions_share_herogold_error_base(exception: type[Exception]) -> None:
+    assert issubclass(exception, HerogoldError)

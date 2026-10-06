@@ -9,6 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
+from herogold.errors import HerogoldError
 from herogold.log.logger_mixin import LoggerMixin
 
 type Action[Context] = Callable[[Context], None]
@@ -18,7 +19,7 @@ type Transition[State, Event, Context] = dict[CurrentState[State, Event], NextSt
 type TransitionDecorator[Context] = Callable[[Action[Context]], Action[Context]]
 
 
-class InvalidTransitionError(Exception):
+class InvalidTransitionError(HerogoldError):
     """Raised when an invalid transition is attempted."""
 
 
