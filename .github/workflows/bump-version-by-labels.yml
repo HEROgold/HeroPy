@@ -31,8 +31,9 @@ jobs:
           version: "latest"
 
       - name: Bump by labels
-        uses: herogold/bump-by-label@v2
+        uses: herogold/bump-by-label@v3.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           command: "uv version --bump"
           validate: "uv version"
+          base_branch: master
