@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
+
+# Matches names that are true dunders: a non-underscore char immediately before
+# the trailing ``__`` (e.g. ``__init__``, ``__var__``).  Names like ``___``
+# do not match and will be treated as private (mangled) names.
+_DUNDER_RE = re.compile(r"^__.*[^_]__$")
 
 
 class ManglingError(Exception):
@@ -25,11 +31,10 @@ def mangle(cls: type, name: str) -> str:
     :param name: The original attribute name.
     :return: The mangled attribute name (e.g., '__ClassName__attribute').
     """
-    if name.endswith("__") and name.startswith("__"):
+    if _DUNDER_RE.match(name):
         # __x__ is a dunder method and is not mangled
         return name
-    if name.startswith("__") and not name.endswith("__"):
-        name = name[2:]
+    name = name.removeprefix("__")
     mangled = f"_{cls.__name__}__{name}"
     if not name.isidentifier() or name[0].isdigit():
         raise InvalidNameError(name)
@@ -43,8 +48,15 @@ def get_mangled_attribute(cls: type, owner: type, name: str) -> Any:  # noqa: AN
     `cls`: The class from which to get the attribute.
     `owner`: The owner class. This is the class that owns the attribute.
     `name`: The original attribute name.
-    `return`: The value found in the class `cls` with the mangled name.
+    `return`: The value found in the class `cls` with the mangled name,
+        falling back to the dunder ``__<name>__`` defined on `owner` itself.
     `raises`: `ManglingError` If the name is invalid or if the attribute does not exist in the class.
     """
     mangled_name = mangle(owner, name)
-    return getattr(cls, mangled_name)
+    if hasattr(cls, mangled_name):
+        return getattr(cls, mangled_name)
+    dunder_name = f"__{name}__"
+    if dunder_name in vars(owner):
+        return vars(owner)[dunder_name]
+    msg = f"type object '{cls.__name__}' has no attribute '{mangled_name}'"
+    raise AttributeError(msg)
