@@ -23,13 +23,14 @@ from sqlmodel import SQLModel as BaseSQLModel
 from herogold.log import LoggerMixin
 from herogold.orm.core.utils import ModelMeta, Relationship
 from herogold.typing.check import contains_sub_type
+from herogold.typing.classproperty import classproperty
 
 from .constants import session as db_session
 from .errors import AlreadyExistsError, NotFoundError
 
 if TYPE_CHECKING:
     import logging
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Iterator, Sequence
 
     from pydantic import ConfigDict
     from sqlalchemy.orm import Mapped
@@ -38,25 +39,6 @@ if TYPE_CHECKING:
 models: set[type[_BaseModel]] = set()
 def _current_utc() -> datetime:
     return datetime.now(UTC)
-
-
-class classproperty[T: BaseSQLModel]:  # noqa: N801
-    """Like `property`, but resolved on the class rather than an instance.
-
-    Stacking `@property` on top of `@classmethod` does not produce a working
-    class-level property, so a dedicated descriptor is needed. This also
-    supports `super().attr` lookups from subclass getters.
-    """
-
-    def __init__(self, fget: Callable[[type[T]], SelectOfScalar[T]]) -> None:
-        """Store the getter, called with the owner class."""
-        self.fget = fget
-
-    def __get__(self, obj: T, owner: type[T] | None = None) -> SelectOfScalar[T]:
-        """Call the getter with the owner class."""
-        if owner is None:
-            owner = type(obj)
-        return self.fget(owner)
 
 
 class ModelLogger(LoggerMixin):
