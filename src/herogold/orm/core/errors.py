@@ -11,3 +11,7 @@ class NotFoundError(HerogoldError, ValueError):
 
 class AlreadyExistsError(HerogoldError, ValueError):
     """Custom exception for already existing records in the database."""
+
+
+class PermissionDeniedError(HerogoldError):
+    """Raised when a user lacks a required permission."""
