@@ -1,45 +1,53 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NoReturn
+from collections import deque
+from functools import partial
+from typing import TYPE_CHECKING, Self
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Iterator
 
 
-def queue[**P, R](func: Callable[P, R], /) -> Generator[R | None, tuple[object, ...] | dict[str, object] | None, NoReturn]:
-    """Send arguments for callable `f` and yield the result of calling `f`.
+class CallQueue[**P, R]:
+    """Queue calls to `func` and yield their results in submission order.
 
+    Arguments are checked against `func`'s signature through the ParamSpec, so
+    `submit` accepts exactly what `func` accepts.
 
     Usage:
     ```py
         def add(x: int, y: int) -> int:
             return x + y
-        q = queue(add)
-        x = next(q) or 0  # Prime the generator
-        q.send((x, 3))  # Returns None, but queues the arguments for processing
-        result = next(q)  # result == 3
+        q = CallQueue(add)
+        q.submit(1, 2)
+        q.submit(x=3, y=4)
+        results = list(q)  # results == [3, 7]
     ```
-
-    Tip:
-        - Using `next(q) or 0` helps to prime the generator, using 0 as a fallback for when the generator yields `None`.
     """
-    queue: list[tuple[object, ...] | dict[str, object]] = []
-    input_ = yield None  # Prime the generator
-    while True:
-        match input_, queue[0] if queue else None:
-            case dict() as kwargs, _value:
-                queue.append(kwargs)
-                input_ = yield None
-            case tuple() as args, _value:
-                queue.append(args)
-                input_ = yield None
-            # *args, **kwargs are mutually exclusive. so we ignore missing-argument.
-            case None, dict() as kwargs:
-                input_ = yield func(**kwargs)  # ty:ignore[missing-argument, invalid-argument-type]
-                queue.pop(0)
-            case None, tuple() as args:
-                input_ = yield func(*args)  # ty:ignore[missing-argument, invalid-argument-type]
-                queue.pop(0)
+
+    def __init__(self, func: Callable[P, R], /) -> None:
+        """Store the callable that every queued call is made against."""
+        self._func = func
+        self._pending: deque[Callable[[], R]] = deque()
+
+    def __len__(self) -> int:
+        """Return the number of queued calls."""
+        return len(self._pending)
+
+    def __iter__(self) -> Iterator[R]:
+        """Return the queue itself; iterating drains it."""
+        return self
+
+    def __next__(self) -> R:
+        """Run the oldest queued call and return its result."""
+        if not self._pending:
+            raise StopIteration
+        return self._pending.popleft()()
+
+    def submit(self, *args: P.args, **kwargs: P.kwargs) -> Self:
+        """Queue a call to `func` with the given arguments."""
+        self._pending.append(partial(self._func, *args, **kwargs))
+        return self
 
 
 # Example
@@ -48,8 +56,7 @@ if __name__ == "__main__":
     def add(x: int, y: int) -> int:
         return x + y
 
-    q = queue(add)
-    while x := next(q) or 1:
-        print(f"Sending: {x}")
-        q.send((x, 1))
-        q.send({"x": x, "y": 9})
+    q = CallQueue(add)
+    q.submit(1, 1).submit(x=2, y=9)
+    for result in q:
+        print(f"Result: {result}")
