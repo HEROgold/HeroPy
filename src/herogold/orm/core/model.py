@@ -50,9 +50,11 @@ class classproperty[T: BaseSQLModel]:  # noqa: N801
     """
 
     def __init__(self, fget: Callable[[type[T]], SelectOfScalar[T]]) -> None:
+        """Store the getter, called with the owner class."""
         self.fget = fget
 
     def __get__(self, obj: T, owner: type[T] | None = None) -> SelectOfScalar[T]:
+        """Call the getter with the owner class."""
         if owner is None:
             owner = type(obj)
         return self.fget(owner)
@@ -153,7 +155,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         self._delete_record(self._get_session(session))
 
     @classproperty
-    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805
+    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805  # ty: ignore[invalid-type-form]
         """Return a default query for the model."""
         return select(cls)
 
@@ -226,7 +228,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         cls.logger.debug("Getting session: %s", session, extra={"session": session})
         return session or cls.session
 
-# TODO: move to its own module.
+# TODO(HEROgold): move to its own module.  # noqa: TD003
 class CustomData(_BaseModel, table=True):
     """Persisted extra-data table: a single JSONB blob per row.
 
@@ -311,7 +313,7 @@ class BaseModel(_BaseModel):
         )
 
     @classproperty
-    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805
+    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805  # ty: ignore[invalid-type-form]
         """Return a default query for the model."""
         return super().query.where(cls.deleted_at == None)  # noqa: E711
 
@@ -395,7 +397,7 @@ class DataModel(_BaseModel):
         sa_column_kwargs={"autoincrement": True},
     )
     timestamp: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=partial(datetime.now, UTC),
         primary_key=True,
     )
 

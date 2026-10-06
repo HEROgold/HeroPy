@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, cast, overload
 from herogold.asynchronous import dual_wraps
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Generator, Iterable
+    from collections.abc import Awaitable, Callable, Iterable
 
 
 def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable[[Callable[P, F | E]], Callable[P, F | E]]:
@@ -114,31 +114,3 @@ def _return_exception[**P, T](func: Callable[P, T], *args: P.args, **kwargs: P.k
     except Exception as e:  # noqa: BLE001
         return e
 
-
-if __name__ == "__main__":
-    # TODO: move to tests
-
-    @with_exception
-    def test(i: int) -> float:  # noqa: D103
-        return 10 / i
-
-    @with_known_exception(ZeroDivisionError)
-    def test2(i: int) -> float:  # noqa: D103
-        return 10 / i
-
-    @with_group
-    def test_group() -> Generator[float | Exception]:  # noqa: D103
-        return (test(i) for i in range(-2, 3))
-
-    def test_generator() -> Generator[float | Exception]:  # noqa: D103
-        return (test(i) for i in range(-2, 3))
-
-    r1: int | float | Exception = test(0)
-    r2: float | ZeroDivisionError = test2(0)
-    r3: Iterable[float] | ExceptionGroup[Exception] = test_group()
-    r4: Generator[int | float | Exception, None, None] = test_generator()
-
-    print(r1)  # noqa: T201
-    print(r2)  # noqa: T201
-    print(r3)  # noqa: T201
-    print(list(r4))  # noqa: T201

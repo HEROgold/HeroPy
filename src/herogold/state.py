@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import cast
 
 from herogold.log.logger_mixin import LoggerMixin
 
@@ -45,7 +46,7 @@ class StateMachine[State: Enum, Event: Enum, Context](LoggerMixin):
 
         Can be used as a decorator to add the action for the transition.
         """
-        from_states = (from_,) if isinstance(from_, Enum) else from_
+        from_states = (cast("State", from_),) if isinstance(from_, Enum) else from_
 
         def decorator(func: Action[Context]) -> Action[Context]:
             for i in from_states:
