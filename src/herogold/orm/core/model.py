@@ -9,7 +9,8 @@ from datetime import UTC, datetime
 from types import NoneType
 from typing import TYPE_CHECKING, Any, ClassVar, Unpack
 
-from sqlalchemy import BigInteger, ScalarResult, func
+from sqlalchemy import JSON, BigInteger, Column, ScalarResult, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Session, col, select
 from sqlmodel import SQLModel as BaseSQLModel
 
@@ -211,5 +212,5 @@ class BaseModel(BaseSQLModel):
 class ExtraData(BaseModel):
     """Model for storing extra data in JSONB format."""
 
-    data: dict[str, Any] = Field(default_factory=dict, sa_column_kwargs={"type_": "JSONB"})
+    data: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON().with_variant(JSONB(), "postgresql")))
     extra = None  # Avoid recursive relationship with itself
