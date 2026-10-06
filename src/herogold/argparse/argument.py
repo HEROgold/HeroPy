@@ -232,7 +232,7 @@ class Namespace(ArgparseNamespace):
     def _resolve_subcommand(cls, raw: ArgparseNamespace) -> type[Namespace]:
         """Walk the subcommand registry to find the class matching the parsed subcommand chain."""
         current = cls
-        while current._subparsers is not None:  # noqa: SLF001
+        while current._subparsers is not None and current._subparsers_dest is not None:  # noqa: SLF001
             chosen = getattr(raw, current._subparsers_dest, None)  # noqa: SLF001
             if chosen is None:
                 break

@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
 
-def queue[**P, R](func: Callable[P, R], /) -> Generator[R | None, *P | None, NoReturn]:
+def queue[**P, R](func: Callable[P, R], /) -> Generator[R | None, tuple[object, ...] | dict[str, object] | None, NoReturn]:
     """Send arguments for callable `f` and yield the result of calling `f`.
 
 
@@ -23,7 +23,7 @@ def queue[**P, R](func: Callable[P, R], /) -> Generator[R | None, *P | None, NoR
     Tip:
         - Using `next(q) or 0` helps to prime the generator, using 0 as a fallback for when the generator yields `None`.
     """
-    queue: list[P.args | P.kwargs] = []
+    queue: list[tuple[object, ...] | dict[str, object]] = []
     input_ = yield None  # Prime the generator
     while True:
         match input_, queue[0] if queue else None:
@@ -35,10 +35,10 @@ def queue[**P, R](func: Callable[P, R], /) -> Generator[R | None, *P | None, NoR
                 input_ = yield None
             # *args, **kwargs are mutually exclusive. so we ignore missing-argument.
             case None, dict() as kwargs:
-                input_ = yield func(**kwargs)  # ty:ignore[missing-argument]
+                input_ = yield func(**kwargs)  # ty:ignore[missing-argument, invalid-argument-type]
                 queue.pop(0)
             case None, tuple() as args:
-                input_ = yield func(*args)  # ty:ignore[missing-argument]
+                input_ = yield func(*args)  # ty:ignore[missing-argument, invalid-argument-type]
                 queue.pop(0)
 
 
