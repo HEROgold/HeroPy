@@ -6,6 +6,7 @@ successfully.
 
 from __future__ import annotations
 
+import errno
 import shutil
 from pathlib import Path
 from tempfile import mkdtemp
@@ -15,8 +16,6 @@ if TYPE_CHECKING:
     from types import TracebackType
 
 temp_dir = Path(mkdtemp())
-
-DIRECTORY_NOT_EMPTY_CODE = 145
 
 
 class TempFile:
@@ -52,6 +51,7 @@ class TempFile:
         try:
             temp_dir.rmdir()
         except OSError as e:
-            # directory is not empty,ignore it.
-            if e.winerror == DIRECTORY_NOT_EMPTY_CODE:
-                pass
+            # Other temp files still live in the directory; leave it for them.
+            # errno (not winerror) so this holds on every platform.
+            if e.errno != errno.ENOTEMPTY:
+                raise

@@ -30,6 +30,14 @@ def test_with_exception_returns_exception_when_failing() -> None:
     assert isinstance(result, ZeroDivisionError)
 
 
+def test_with_known_exception_returns_exception_when_known() -> None:
+    @with_known_exception(ZeroDivisionError)
+    def divide(value: int) -> float:
+        return 10 / value
+
+    assert isinstance(divide(0), ZeroDivisionError)
+
+
 def test_with_group_returns_values_for_successful_iterable() -> None:
     @with_group
     def values() -> Iterable[int | Exception]:
