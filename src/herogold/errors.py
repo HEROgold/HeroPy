@@ -117,4 +117,3 @@ def _return_exception[**P, T](func: Callable[P, T], *args: P.args, **kwargs: P.k
         return func(*args, **kwargs)
     except Exception as e:  # noqa: BLE001
         return e
-

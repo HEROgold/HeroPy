@@ -237,3 +237,55 @@ class TestMultipleInheritance:
         assert mangle(Child, "__test") == "_Child__test"
         assert mangle(Parent, "__test") == "_Parent__test"
         assert mangle(GrandParent, "__test") == "_GrandParent__test"
+
+
+class TestGetMangledAttributeDunderFallback:
+    """Dunder (``__name__``) lookup on the owner, ported from PR #6."""
+
+    def test_dunder_attributes(self) -> None:
+        class Container:
+            __num__ = 42
+            __lst__ = [1, 2, 3]  # noqa: RUF012
+
+        assert get_mangled_attribute(Container, Container, "num") == 42
+        assert get_mangled_attribute(Container, Container, "lst") == [1, 2, 3]
+
+    def test_dunder_attribute_from_owner(self) -> None:
+        class Base:
+            __secret__ = "base_value"  # noqa: S105
+
+        class Derived(Base):
+            pass
+
+        assert get_mangled_attribute(Derived, Base, "secret") == "base_value"
+
+    def test_dunder_attribute_per_owner_with_multiple_inheritance(self) -> None:
+        class A:
+            __attr__ = "from_a"
+
+        class B(A):
+            __attr__ = "from_b"
+
+        class C(A):
+            __attr__ = "from_c"
+
+        class D(B, C):
+            pass
+
+        assert get_mangled_attribute(D, A, "attr") == "from_a"
+        assert get_mangled_attribute(D, B, "attr") == "from_b"
+        assert get_mangled_attribute(D, C, "attr") == "from_c"
+
+    def test_private_attribute_takes_precedence(self) -> None:
+        class TestClass:
+            __attr = "private"
+            __attr__ = "dunder"
+
+        assert get_mangled_attribute(TestClass, TestClass, "attr") == "private"
+
+
+def test_mangle_underscores_only_is_not_a_dunder() -> None:
+    class TestClass:
+        pass
+
+    assert mangle(TestClass, "___") == "_TestClass___"
