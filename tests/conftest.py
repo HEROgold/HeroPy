@@ -18,6 +18,9 @@ if str(SRC) not in sys.path:
 
 from herogold.orm.core.model import BaseModel, _BaseModel  # noqa: E402
 
+# t-strings are a syntax error before 3.14, so the module cannot even be collected.
+collect_ignore = [] if sys.version_info >= (3, 14) else ["test_314_loggers.py"]
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 

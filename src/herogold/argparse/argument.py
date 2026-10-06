@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 from herogold.colors import Bold, colorize
 from herogold.sentinel import MISSING
 
-# TODO; fix following --help and no --help differences.
+# TODO(HEROgold): fix following --help and no --help differences.  # noqa: TD003
 """
 $ uvx funcsort --help
 usage: usage:

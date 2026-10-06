@@ -2,6 +2,7 @@ indent-width = 4
 line-length = 128
 unsafe-fixes = true
 preview=false
+per-file-target-version = { "tests/test_314_loggers.py" = "py314" }
 
 [lint]
 exclude = ["build", "dist", "venv"]

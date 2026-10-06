@@ -179,7 +179,7 @@ class CLI:
     command: LiteralString | str
     success = False
 
-# TODO: make commandrunner into a full heropy library.
+# TODO(HEROgold): make commandrunner into a full heropy library.  # noqa: TD003
 class CommandRunner:
     """Run a series of command line interface commands."""
 
@@ -291,7 +291,7 @@ class GitHub(HTTP):
                 raise CommandError(msg)
             return _Downloaded(self.install, b"")
 
-        # FIXME: actually get the latest release .zip file.
+        # TODO(HEROgold): actually get the latest release .zip file.  # noqa: TD003
         response = self.client.get(self.source.url)
         response.raise_for_status()
         return _Downloaded(self.install, response.content)
@@ -384,6 +384,8 @@ class GitHub(HTTP):
 
         results = list(results)
         last = results[-1]
+        if isinstance(last, UpdateError):
+            raise last
         return last[-1].decode()
 
     @with_known_exception(CommandError)
@@ -397,4 +399,6 @@ class GitHub(HTTP):
 
         results = list(results)
         last = results[-1]
+        if isinstance(last, UpdateError):
+            raise last
         return last[-1].decode()

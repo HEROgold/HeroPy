@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, ClassVar
 
 import pytest
@@ -121,7 +121,7 @@ def test_no_custom_data_leaves_link_empty(api: APIModel[Widget]) -> None:
 
 def test_datamodel_create_persists_and_links(session: Session) -> None:
     api = APIModel(History, APIRouter())
-    item = History(label="v1", id=1, timestamp=datetime.now())  # noqa: DTZ005
+    item = History(label="v1", id=1, timestamp=datetime.now(UTC))
     api.create(item, {"note": "first"})
 
     fetched = api.get(item.id)

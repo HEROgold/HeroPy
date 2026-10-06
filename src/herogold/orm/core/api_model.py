@@ -161,12 +161,12 @@ class RequestFilter[T: _BaseModel]:
         q = self._kwargs_filter(**kwargs) if kwargs else self.query
         for f in self.request.filters:
             if f.field not in self.model.model_fields:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter field: {f.field}")
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter field: {f.field}")  # noqa: E501
             operator = self._operators.get(f.op)
             if f.op is Operator.in_ and not isinstance(f.value, Iterable):
                 raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid value for 'in' operator: {f.value}")  # noqa: E501
             if not operator:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter operator: {f.op}")
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter operator: {f.op}")  # noqa: E501
             q = self.query.where(operator(col(getattr(self.model, f.field)), f.value))
         return RequestFilter(self.model, self.request, q)
 
@@ -174,7 +174,7 @@ class RequestFilter[T: _BaseModel]:
         """Sort inplace records based on a QueryRequest, applying sorting and pagination."""
         q = self.query
         if self.request.sort and self.request.sort not in self.model.model_fields:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid sort field: {self.request.sort}")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid sort field: {self.request.sort}")  # noqa: E501
         if self.request.sort and self.request.sort in self.model.model_fields:
             sort_col = col(getattr(self.model, self.request.sort))
             q = self.query.order_by(sort_col.desc() if self.request.order.lower() == "desc" else sort_col.asc())
@@ -248,7 +248,7 @@ class APIModel[T: _BaseModel]:
             200: {"description": "Successful Response"},
             404: {"description": "Not Found"},
         }
-        # TODO: ensure rollback of failing routes/endpoints
+        # TODO(HEROgold): ensure rollback of failing routes/endpoints  # noqa: TD003
         router.add_api_route(
             "/",
             self.options,
@@ -295,7 +295,7 @@ class APIModel[T: _BaseModel]:
             "/",
             self.query,
             methods=["QUERY"],
-            response_model=QueryResponse[T],  # ty: ignore[invalid-type-form]
+            response_model=QueryResponse[T],
             responses={
                 200: {"description": "Successful Response"},
                 400: {"description": "Missing or inconsistent Content-Type"},
@@ -326,7 +326,7 @@ class APIModel[T: _BaseModel]:
         # ince we support Query, we dont need kwargs here?
     ) -> Generator[T]:
         """Get all records with optional sorting, pagination, and filtering."""
-        # TODO: update signature to explicitly define types on sort and kwargs.
+        # TODO(HEROgold): update signature to explicitly define types on sort and kwargs.  # noqa: TD003
         # sort should be a FieldType, and kwargs should be a dict of field names to values.
         request = QueryRequest(filters=[], sort=sort, order=order, page=page, limit=limit)
         q = RequestFilter(self.model, request).filter(**kwargs).query

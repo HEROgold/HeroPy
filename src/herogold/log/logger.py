@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from logging import Logger as LoggingLogger
-from string.templatelib import Interpolation, Template
+from string.templatelib import Interpolation, Template  # ty: ignore[unresolved-import]  # 3.14+ only, guarded in __init__
 from typing import TYPE_CHECKING, Any, override
 
 if TYPE_CHECKING:
