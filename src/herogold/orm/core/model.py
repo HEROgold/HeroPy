@@ -63,7 +63,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
 
     if TYPE_CHECKING:
         # pyrefly: ignore [bad-assignment, bad-dataclass-descriptor]
-        custom_data: Relationship[CustomData] = None  # ty: ignore[invalid-assignment]
+        custom_data: Relationship[CustomData, _BaseModel] = None  # ty: ignore[invalid-assignment]
         # ``custom_data`` (a Relationship to the CustomData table) is attached below,
         # after CustomData is defined, because it targets a subclass of this class.
         __table__: ClassVar[Table]
@@ -239,10 +239,10 @@ class CustomData(_BaseModel, table=True):
 # ``custom_data`` link table (it stays a leaf).
 _custom_data = Relationship(CustomData)
 # pyrefly: ignore [bad-argument-type]
-_custom_data.__set_name__(_BaseModel, "custom_data")  # ty: ignore[invalid-argument-type]
+_custom_data.__set_name__(_BaseModel, "custom_data")
 _BaseModel.custom_data = _custom_data
 
-# TODO: rename to just "Model"
+# TODO(HEROgold): rename to just "Model"  # noqa: TD003
 # as _BaseModel name conflicts with this one currently
 class BaseModel(_BaseModel):
     """Base model class with custom methods."""
