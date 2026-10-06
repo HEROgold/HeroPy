@@ -6,11 +6,11 @@ It is used to define the subscription plan for a user.
 """
 from __future__ import annotations
 
-from datetime import datetime
-from decimal import Decimal
+from datetime import datetime  # noqa: TC003  SQLModel resolves field types at runtime.
+from decimal import Decimal  # noqa: TC003
 
 import dinero.currencies as _currencies
-from dinero.types import Currency
+from dinero.types import Currency  # noqa: TC002
 
 from herogold.orm.core.model import BaseModel
 
