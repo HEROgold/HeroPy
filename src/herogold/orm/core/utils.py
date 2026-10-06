@@ -150,37 +150,13 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
         if owner in self._links:
             return
         target = self._resolve_target(owner)
+        # Prefixes (owner tablename / attribute name) keep the self-referential case from colliding.
+        owner_pk, owner_cols = _pk_columns(owner, prefix=str(owner.__tablename__))
+        target_pk, target_cols = _pk_columns(target, prefix=self.name)
         link_name = f"{owner.__tablename__}_{self.name}"
-        metadata = owner.metadata
-
-        owner_pk = [c.name for c in owner.__table__.primary_key.columns]
-        target_pk = [c.name for c in target.__table__.primary_key.columns]
-        # Column names are prefixed by the owner tablename / the attribute name so
-        # the self-referential case (owner is target) does not collide.
-        owner_cols = [f"{owner.__tablename__}_{pk}" for pk in owner_pk]
-        target_cols = [f"{self.name}_{pk}" for pk in target_pk]
-
-        if link_name in metadata.tables:
-            table = metadata.tables[link_name]
-        else:
-            columns = [
-                Column(col, pk_col.type, ForeignKey(f"{owner.__tablename__}.{pk}"), primary_key=True)
-                for col, pk, pk_col in zip(owner_cols, owner_pk, owner.__table__.primary_key.columns, strict=True)
-            ]
-            columns += [
-                Column(col, pk_col.type, ForeignKey(f"{target.__tablename__}.{pk}"), primary_key=True)
-                for col, pk, pk_col in zip(target_cols, target_pk, target.__table__.primary_key.columns, strict=True)
-            ]
-            table = Table(
-                link_name,
-                metadata,
-                *columns,
-                # single-valued: at most one link per owner row
-                UniqueConstraint(*owner_cols, name=f"uq_{link_name}"),
-                # secondary index for reverse (target -> owners) lookups
-                Index(f"ix_{link_name}_tgt", *target_cols),
-            )
-
+        table = owner.metadata.tables.get(link_name)
+        if table is None:
+            table = _create_link_table(link_name, owner, owner_cols, target, target_cols)
         self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
 
     def _resolve_target(self, owner: type[OT]) -> type[T]:
@@ -193,6 +169,40 @@ class Relationship[T: _BaseModel, OT: _BaseModel](LoggerMixin):
         """Return True if the relationship is self-referential for the given owner."""
         return self.related_model is SELF or owner is self.related_model
 
+
+
+def _pk_columns(model: type[_BaseModel], prefix: str) -> tuple[list[str], list[str]]:
+    """Return ``model``'s primary-key attribute names and the matching ``<prefix>_<pk>`` link-table column names."""
+    pk = [c.name for c in model.__table__.primary_key.columns]
+    return pk, [f"{prefix}_{name}" for name in pk]
+
+
+def _fk_columns(model: type[_BaseModel], link_cols: list[str]) -> list[Column]:
+    """Build link-table columns ``link_cols`` that reference ``model``'s primary key."""
+    return [
+        Column(col, pk_col.type, ForeignKey(f"{model.__tablename__}.{pk_col.name}"), primary_key=True)
+        for col, pk_col in zip(link_cols, model.__table__.primary_key.columns, strict=True)
+    ]
+
+
+def _create_link_table(
+    name: str,
+    owner: type[_BaseModel],
+    owner_cols: list[str],
+    target: type[_BaseModel],
+    target_cols: list[str],
+) -> Table:
+    """Create the association table linking ``owner`` rows to ``target`` rows."""
+    return Table(
+        name,
+        owner.metadata,
+        *_fk_columns(owner, owner_cols),
+        *_fk_columns(target, target_cols),
+        # single-valued: at most one link per owner row
+        UniqueConstraint(*owner_cols, name=f"uq_{name}"),
+        # secondary index for reverse (target -> owners) lookups
+        Index(f"ix_{name}_tgt", *target_cols),
+    )
 
 
 class ModelMeta(type(SQLModel)):

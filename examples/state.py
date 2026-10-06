@@ -39,26 +39,22 @@ class PaymentCtx:
 pay_sm = StateMachine[PayState, PayEvent, PaymentCtx]()
 
 
-@pay_sm.add(PayState.NEW, PayEvent.AUTHORIZE, PayState.AUTHORIZED)
+@pay_sm.add(PayState.NEW, event=PayEvent.AUTHORIZE, to_state=PayState.AUTHORIZED)
 def authorize(ctx: PaymentCtx) -> None:
     ctx.audit.append(f"{ctx.payment_id}: authorized")
 
 
-@pay_sm.add((PayState.NEW, PayState.AUTHORIZED), PayEvent.FAIL, PayState.FAILED)
+@pay_sm.add(PayState.NEW, PayState.AUTHORIZED, event=PayEvent.FAIL, to_state=PayState.FAILED)
 def fail(ctx: PaymentCtx) -> None:
     ctx.audit.append(f"{ctx.payment_id}: failed")
 
 
-@pay_sm.add(PayState.AUTHORIZED, PayEvent.CAPTURE, PayState.CAPTURED)
+@pay_sm.add(PayState.AUTHORIZED, event=PayEvent.CAPTURE, to_state=PayState.CAPTURED)
 def capture(ctx: PaymentCtx) -> None:
     ctx.audit.append(f"{ctx.payment_id}: captured")
 
 
-@pay_sm.add(
-    (PayState.AUTHORIZED, PayState.CAPTURED),
-    PayEvent.REFUND,
-    PayState.REFUNDED,
-)
+@pay_sm.add(PayState.AUTHORIZED, PayState.CAPTURED, event=PayEvent.REFUND, to_state=PayState.REFUNDED)
 def refund(ctx: PaymentCtx) -> None:
     ctx.audit.append(f"{ctx.payment_id}: refunded")
 

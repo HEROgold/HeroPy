@@ -11,7 +11,6 @@ from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from enum import Enum, auto
 from functools import partial
-from types import NoneType
 from typing import TYPE_CHECKING, Any, ClassVar, Self, Unpack, override
 
 from sqlalchemy import JSON, BigInteger, Column, ScalarResult, func
@@ -30,7 +29,7 @@ from .errors import AlreadyExistsError, NotFoundError
 
 if TYPE_CHECKING:
     import logging
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterator, Sequence
 
     from pydantic import ConfigDict
     from sqlalchemy.orm import Mapped
@@ -209,6 +208,21 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
             raise AlreadyExistsError(msg)
 
+    def _assignable_fields(self) -> Iterator[tuple[str, Any]]:
+        """Yield ``(name, value)`` for every field whose value may be copied onto the stored record.
+
+        Skips ``id``, fields without an annotation, and ``None`` values (so unset
+        optional fields never overwrite stored data).
+        """
+        for name, info in type(self).model_fields.items():
+            if name == "id":
+                continue
+            value = getattr(self, name)
+            if info.annotation is None or value is None:
+                continue
+            if type(value) is info.annotation or contains_sub_type(info, info.annotation):
+                yield name, value
+
     @abstractmethod
     def _update_record(self, session: Session, entry: Self) -> None:
         """Update the record in the database with the current instance's values.
@@ -338,26 +352,8 @@ class BaseModel(_BaseModel):
     def _update_record(self, session: Session, entry: Self) -> None:
         self.logger.debug("Updating record: %s", self, extra={"record": self})
         session = self._get_session(session)
-        for name, info in self.__class__.model_fields.items():
-            if name == "id":
-                continue
-            value = getattr(self, name)
-            value_type: type[Any] = type(value)
-            if info.annotation is None or value_type is NoneType:
-                # Filter out fields without type annotations. Filters out optional fields too.
-                continue
-            self.logger.debug(
-                "%s: %s, %s",
-                value_type,
-                value_type is info.annotation,
-                self,
-                extra={"record": self},
-            )
-            if value_type is not info.annotation:
-                self.logger.debug("Contains sub type: %s", contains_sub_type(info, info.annotation), extra={"record": self})
-            if value_type is info.annotation or contains_sub_type(info, info.annotation):
-                # Set the actual value from the instance, not from field info
-                setattr(entry, name, value)
+        for name, value in self._assignable_fields():
+            setattr(entry, name, value)
         entry.updated_at = _current_utc()
         session.add(entry)
         session.commit()
@@ -428,26 +424,8 @@ class DataModel(_BaseModel):
     def _update_record(self, session: Session, entry: Self) -> None:
         self.logger.debug("Updating record: %s", self, extra={"record": self})
         self.action = Actions.UPDATE
-        for name, info in self.__class__.model_fields.items():
-            if name == "id":
-                continue
-            value = getattr(self, name)
-            value_type: type[Any] = type(value)
-            if info.annotation is None or value_type is NoneType:
-                # Filter out fields without type annotations. Filters out optional fields too.
-                continue
-            self.logger.debug(
-                "%s: %s, %s",
-                value_type,
-                value_type is info.annotation,
-                self,
-                extra={"record": self},
-            )
-            if value_type is not info.annotation:
-                self.logger.debug("Contains sub type: %s", contains_sub_type(info, info.annotation), extra={"record": self})
-            if value_type is info.annotation or contains_sub_type(info, info.annotation):
-                # Set the actual value from the instance, not from field info
-                setattr(entry, name, value)
+        for name, value in self._assignable_fields():
+            setattr(entry, name, value)
         session.add(self)
         session.commit()
 
