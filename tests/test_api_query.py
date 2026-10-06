@@ -11,8 +11,16 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from herogold.orm.core.api_model import APIModel, Operator, PaginatedResponse, QueryFilter, QueryRequest
+from herogold.orm.core.api_model import (
+    APIModel,
+    Operator,
+    PaginatedResponse,
+    QueryFilter,
+    QueryRequest,
+    RequestFilter,
+)
 from herogold.orm.core.model import BaseModel
+from herogold.protocols import Filterable, Sortable
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -255,6 +263,21 @@ def test_api_operator_in_http(api: APIModel[Item]) -> None:
     assert item.name == "small box"
     assert item.price == 5
     assert item.deleted_at is None
+
+def test_api_multiple_filters_combine(api: APIModel[Item]) -> None:
+    filters = [
+        QueryFilter(field="price", op=Operator.gt, value=10),
+        QueryFilter(field="name", op=Operator.like, value="%box%"),
+    ]
+    rows = api.query(QueryRequest(filters=filters))["items"]
+    assert [r.name for r in rows] == ["big box"]
+
+def test_request_filter_is_iterable(api: APIModel[Item]) -> None:
+    request = QueryRequest(filters=[QueryFilter(field="price", op=Operator.lt, value=50)])
+    request_filter = RequestFilter(Item, request).filter()
+    assert isinstance(request_filter, Filterable)
+    assert isinstance(request_filter, Sortable)
+    assert sorted((r.price for r in request_filter), reverse=True) == [20, 5]
 
 def test_api_sort_and_order(api: APIModel[Item]) -> None:
     rows = api.query(QueryRequest(sort="price", order="desc"))["items"]
