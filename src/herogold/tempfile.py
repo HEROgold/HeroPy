@@ -53,5 +53,5 @@ class TempFile:
             temp_dir.rmdir()
         except OSError as e:
             # directory is not empty,ignore it.
-            if e.winerror == DIRECTORY_NOT_EMPTY_CODE:
+            if getattr(e, "winerror", None) == DIRECTORY_NOT_EMPTY_CODE:
                 pass
