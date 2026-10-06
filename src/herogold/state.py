@@ -9,6 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
+from herogold.errors import HerogoldError
 from herogold.log.logger_mixin import LoggerMixin
 
 type Action[Context] = Callable[[Context], None]
@@ -18,7 +19,7 @@ type Transition[State, Event, Context] = dict[CurrentState[State, Event], NextSt
 type TransitionDecorator[Context] = Callable[[Action[Context]], Action[Context]]
 
 
-class InvalidTransitionError(Exception):
+class InvalidTransitionError(HerogoldError):
     """Raised when an invalid transition is attempted."""
 
 
@@ -27,25 +28,6 @@ class StateMachine[State: Enum, Event: Enum, Context](LoggerMixin):
     """State machine for handling state transitions."""
 
     transitions: Transition[State, Event, Context] = field(default_factory=dict)
-
-    def _add(
-        self,
-        from_: State,
-        event: Event,
-        to: State,
-        func: Action[Context],
-    ) -> None:
-        """Add a transition to the state machine."""
-        self.logger.debug("Adding transition: {%s} + {%s} -> {%s}", from_, event, to)
-        self.transitions[(from_, event)] = (to, func)
-
-    def _next(self, state: State, event: Event) -> tuple[State, Action[Context]]:
-        """Return the next state and action for a given state and event."""
-        try:
-            return self.transitions[(state, event)]
-        except KeyError as e:
-            msg = f"Cannot {event.name} when {state.name}"
-            raise InvalidTransitionError(msg) from e
 
     def handle(self, ctx: Context, state: State, event: Event) -> State:
         """Handle an event and return the next state."""
@@ -71,3 +53,22 @@ class StateMachine[State: Enum, Event: Enum, Context](LoggerMixin):
             return func
 
         return decorator
+
+    def _add(
+        self,
+        from_: State,
+        event: Event,
+        to: State,
+        func: Action[Context],
+    ) -> None:
+        """Add a transition to the state machine."""
+        self.logger.debug("Adding transition: {%s} + {%s} -> {%s}", from_, event, to)
+        self.transitions[(from_, event)] = (to, func)
+
+    def _next(self, state: State, event: Event) -> tuple[State, Action[Context]]:
+        """Return the next state and action for a given state and event."""
+        try:
+            return self.transitions[(state, event)]
+        except KeyError as e:
+            msg = f"Cannot {event.name} when {state.name}"
+            raise InvalidTransitionError(msg) from e

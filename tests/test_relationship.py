@@ -1,9 +1,18 @@
 from __future__ import annotations
 
-from sqlmodel import Session, SQLModel
+from typing import TYPE_CHECKING
 
-from herogold.orm.core.model import BaseModel
+import pytest
+from sqlalchemy import BigInteger, StaticPool
+from sqlalchemy.ext.compiler import compiles
+from sqlmodel import Session, SQLModel, create_engine
+
+from herogold.orm.core.model import BaseModel, _BaseModel
 from herogold.orm.core.utils import SELF, Relationship, get_foreign_key
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 
 
 # Association tables require real tables, so every model here is table=True.
@@ -21,6 +30,30 @@ class HasOpt(BaseModel, table=True):
 
 class Node(BaseModel, table=True):
     parent = Relationship(SELF, optional=True)
+
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
+    return "INTEGER"
+
+@pytest.fixture
+def session() -> Iterator[Session]:
+    engine = create_engine(url="sqlite:///:memory:", poolclass=StaticPool)
+    SQLModel.metadata.create_all(engine)
+    sess = Session(engine)
+    originals = {cls: cls.__dict__.get("session") for cls in (_BaseModel, BaseModel)}
+    for cls in (_BaseModel, BaseModel):
+        cls.session = sess
+    try:
+        yield sess
+    finally:
+        sess.close()
+        for cls, original in originals.items():
+            if original is None:
+                delattr(cls, "session")
+            else:
+                cls.session = original
+        engine.dispose()
 
 
 def test_class_access_returns_target() -> None:
@@ -77,3 +110,8 @@ def test_self_referential(session: Session) -> None:
 
 def test_foreign_key_helper_accepts_generic() -> None:
     assert get_foreign_key(Other, "id") == "other.id"
+
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
+    return "INTEGER"

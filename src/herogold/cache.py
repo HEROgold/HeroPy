@@ -11,7 +11,7 @@ from herogold.protocols import Container
 class Cache[K, V](Container[K, V]):
     """A simple cache implementation.
 
-    Uses weak references to allow values to be garbage collected.
+    Uses weak references for values to be garbage collected when they are no longer in use.
     """
 
     def __init__(self, cache: dict[K, ref[V]]) -> None:

@@ -18,26 +18,11 @@ if str(SRC) not in sys.path:
 
 from herogold.orm.core.model import BaseModel, _BaseModel  # noqa: E402
 
+# t-strings are a syntax error before 3.14, so the module cannot even be collected.
+collect_ignore = [] if sys.version_info >= (3, 14) else ["test_314_loggers.py"]
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
-
-
-@compiles(CreateTable, "sqlite")
-def _no_autoincrement_on_composite_pk(element: CreateTable, compiler, **kw):
-    cols = list(element.element.columns)
-    pks = [c for c in cols if c.primary_key]
-    if len(pks) > 1:  # only composite PKs can't autoincrement on SQLite
-        for c in pks:
-            if c.autoincrement is True:
-                c.autoincrement = False
-    return compiler.visit_create_table(element, **kw)
-
-
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
-    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT,
-    # so render BaseModel's BigInteger id as INTEGER for the in-memory test engine.
-    return "INTEGER"
 
 
 @pytest.fixture
@@ -62,3 +47,21 @@ def session() -> Iterator[Session]:
             else:
                 cls.session = original
         engine.dispose()
+
+
+@compiles(CreateTable, "sqlite")
+def _no_autoincrement_on_composite_pk(element: CreateTable, compiler, **kw):
+    cols = list(element.element.columns)
+    pks = [c for c in cols if c.primary_key]
+    if len(pks) > 1:  # only composite PKs can't autoincrement on SQLite
+        for c in pks:
+            if c.autoincrement is True:
+                c.autoincrement = False
+    return compiler.visit_create_table(element, **kw)
+
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
+    # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT,
+    # so render BaseModel's BigInteger id as INTEGER for the in-memory test engine.
+    return "INTEGER"

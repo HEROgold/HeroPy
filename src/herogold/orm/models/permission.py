@@ -14,19 +14,19 @@ class Permission(BaseModel, table=True):
     action: str = Field(index=True, nullable=False, max_length=80)
     description: str | None = Field(default=None, max_length=255)
 
+    def set_from_parts(self, resource: str, action: str, description: str | None = None) -> None:
+        """Populate fields from resource/action components."""
+        self.resource = resource.strip().casefold()
+        self.action = action.strip().casefold()
+        self.name = self.build_name(resource, action)
+        self.description = description
+
     @staticmethod
     def build_name(resource: str, action: str) -> str:
         """Build a canonical permission name."""
-        normalized_resource = resource.strip().lower()
-        normalized_action = action.strip().lower()
+        normalized_resource = resource.strip().casefold()
+        normalized_action = action.strip().casefold()
         if not normalized_resource or not normalized_action:
             msg = "Resource and action are required."
             raise ValueError(msg)
         return f"{normalized_resource}:{normalized_action}"
-
-    def set_from_parts(self, resource: str, action: str, description: str | None = None) -> None:
-        """Populate fields from resource/action components."""
-        self.resource = resource.strip().lower()
-        self.action = action.strip().lower()
-        self.name = self.build_name(resource, action)
-        self.description = description

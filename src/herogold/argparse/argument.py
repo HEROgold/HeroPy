@@ -1,5 +1,6 @@
 """Argument descriptor for argparse integration."""
 
+
 from __future__ import annotations
 
 import re
@@ -127,6 +128,17 @@ class ColorArgumentParser(ArgumentParser):
         has_options = re.search(r"\[[^\]]*\]", remainder) is not None
         tail = f" {self.format_command('[--argument OPTION]')}" if has_options else ""
         return self.format_heading(self.usage_marker) + self.format_program(self.prog) + tail
+
+    @override
+    def format_usage(self) -> str:
+        """Collapse and colorize the usage line, matching the one at the top of ``--help``.
+
+        Used by ``print_usage``, so error output shows the same usage line as ``--help``.
+        """
+        if self.usage_marker is None:
+            return super().format_usage()
+        merged = " ".join(line.strip() for line in super().format_usage().splitlines())
+        return self.format_usage_line(merged) + "\n"
 
     def format_help(self) -> str:
         """Override to colorize help text and simplify usage line."""
@@ -345,6 +357,26 @@ class Argument[T]:
         if self.action is Actions.STORE_BOOL:
             self.type = bool
 
+    def __set_name__(self, owner: type, name: str) -> None:
+        """Set the name of the attribute to the name of the descriptor.
+
+        `Namespace` subclasses aren't set up here: `owner._parser` doesn't exist yet at this
+        point (`__set_name__` runs before `__init_subclass__`), so `Namespace.__init_subclass__`
+        does it once the owner's target parser is known.
+        """
+        self.name = name
+        self.private_name = f"{self.internal_prefix}{name}"
+        if not issubclass(owner, Namespace):
+            self._setup_parser_argument(owner, name)
+
+    def __get__(self, obj: object, obj_type: object) -> T:
+        """Get the value of the attribute."""
+        return getattr(obj, self.private_name)
+
+    def __set__(self, obj: object, value: T) -> None:
+        """Set the value of the attribute."""
+        setattr(obj, self.private_name, value)
+
     def resolve_default(self, default: T | None, default_factory: Callable[[], T] | None) -> T:
         """Resolve the default value for the argument.
 
@@ -373,26 +405,6 @@ class Argument[T]:
         if type_ is MISSING:
             return str
         return type_
-
-    def __set_name__(self, owner: type, name: str) -> None:
-        """Set the name of the attribute to the name of the descriptor.
-
-        `Namespace` subclasses aren't set up here: `owner._parser` doesn't exist yet at this
-        point (`__set_name__` runs before `__init_subclass__`), so `Namespace.__init_subclass__`
-        does it once the owner's target parser is known.
-        """
-        self.name = name
-        self.private_name = f"{self.internal_prefix}{name}"
-        if not issubclass(owner, Namespace):
-            self._setup_parser_argument(owner, name)
-
-    def __get__(self, obj: object, obj_type: object) -> T:
-        """Get the value of the attribute."""
-        return getattr(obj, self.private_name)
-
-    def __set__(self, obj: object, value: T) -> None:
-        """Set the value of the attribute."""
-        setattr(obj, self.private_name, value)
 
     def _setup_parser_argument(self, owner: type, name: str) -> None:
         """Set up the argument in the owner's target parser.

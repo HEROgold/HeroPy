@@ -7,18 +7,14 @@ circular dependency.
 from __future__ import annotations
 
 from sys import getsizeof
-from typing import TYPE_CHECKING, Any
 
-from herogold.errors import with_known_exception
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
+from herogold.errors import HerogoldError, with_known_exception
 
 DEFAULT_SIZE_LIMIT = 1024 * 10
 """Default byte budget for a model's custom data (the old descriptor default)."""
 
 
-class OutOfSpaceError(ValueError):
+class OutOfSpaceError(HerogoldError, ValueError):
     """Raised when the custom data exceeds the size limit."""
 
     def __init__(self, size: int, limit: int) -> None:
@@ -27,7 +23,7 @@ class OutOfSpaceError(ValueError):
 
 
 @with_known_exception(OutOfSpaceError)
-def validate_size(item: Mapping[Any, Any], size_limit: int = DEFAULT_SIZE_LIMIT) -> None:
+def validate_size(item: object, size_limit: int = DEFAULT_SIZE_LIMIT) -> None:
     """Validate that the size of the custom data does not exceed the limit.
 
     Returns an :class:`OutOfSpaceError` instead of raising it (see
