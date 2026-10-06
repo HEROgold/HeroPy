@@ -13,6 +13,7 @@ __all__ = [
     "Relationship",
     "Role",
     "RolePermission",
+    "SelfRelationship",
     "User",
     "UserEmail",
     "UserPermission",
@@ -24,6 +25,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "BaseModel": ("orm.core.model", "BaseModel"),
     "SELF": ("orm.core.utils", "SELF"),
     "Relationship": ("orm.core.utils", "Relationship"),
+    "SelfRelationship": ("orm.core.utils", "SelfRelationship"),
     "get_foreign_key": ("orm.core.utils", "get_foreign_key"),
     "Configuration": ("orm.models.configuration", "Configuration"),
     "Email": ("orm.models.email", "Email"),
@@ -45,7 +47,7 @@ def __getattr__(name: str) -> object:
         raise AttributeError(msg)
 
     module_name, attr_name = _EXPORTS[name]
-    module = import_module(module_name)
+    module = import_module(f"herogold.{module_name}")
     return getattr(module, attr_name)
 
 

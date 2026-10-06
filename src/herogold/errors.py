@@ -14,6 +14,10 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Iterable
 
 
+class HerogoldError(Exception):
+    """Base class for every exception raised by the herogold package."""
+
+
 def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable[[Callable[P, F | E]], Callable[P, F | E]]:
     """Wrap a function and returns any thrown exception if it's any instance of the provided exception types.
 

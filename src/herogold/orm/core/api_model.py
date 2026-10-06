@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Generator, Iterable, Iterator
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypedDict, override
 
 from sqlalchemy.sql.elements import SQLCoreOperations
 from sqlmodel import Field, SQLModel, col, select
@@ -12,6 +12,7 @@ from sqlmodel import Field, SQLModel, col, select
 from herogold.imports import ExtraImportContext
 from herogold.orm.core.model import CustomData
 from herogold.orm.custom_data import DEFAULT_SIZE_LIMIT, OutOfSpaceError, validate_size
+from herogold.protocols import Filterable, Sortable
 
 with ExtraImportContext("herogold", "orm", "orm", "api"):
     from fastapi import APIRouter, HTTPException, Response, status
@@ -132,8 +133,12 @@ class PaginatedResponse[T: _BaseModel]:
         }
 
 
-class RequestFilter[T: _BaseModel]:
-    """An APIModel that supports filtering, sorting, and pagination."""
+class RequestFilter[T: _BaseModel](Filterable, Sortable):
+    """Filter and sort a model's query from a QueryRequest.
+
+    ``filter()`` and ``sort()`` return new instances, and iterating executes the
+    query, so the result can be passed straight to ``sorted()``, ``map()``, etc.
+    """
 
     def __init__(self, model: type[T], request: QueryRequest, query: SelectOfScalar[T] | None = None) -> None:
         """Initialize the RequestFilterer with a model, request, and optional query."""
@@ -156,8 +161,13 @@ class RequestFilter[T: _BaseModel]:
         Operator.in_: lambda c, v: c.in_(v),
     }
 
-    def filter(self, **kwargs: str) -> RequestFilter[T]:
-        """Filter inplace records based on a QueryRequest, applying filters, sorting, and pagination."""
+    def __iter__(self) -> Iterator[T]:
+        """Execute the query and yield the matching records."""
+        yield from self.model.session.exec(self.query)
+
+    @override
+    def filter(self, **kwargs: object) -> Self:
+        """Return a copy with ``kwargs`` equality filters and the request's filters applied."""
         q = self._kwargs_filter(**kwargs) if kwargs else self.query
         for f in self.request.filters:
             if f.field not in self.model.model_fields:
@@ -167,26 +177,27 @@ class RequestFilter[T: _BaseModel]:
                 raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid value for 'in' operator: {f.value}")  # noqa: E501
             if not operator:
                 raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter operator: {f.op}")  # noqa: E501
-            q = self.query.where(operator(col(getattr(self.model, f.field)), f.value))
-        return RequestFilter(self.model, self.request, q)
+            q = q.where(operator(col(getattr(self.model, f.field)), f.value))
+        return type(self)(self.model, self.request, q)
 
-    def sort(self) -> RequestFilter[T]:
-        """Sort inplace records based on a QueryRequest, applying sorting and pagination."""
+    @override
+    def sort(self) -> Self:
+        """Return a copy ordered by the request's sort field and order."""
         q = self.query
         if self.request.sort and self.request.sort not in self.model.model_fields:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid sort field: {self.request.sort}")  # noqa: E501
         if self.request.sort and self.request.sort in self.model.model_fields:
             sort_col = col(getattr(self.model, self.request.sort))
-            q = self.query.order_by(sort_col.desc() if self.request.order.lower() == "desc" else sort_col.asc())
-        return RequestFilter(self.model, self.request, q)
+            q = self.query.order_by(sort_col.desc() if self.request.order.casefold() == "desc" else sort_col.asc())
+        return type(self)(self.model, self.request, q)
 
-    def _kwargs_filter(self, **kwargs: str) -> SelectOfScalar[T]:
-        """Filter inplace records based on keyword arguments."""
+    def _kwargs_filter(self, **kwargs: object) -> SelectOfScalar[T]:
+        """Build the query with an equality filter per known field in ``kwargs``."""
         q = self.query
         for key, value in kwargs.items():
             if not hasattr(self.model, key):
                 continue
-            q = self.query.where(getattr(self.model, key) == value)
+            q = q.where(getattr(self.model, key) == value)
         return q
 
 class CustomDataContainer[T: _BaseModel]:

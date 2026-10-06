@@ -12,7 +12,7 @@ from zipfile import ZipFile
 from httpxyz import Client, HTTPStatusError
 
 from herogold.command import CLI, CommandRunner
-from herogold.errors import with_known_exception
+from herogold.errors import HerogoldError, with_known_exception
 from herogold.log import LoggerMixin
 
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from herogold.auto_update.sources import Github as GitHubSource
     from herogold.auto_update.sources import Source
 
-class UpdateError(Exception):
+class UpdateError(HerogoldError):
     """Custom exception for update errors."""
 
 class CommandError(UpdateError):

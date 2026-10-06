@@ -44,4 +44,4 @@ class User(BaseModel, table=True):
     @staticmethod
     def normalize_username(value: str) -> str:
         """Normalize username before persistence."""
-        return value.strip().lower()
+        return value.strip().casefold()
