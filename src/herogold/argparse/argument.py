@@ -9,9 +9,7 @@ from argparse import SUPPRESS, Action, ArgumentParser
 from argparse import Namespace as ArgparseNamespace
 from collections.abc import Callable, Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, Self, TypeVar, override
-
-from herogold.typing.signature import copy_signature
+from typing import TYPE_CHECKING, ClassVar, NoReturn, Self, TypeVar, override
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
@@ -36,14 +34,10 @@ _HELP_FULL_TEXT = "Show this command's help and every nested subcommand's help, 
 class ColorArgumentParser(ArgumentParser):
     """ArgumentParser with colored help and error output."""
 
-    @copy_signature(ArgumentParser.__init__)
-    def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
-        """Initialize the ColorArgumentParser."""
-        super().__init__(*args, **kwargs)
-        # Not `self.usage` (an ArgumentParser constructor attribute): setting that instead makes
-        # argparse treat "usage: " as the whole usage string, doubling argparse's own hardcoded
-        # "usage: " prefix into "usage: usage: ".
-        self.usage_marker: str = "usage: "
+    # Not `usage` (an ArgumentParser constructor attribute): setting that instead makes
+    # argparse treat "usage: " as the whole usage string, doubling argparse's own hardcoded
+    # "usage: " prefix into "usage: usage: ".
+    usage_marker: ClassVar[str] = "usage: "
 
     @property
     def cls(self) -> type[Self]:
@@ -124,8 +118,6 @@ class ColorArgumentParser(ArgumentParser):
         Options are already listed individually below, so `[--flag VALUE]` tokens collapse to one
         generic placeholder; the subcommand metavar is dropped for the same reason.
         """
-        if self.usage_marker is None:
-            return line
         remainder = line[len(self.usage_marker) :].removeprefix(self.prog)
         has_options = re.search(r"\[[^\]]*\]", remainder) is not None
         tail = f" {self.format_command('[--argument OPTION]')}" if has_options else ""
@@ -137,16 +129,11 @@ class ColorArgumentParser(ArgumentParser):
 
         Used by ``print_usage``, so error output shows the same usage line as ``--help``.
         """
-        if self.usage_marker is None:
-            return super().format_usage()
         merged = " ".join(line.strip() for line in super().format_usage().splitlines())
         return self.format_usage_line(merged) + "\n"
 
     def format_help(self) -> str:
         """Override to colorize help text and simplify usage line."""
-        if self.usage_marker is None:
-            return super().format_help()
-
         lines = super().format_help().splitlines()
 
         # A long usage line wraps onto indented continuation lines; merge them before collapsing,
