@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from herogold.auto_update.connectors import CommandError, UpdateError
+from herogold.auto_update.connectors import UpdateError
+from herogold.command import CommandError
 from herogold.errors import HerogoldError, with_exception, with_group, with_known_exception
 from herogold.mangling import InvalidNameError, ManglingError
 from herogold.orm.core.errors import AlreadyExistsError, NotFoundError
