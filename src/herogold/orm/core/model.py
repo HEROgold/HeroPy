@@ -65,7 +65,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
 
     if TYPE_CHECKING:
         # pyrefly: ignore [bad-assignment, bad-dataclass-descriptor]
-        custom_data: Relationship[CustomData, _BaseModel] = None  # ty: ignore[invalid-assignment]
+        custom_data: Relationship[CustomData] = None  # ty: ignore[invalid-assignment]
         # ``custom_data`` (a Relationship to the CustomData table) is attached below,
         # after CustomData is defined, because it targets a subclass of this class.
         __table__: ClassVar[Table]
@@ -382,9 +382,14 @@ class DataModel(_BaseModel):
     action: Actions = Field()
     """Each implementation of _ACTION_record() must handle setting the action type."""
     # JSONB on PostgreSQL, plain JSON elsewhere (e.g. the sqlite test engine).
+    # Uses ``sa_type`` (not ``sa_column``): a bare ``Column`` instance is shared
+    # by every subclass's class-attribute FieldInfo, and SQLAlchemy refuses to
+    # attach the same Column object to more than one Table. ``sa_type`` instead
+    # gets a fresh Column built per subclass, while the TypeEngine instance
+    # itself is safe to share.
     changes: dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column(JSON().with_variant(JSONB(), "postgresql")),
+        sa_type=JSON().with_variant(JSONB(), "postgresql"),
     )
 
     @override
