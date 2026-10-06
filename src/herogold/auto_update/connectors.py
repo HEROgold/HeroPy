@@ -105,7 +105,7 @@ class HTTP(Connector):
         self.client = Client(http2=True)
 
     @override
-    def __enter__(self) -> _Connected[Self]:  # ty:ignore[invalid-method-override]
+    def __enter__(self) -> _Connected[Self]:
         """Enter the connection context."""
         self.result = self.client.options(self.source.url)
         return _Connected(self)
