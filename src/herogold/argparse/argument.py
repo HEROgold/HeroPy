@@ -1,6 +1,5 @@
 """Argument descriptor for argparse integration."""
 
-
 from __future__ import annotations
 
 import re
@@ -10,6 +9,8 @@ from argparse import Namespace as ArgparseNamespace
 from collections.abc import Callable, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, ClassVar, NoReturn, Self, TypeVar, override
+
+from herogold.syntax.generic_class_values import GenericClass, TypeArg
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
@@ -30,6 +31,7 @@ _SUBCOMMANDS_METAVAR = "<command>"
 # Repeated at every level of a --help-full tree, so hidden there in favor of the top-level entry.
 _HIDDEN_HELP_OPTIONS = frozenset({"-h", "--help", "--help-full"})
 _HELP_FULL_TEXT = "Show this command's help and every nested subcommand's help, as a tree."
+
 
 class ColorArgumentParser(ArgumentParser):
     """ArgumentParser with colored help and error output."""
@@ -319,14 +321,15 @@ class Actions(Enum):
 ArgumentType = Callable[[str], T]
 
 
-class Argument[T]:
+class Argument[T](GenericClass[T]):
     """Helper to define arguments with argparse."""
 
     internal_prefix = "_ARGUMENT_"
+    _type_arg = TypeArg[T]()
 
     def __init__(
         self,
-        *names: str,
+        *aliases: str,
         type_: ArgumentType[T] = MISSING,
         action: Actions = Actions.STORE,
         default: T | None = None,
@@ -334,10 +337,11 @@ class Argument[T]:
         help: str = "",  # noqa: A002
     ) -> None:
         """Initialize argument."""
+        self._validate_STORE_BOOL(type_, action, default, default_factory)
         default = self.resolve_default(default, default_factory)
         type_ = self.resolve_type(type_, action)
 
-        self.names = names
+        self.aliases = aliases
         self.action = action
         self.type = type_
         self.default = default
@@ -391,9 +395,26 @@ class Argument[T]:
             Actions.STORE_BOOL,
         ):
             return bool
+        if (stored := self._type_arg) is not None:
+            return stored
         if type_ is MISSING:
             return str
         return type_
+
+    def _validate_STORE_BOOL(  # noqa: N802
+        self,
+        type_: ArgumentType[T],
+        action: Actions,
+        default: T | None,
+        default_factory: Callable[[], T] | None,
+    ) -> None:
+        """Validate that STORE_BOOL is not used with a type or default value other than bool."""
+        x = type_ not in (MISSING, bool)
+        x2 = default is not None and not isinstance(default, bool)
+        x3 = default_factory is not None and not callable(default_factory) and not isinstance(default_factory(), bool)
+        if action is Actions.STORE_BOOL and (x or x2 or x3):
+            msg = "Cannot set both action=STORE_BOOL and a type."
+            raise ValueError(msg)
 
     def _setup_parser_argument(self, owner: type, name: str) -> None:
         """Set up the argument in the owner's target parser.
@@ -410,25 +431,28 @@ class Argument[T]:
         type_name = self.type.__name__
         help_ = f"{self.help} - {type_name}" if self.help else f"{type_name}"
         # TD: Handle groups
-        for flag_name in self.names:
-            if self.action is Actions.STORE_BOOL:
-                target.add_argument(
-                    f"--{flag_name.replace('_', '-')}",
-                    action="store_true",
-                    dest=name,
-                    help=help_,
-                )
-                target.add_argument(
-                    f"--no-{flag_name.replace('_', '-')}",
-                    action="store_false",
-                    dest=name,
-                    help="",
-                )
-            else:
-                target.add_argument(
-                    f"--{flag_name.replace('_', '-')}",
-                    type=self.type,
-                    action=self.action.value,
-                    default=self.default,
-                    help=help_,
-                )
+        # The attribute name is always a flag; explicit names are aliases for it:
+        # `retries = Argument("retry_count")` -> `--retries` and `--retry-count`, both into `retries`
+        flags = [flag.replace("_", "-") for flag in dict.fromkeys((name, *self.aliases))]
+        if self.action is Actions.STORE_BOOL:
+            target.add_argument(
+                *(f"--{flag}" for flag in flags),
+                action="store_true",
+                dest=name,
+                help=help_,
+            )
+            target.add_argument(
+                *(f"--no-{flag}" for flag in flags),
+                action="store_false",
+                dest=name,
+                help="",
+            )
+        else:
+            target.add_argument(
+                *(f"--{flag}" for flag in flags),
+                type=self.type,
+                action=self.action.value,
+                default=self.default,
+                dest=name,
+                help=help_,
+            )

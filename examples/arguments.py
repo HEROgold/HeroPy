@@ -6,8 +6,7 @@ from herogold.argparse import Actions, Argument, Namespace, entrypoint
 class CliOptions(Namespace):
     """Root CLI options, shared across every subcommand."""
 
-    dry_run = Argument(
-        "dry_run",
+    dry_run = Argument[bool](
         action=Actions.STORE_BOOL,
         default=False,
         help="Enable/disable dry-run mode (supports --dry-run/--no-dry-run)",
@@ -17,14 +16,12 @@ class CliOptions(Namespace):
 class Deploy(CliOptions, subcommand="deploy"):
     """Deploy the application to an environment."""
 
-    environment = Argument(
-        "environment",
+    environment = Argument[str](
         help="Target environment name",
         default="dev",
     )
-    retries = Argument(
-        "retries",
-        type_=int,
+    retries = Argument[int](
+        "retry_count",
         default=2,
         help="Number of retry attempts",
     )
@@ -33,8 +30,7 @@ class Deploy(CliOptions, subcommand="deploy"):
 class Build(CliOptions, subcommand="build"):
     """Build the application."""
 
-    target = Argument(
-        "target",
+    target = Argument[str](
         help="Build target name",
         default="all",
     )
