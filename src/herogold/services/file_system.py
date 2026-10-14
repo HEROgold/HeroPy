@@ -22,6 +22,7 @@ from watchdog.events import (
 )
 
 from herogold.log.logger_mixin import LoggerMixin
+from herogold.mangling import get_mangled_attribute
 
 
 class BaseFileSystemWatcher(FileSystemEventHandler, LoggerMixin):
@@ -29,7 +30,7 @@ class BaseFileSystemWatcher(FileSystemEventHandler, LoggerMixin):
 
     def log(self, msg: str, event: FileSystemEvent) -> None:
         """Log a message using the logger."""
-        if Path(str(event.src_path)) == self._LoggerMixin__log_directory:  # ty:ignore[unresolved-attribute]  Mangled name access.
+        if Path(str(event.src_path)) == get_mangled_attribute(self, LoggerMixin, "log_directory"):
             return  # Skip logging events from the log directory
         self.logger.debug(msg, event)
 
@@ -39,31 +40,31 @@ class BaseFileSystemWatcher(FileSystemEventHandler, LoggerMixin):
 
     @override
     def on_moved(self, event: DirMovedEvent | FileMovedEvent) -> None:
-        self.log("File system event: %s", event)
+        self.log("File moved event: %s", event)
 
     @override
     def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
-        self.log("File system event: %s", event)
+        self.log("File created event: %s", event)
 
     @override
     def on_deleted(self, event: DirDeletedEvent | FileDeletedEvent) -> None:
-        self.log("File system event: %s", event)
+        self.log("File deleted event: %s", event)
 
     @override
     def on_modified(self, event: DirModifiedEvent | FileModifiedEvent) -> None:
-        self.log("File system event: %s", event)
+        self.log("File modified event: %s", event)
 
     @override
     def on_closed(self, event: FileClosedEvent) -> None:
-        self.log("File system event: %s", event)
+        self.log("File closed event: %s", event)
 
     @override
     def on_closed_no_write(self, event: FileClosedNoWriteEvent) -> None:
-        self.log("File system event: %s", event)
+        self.log("File closed no write event: %s", event)
 
     @override
     def on_opened(self, event: FileOpenedEvent) -> None:
-        self.log("File system event: %s", event)
+        self.log("File opened event: %s", event)
 
 
 if __name__ == "__main__":

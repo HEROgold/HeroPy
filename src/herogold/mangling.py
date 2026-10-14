@@ -43,7 +43,7 @@ def mangle(cls: type, name: str) -> str:
     return mangled
 
 
-def get_mangled_attribute(cls: type, owner: type, name: str) -> Any:  # noqa: ANN401
+def get_mangled_attribute(cls: object, owner: type, name: str) -> Any:  # noqa: ANN401
     """Get the value of a mangled private attribute.
 
     Owner is parent of cls or cls itself.
@@ -60,5 +60,5 @@ def get_mangled_attribute(cls: type, owner: type, name: str) -> Any:  # noqa: AN
     dunder_name = f"__{name}__"
     if dunder_name in vars(owner):
         return vars(owner)[dunder_name]
-    msg = f"type object '{cls.__name__}' has no attribute '{mangled_name}'"
+    msg = f"type object '{type(cls).__name__}' has no attribute '{mangled_name}'"
     raise AttributeError(msg)
