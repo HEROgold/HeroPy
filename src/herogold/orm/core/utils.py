@@ -255,4 +255,5 @@ class ModelMeta(type(SQLModel)):
                     continue
                 seen.add(attr_name)
                 if isinstance(attr, Relationship):
+                    # pyrefly: ignore [bad-argument-type]
                     attr.build_link_for(cls)

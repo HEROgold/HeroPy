@@ -89,8 +89,10 @@ def add_decoded_item(items: list[str], elt: ast.Constant) -> None:
             items.append(elt.value)
         case bytes():
             items.append(elt.value.decode("utf8"))
+        # pyrefly: ignore [unreachable-match-case]
         case bytearray():
             items.append(elt.value.decode("utf8"))
+        # pyrefly: ignore [unreachable-match-case]
         case memoryview():
             items.append(elt.value.tobytes().decode("utf8"))
         case int() | float() | complex() | EllipsisType() | NoneType():
