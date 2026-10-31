@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
+from collections.abc import Sequence  # noqa: TC003  # inject resolves annotations at runtime
+from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, ClassVar, Self, Unpack, override
 
-from sqlalchemy import BigInteger, ScalarResult, func
+from sqlalchemy import BigInteger, func
 from sqlmodel import Field, Session, Table, col, select
 from sqlmodel import SQLModel as BaseSQLModel
 
@@ -13,13 +15,14 @@ from herogold.log import LoggerMixin
 from herogold.orm.core.utils import ModelMeta, Relationship
 from herogold.typing.check import contains_sub_type
 from herogold.typing.classproperty import classproperty
+from herogold.typing.inject import inject
 
-from .constants import session as db_session
+from .binding import OwnedSession, orm_session
 from .errors import AlreadyExistsError, NotFoundError
 
 if TYPE_CHECKING:
     import logging
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Iterator
 
     from pydantic import ConfigDict
     from sqlalchemy.orm import Mapped
@@ -63,10 +66,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
 
     query: ClassVar[SelectOfScalar[Self]]
     """Default query for the model, may be overridden by subclasses."""
-    session: ClassVar[Session] = db_session
     logger: ClassVar[logging.Logger] = ModelLogger().logger
-    __count: ClassVar[int | None] = None
-    """Cached count of records. avoiding excessive queries."""
 
     def __init_subclass__(cls, **kwargs: Unpack[ConfigDict]) -> None:
         """Register subclass in models set."""
@@ -96,33 +96,35 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             if isinstance(info.annotation, type) and issubclass(info.annotation, _BaseModel)
         }
 
-    def add(self, session: Session | None = None) -> None:
+    @inject
+    def add(self, session: OwnedSession = None) -> None:
         """Add a record to Database."""
         self.logger.debug("Adding record: %s", self, extra={"record": self})
-        self._validate_existing_record()
-        self._create_record(self._get_session(session))
+        self._validate_existing_record(session)
+        self._create_record(session)
 
-    def update(self, session: Session | None = None) -> None:
+    @inject
+    def update(self, session: OwnedSession = None) -> None:
         """Create or update a record in Database.
 
         If the record already exists (has an id), it will be updated.
         If the record does not exist (no id), it will be created.
         """
         self.logger.debug("Record update requested: %s", self, extra={"record": self})
-        session = self._get_session(session)
         if known := session.exec(
             select(self.__class__).where(self.__class__.id == self.id).with_for_update(),
         ).first():
             return self._update_record(session, known)
         return self._create_record(session)
 
-    def delete(self, session: Session | None = None) -> None:
+    @inject
+    def delete(self, session: OwnedSession = None) -> None:
         """Delete a record from Database."""
         self.logger.debug("Deleting record: %s", self, extra={"record": self})
         if self.id is None:
             msg = f"Record with {self.__class__.__name__}.id={self.id} not found for deletion."
             raise NotFoundError(msg)
-        self._delete_record(self._get_session(session))
+        self._delete_record(session)
 
     @classproperty
     def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805  # ty: ignore[invalid-type-form]
@@ -130,19 +132,16 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         return select(cls)
 
     @classmethod
-    def count(cls) -> int:
+    @inject
+    def count(cls, session: OwnedSession = None) -> int:
         """Return the total count of records in the model."""
-        if not cls.__count or cls.session.identity_map.check_modified():
-            cls.__count = cls.session.exec(
-                select(func.count(col(cls.id))),
-            ).one()
-        return cls.__count
+        return session.exec(select(func.count(col(cls.id)))).one()
 
     @classmethod
-    def get(cls, id_: int, session: Session | None = None, *, with_for_update: bool = False) -> Self:
+    @inject
+    def get(cls, id_: int, session: OwnedSession = None, *, with_for_update: bool = False) -> Self:
         """Get a record from Database."""
         cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
-        session = cls._get_session(session)
 
         query = select(cls).where(cls.id == id_)
         if with_for_update:
@@ -154,15 +153,19 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         raise NotFoundError(msg)
 
     @classmethod
-    def get_all(cls, session: Session | None = None) -> Sequence[Self]:
+    @inject
+    def get_all(cls, session: OwnedSession = None) -> Sequence[Self]:
         """Get all records from Database."""
         cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})
-        session = cls._get_session(session)
         return session.exec(select(cls)).all()
 
     @classmethod
-    def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> ScalarResult[Self]:
-        """Get a record from Database by field and value."""
+    def from_[T](cls, column: Mapped[T], value: T, session: Session | None = None) -> Sequence[Self]:
+        """Get the records from Database whose ``column`` equals ``value``.
+
+        Builds the owned session by hand because ``@inject`` cannot resolve the
+        method-scoped ``T`` in the annotations.
+        """
         cls.logger.debug(
             "Getting record from field: %s, %s == %s",
             cls,
@@ -170,10 +173,10 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             value,
             extra={"class": cls.__name__, "column": column, "value": value},
         )
-        session = cls._get_session(session)
-        return session.exec(select(cls).where(column == value))
+        with nullcontext(session) if session is not None else orm_session() as active:
+            return active.exec(select(cls).where(column == value)).all()
 
-    def _validate_existing_record(self) -> None:
+    def _validate_existing_record(self, session: Session) -> None:  # noqa: ARG002
         """Check if a record of this item already exists."""
         if self.id is not None:
             msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
@@ -206,9 +209,3 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     @abstractmethod
     def _delete_record(self, session: Session) -> None:
         """Delete the record in the database with the current instance's values."""
-
-    @classmethod
-    def _get_session(cls, session: Session | None = None) -> Session:
-        """Get the usable session, either the provided one or the default."""
-        cls.logger.debug("Getting session: %s", session, extra={"session": session})
-        return session or cls.session

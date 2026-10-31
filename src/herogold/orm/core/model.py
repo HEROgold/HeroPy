@@ -18,15 +18,18 @@ from sqlalchemy.schema import Index
 from sqlmodel import Field, Session, col, select
 
 from herogold.orm.core.base_model import _BaseModel
+from herogold.orm.core.binding import OwnedSession  # noqa: TC001  # inject resolves annotations at runtime
 from herogold.orm.core.custom_data import CustomData
 from herogold.orm.core.utils import Relationship
 from herogold.typing.classproperty import classproperty
+from herogold.typing.inject import inject
 
 from .errors import AlreadyExistsError, NotFoundError
 
 if TYPE_CHECKING:
 
     from sqlmodel.sql.expression import SelectOfScalar
+
 
 def _current_utc() -> datetime:
     return datetime.now(UTC)
@@ -86,25 +89,22 @@ class BaseModel(_BaseModel):
 
     @override
     @classmethod
-    def count(cls) -> int:
+    @inject
+    def count(cls, session: OwnedSession = None) -> int:
         """Return the total count of records in the model."""
-        if not cls.__count or cls.session.identity_map.check_modified():
-            cls.__count = cls.session.exec(
-                select(func.count(col(cls.id))).where(cls.deleted_at == None),  # noqa: E711
-            ).one()
-        return cls.__count
+        return session.exec(
+            select(func.count(col(cls.id))).where(cls.deleted_at == None),  # noqa: E711
+        ).one()
 
     @override
     def _create_record(self, session: Session) -> None:
         self.logger.debug("Creating record: %s", self, extra={"record": self})
-        session = self._get_session(session)
         session.add(self)
         session.commit()
 
     @override
     def _update_record(self, session: Session, entry: Self) -> None:
         self.logger.debug("Updating record: %s", self, extra={"record": self})
-        session = self._get_session(session)
         for name, value in self._assignable_fields():
             setattr(entry, name, value)
         entry.updated_at = _current_utc()
@@ -164,10 +164,10 @@ class DataModel(_BaseModel):
     )
 
     @override
-    def _validate_existing_record(self) -> None:
+    def _validate_existing_record(self, session: Session) -> None:
         """Check if a record with the same id and timestamp already exists."""
         with contextlib.suppress(NotFoundError):
-            if self.id and self.get(self.id, session=self._get_session()):
+            if self.id and self.get(self.id, session=session):
                 msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
                 raise AlreadyExistsError(msg)
 

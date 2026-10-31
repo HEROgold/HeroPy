@@ -19,6 +19,7 @@ from herogold.orm.core.api_model import (
     QueryRequest,
     RequestFilter,
 )
+from herogold.orm.core.binding import bound
 from herogold.orm.core.model import BaseModel
 from herogold.protocols import Filterable, Sortable
 
@@ -49,8 +50,14 @@ def client() -> Iterator[TestClient]:
     # target the same in-memory database (a fresh connection would start empty).
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     SQLModel.metadata.create_all(engine)
-    original = BaseModel.session
-    BaseModel.session = Session(engine)
+    try:
+        with bound(engine):
+            yield from _populated_client()
+    finally:
+        engine.dispose()
+
+
+def _populated_client() -> Iterator[TestClient]:
     try:
         for name, price in [("small box", 5), ("big box", 20), ("crate", 50), ("gone", 99)]:
             Item(name=name, price=price).add()
@@ -63,8 +70,7 @@ def client() -> Iterator[TestClient]:
         app.include_router(router)
         yield TestClient(app)
     finally:
-        BaseModel.session.close()
-        BaseModel.session = original
+        pass
 
 
 def test_client_operator_eq(client: TestClient) -> None:
