@@ -27,7 +27,7 @@ class HasRel(BaseModel, table=True):
 
 
 class HasOpt(BaseModel, table=True):
-    other = Relationship(Other, optional=True)
+    other = Relationship(Other)
 
 
 class Tree(BaseModel, table=True):
@@ -35,7 +35,7 @@ class Tree(BaseModel, table=True):
 
 
 class Node(BaseModel, table=True):
-    parent = Relationship(SELF, optional=True)
+    parent = Relationship(SELF)
 
 
 @compiles(BigInteger, "sqlite")
