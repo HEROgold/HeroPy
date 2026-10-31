@@ -54,7 +54,17 @@ def inject[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
     Returns:
         A function with the same signature as ``fn``.
 
+    Raises:
+        TypeError: If ``fn`` is a generator, coroutine or async generator function.
+
     """
+    if (
+        inspect.isgeneratorfunction(fn)
+        or inspect.iscoroutinefunction(fn)
+        or inspect.isasyncgenfunction(fn)
+    ):
+        msg = f"inject cannot wrap generator or async function {fn.__qualname__}"
+        raise TypeError(msg)
     signature = inspect.signature(fn)
     dependencies: dict[str, Depends[Any]] | None = None
 
@@ -63,11 +73,11 @@ def inject[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
         nonlocal dependencies
         if dependencies is None:
             dependencies = _find_dependencies(fn)
-        bound = signature.bind_partial(*args, **kwargs)
+        arguments = signature.bind_partial(*args, **kwargs)
         with ExitStack() as stack:
             for name, dep in dependencies.items():
-                if bound.arguments.get(name) is None:
-                    bound.arguments[name] = stack.enter_context(dep.provider())
-            return fn(*bound.args, **bound.kwargs)
+                if arguments.arguments.get(name) is None:
+                    arguments.arguments[name] = stack.enter_context(dep.provider())
+            return fn(*arguments.args, **arguments.kwargs)
 
     return wrapper
