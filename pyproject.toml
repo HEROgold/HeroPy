@@ -47,7 +47,7 @@ build-backend = "hatchling.build"
 test = [
     "herogold[all]",
     "hypothesis>=6.168.0",
-    "psycopg2-binary>=2.9.13",
+    "psycopg[binary]>=3.2",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
 ]
