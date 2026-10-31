@@ -152,13 +152,6 @@ class Logger(LoggingLogger):
             extra=extra,
         )
 
-    @override
-    def getChild(self, suffix: str | None = None) -> Logger:
-        """Get a child logger with the given suffix."""
-        if self.root is not self:
-            suffix = f"{self.name}.{suffix}"
-        return Logger(suffix or self.name)
-
     def _interpolate(self, msg: Template) -> Generator[tuple[str, Any]]:
         """Interpolate a Template message into a string and argument counterparts."""
         for part in msg:

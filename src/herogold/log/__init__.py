@@ -51,10 +51,22 @@ from logging import (
 
 # Patch logging for Python 3.14+
 if sys.version_info >= (3, 14):
+    import logging as _logging
+
     from .logger import Logger
 
-    logger = Logger("root")
-    getLogger = logger.getChild  # noqa: N816
+    def getLogger(name: str | None = None) -> Logger:  # noqa: N802
+        """Return a logger registered with the stdlib manager, using the custom Logger class."""
+        manager = _logging.Logger.manager
+        # The manager only uses loggerClass for new loggers, so existing ones come back unchanged.
+        with _logging._lock:  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+            previous, manager.loggerClass = manager.loggerClass, Logger
+            try:
+                return _logging.getLogger(name)
+            finally:
+                manager.loggerClass = previous
+
+    logger = getLogger("herogold")
     debug = logger.debug
     info = logger.info
     warning = logger.warning
@@ -63,15 +75,13 @@ if sys.version_info >= (3, 14):
     critical = logger.critical
     fatal = logger.fatal
 
+from .config import log_directory, setup, teardown
 from .formats import BASIC_FORMAT, formatter, message, prefix
 from .handlers import stream_handler
 from .logger_mixin import LoggerMixin
 
-basicConfig(
-    format=BASIC_FORMAT,
-    level=INFO,
-    handlers=[stream_handler],
-)
+# Library convention: stay silent unless the application configures logging.
+getLogger("herogold").addHandler(NullHandler())
 
 __all__ = [
     "BASIC_FORMAT",
@@ -114,13 +124,16 @@ __all__ = [
     "info",
     "lastResort",
     "log",
+    "log_directory",
     "makeLogRecord",
     "message",
     "prefix",
     "raiseExceptions",
     "setLogRecordFactory",
     "setLoggerClass",
+    "setup",
     "shutdown",
     "stream_handler",
+    "teardown",
     "warning",
 ]
