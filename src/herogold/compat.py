@@ -5,9 +5,11 @@ this reports a too-old *interpreter*.
 
 Module-level guard (place it before anything version-specific)::
 
+    import sys
+
     from herogold.compat import require_python
 
-    require_python((3, 14), module=__name__)
+    require_python((3, 14), module=sys.modules[__name__])
 
 Decorator for a single function or class::
 
@@ -31,6 +33,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from types import ModuleType
 
 type Version = tuple[int, int]
 
@@ -52,9 +55,9 @@ def _check(minimum: Version, name: str) -> None:
         raise UnsupportedPythonVersionError(msg)
 
 
-def require_python(minimum: Version, *, module: str) -> None:
+def require_python(minimum: Version, *, module: ModuleType) -> None:
     """Raise UnsupportedPythonVersionError if Python is older than ``minimum``."""
-    _check(minimum, module)
+    _check(minimum, module.__name__)
 
 
 def requires_python[**P, R](minimum: Version) -> Callable[[Callable[P, R]], Callable[P, R]]:
