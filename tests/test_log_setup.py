@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from textwrap import dedent
 
 import pytest
 
@@ -30,21 +31,21 @@ def _flush_root_handlers() -> None:
 
 def test_import_has_no_side_effects(tmp_path: Path) -> None:
     """Importing herogold.log and herogold.orm changes no root state and creates no logs dir."""
-    code = (
-        "import logging, sys\n"
-        "root = logging.getLogger()\n"
-        "level = root.level\n"
-        "handlers = list(root.handlers)\n"
-        "import herogold.log, herogold.orm\n"
-        "ok = True\n"
-        "if root.level != level:\n"
-        "    print('root level changed:', level, '->', root.level)\n"
-        "    ok = False\n"
-        "if root.handlers != handlers:\n"
-        "    print('root handlers changed:', handlers, '->', root.handlers)\n"
-        "    ok = False\n"
-        "sys.exit(0 if ok else 1)\n"
-    )
+    code = dedent("""\
+        import logging, sys
+        root = logging.getLogger()
+        level = root.level
+        handlers = list(root.handlers)
+        import herogold.log, herogold.orm
+        ok = True
+        if root.level != level:
+            print('root level changed:', level, '->', root.level)
+            ok = False
+        if root.handlers != handlers:
+            print('root handlers changed:', handlers, '->', root.handlers)
+            ok = False
+        sys.exit(0 if ok else 1)
+        """)
     env = os.environ.copy()
     env["PYTHONPATH"] = str(SRC_DIR)
 
