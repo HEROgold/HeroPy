@@ -10,6 +10,8 @@ from sqlmodel import SQLModel, select
 from herogold.log import LoggerMixin
 from herogold.sentinel import create_sentinel
 
+from .binding import orm_session
+
 if TYPE_CHECKING:
     import sys
 
@@ -115,21 +117,21 @@ class Relationship[T: _BaseModel](LoggerMixin):
         if instance.id is None:
             msg = f"Owner must be persisted before setting relationship '{self.name}'."
             raise ValueError(msg)
-        if value.id is None:
-            value.add()
-        session = type(instance).session
-        session.exec(info.table.delete().where(info.owner_filter(instance)))
-        session.exec(info.table.insert().values(**info.owner_values(instance), **info.target_values(value)))
-        session.commit()
+        with orm_session() as session:
+            if value.id is None:
+                value.add(session)
+            session.exec(info.table.delete().where(info.owner_filter(instance)))
+            session.exec(info.table.insert().values(**info.owner_values(instance), **info.target_values(value)))
+            session.commit()
 
     def __delete__(self, instance: _BaseModel) -> None:
         """Remove the owner's link row(s)."""
         info = self._links.get(type(instance))
         if info is None:
             return
-        session = type(instance).session
-        session.exec(info.table.delete().where(info.owner_filter(instance)))
-        session.commit()
+        with orm_session() as session:
+            session.exec(info.table.delete().where(info.owner_filter(instance)))
+            session.commit()
 
     @overload
     def __get__(self, instance: None, owner: type[_BaseModel]) -> type[T]: ...
@@ -143,10 +145,9 @@ class Relationship[T: _BaseModel](LoggerMixin):
         info = self._links.get(type(instance))
         if info is None:
             return None
-        # pyrefly: ignore [missing-attribute]
-        session = type(instance).session
         query = select(info.target).join(info.table, info.target_join()).where(info.owner_filter(instance))
-        return cast("T | None", session.exec(query).first())
+        with orm_session() as session:
+            return cast("T | None", session.exec(query).first())
 
     def build_link_for(self, owner: type[_BaseModel]) -> None:
         """Build (once) the association table joining ``owner`` to the target.

@@ -30,19 +30,16 @@ class CustomData(_BaseModel, table=True):
     @override
     def _create_record(self, session: Session) -> None:
         self.logger.debug("Creating record: %s", self, extra={"record": self})
-        session = self._get_session(session)
         session.add(self)
         session.commit()
 
     @override
     def _update_record(self, session: Session, entry: Self) -> None:
         entry.data = self.data
-        session = self._get_session(session)
         session.add(entry)
         session.commit()
 
     @override
     def _delete_record(self, session: Session) -> None:
-        session = self._get_session(session)
         session.delete(self)
         session.commit()

@@ -15,3 +15,7 @@ class AlreadyExistsError(HerogoldError, ValueError):
 
 class PermissionDeniedError(HerogoldError):
     """Raised when a user lacks a required permission."""
+
+
+class NoEngineBoundError(HerogoldError):
+    """Raised when an owned session is needed and no engine is bound."""

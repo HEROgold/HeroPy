@@ -8,6 +8,7 @@ __all__ = [
     "BaseModel",
     "Configuration",
     "Email",
+    "NoEngineBoundError",
     "Password",
     "Permission",
     "Relationship",
@@ -18,11 +19,18 @@ __all__ = [
     "UserEmail",
     "UserPermission",
     "UserRole",
+    "bind",
+    "bound",
     "get_foreign_key",
+    "url_from_config",
 ]
 
 _EXPORTS: dict[str, tuple[str, str]] = {
     "BaseModel": ("orm.core.model", "BaseModel"),
+    "bind": ("orm.core.binding", "bind"),
+    "bound": ("orm.core.binding", "bound"),
+    "url_from_config": ("orm.core.constants", "url_from_config"),
+    "NoEngineBoundError": ("orm.core.errors", "NoEngineBoundError"),
     "SELF": ("orm.core.utils", "SELF"),
     "Relationship": ("orm.core.utils", "Relationship"),
     "SelfRelationship": ("orm.core.utils", "SelfRelationship"),

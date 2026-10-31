@@ -4,6 +4,7 @@ import sys
 from itertools import count
 from pathlib import Path
 from typing import TYPE_CHECKING
+from weakref import WeakKeyDictionary
 
 import pytest
 from sqlalchemy import BigInteger, StaticPool, create_engine, event
@@ -17,13 +18,17 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from herogold.orm.core.model import BaseModel, _BaseModel  # noqa: E402
+from herogold.orm.core.binding import bound  # noqa: E402
+from herogold.orm.core.model import BaseModel  # noqa: E402,F401
 
 # t-strings are a syntax error before 3.14, so the module cannot even be collected.
 collect_ignore = [] if sys.version_info >= (3, 14) else ["test_314_loggers.py"]
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+
+_COUNTERS: WeakKeyDictionary[object, dict[str, count[int]]] = WeakKeyDictionary()
 
 
 def _assign_composite_pk_ids(session: Session, _flush_context: object, _instances: object) -> None:
@@ -35,7 +40,8 @@ def _assign_composite_pk_ids(session: Session, _flush_context: object, _instance
     in-memory test engine never populates ``id`` on its own. This mirrors that
     behavior for tests only, with a per-table counter local to each test.
     """
-    counters: dict[str, count[int]] = session.info.setdefault("_composite_pk_id_counters", {})
+    # Owned sessions come and go, so the counters live on the engine, not the session.
+    counters: dict[str, count[int]] = _COUNTERS.setdefault(session.get_bind(), {})
     for obj in session.new:
         table = getattr(obj, "__table__", None)
         if table is None or len(table.primary_key.columns) <= 1:
@@ -46,29 +52,22 @@ def _assign_composite_pk_ids(session: Session, _flush_context: object, _instance
         obj.id = next(counter)
 
 
+# Listening on the Session class covers explicit sessions and owned ones alike.
+event.listen(Session, "before_flush", _assign_composite_pk_ids)
+
+
 @pytest.fixture
 def session() -> Iterator[Session]:
     # StaticPool keeps a single shared connection so create_all and the Session
     # target the same in-memory database (a fresh connection would start empty).
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     SQLModel.metadata.create_all(engine)
-    original = BaseModel.session
     sess = Session(engine)
-    event.listen(sess, "before_flush", _assign_composite_pk_ids)
-
-    originals = {cls: cls.__dict__.get("session") for cls in (_BaseModel, BaseModel)}
-    for cls in (_BaseModel, BaseModel):
-        cls.session = sess
     try:
-        yield sess
+        with bound(engine):
+            yield sess
     finally:
-        event.remove(sess, "before_flush", _assign_composite_pk_ids)
         sess.close()
-        for cls, original in originals.items():
-            if original is None:
-                delattr(cls, "session")
-            else:
-                cls.session = original
         engine.dispose()
 
 
