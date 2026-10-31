@@ -125,3 +125,22 @@ def test_count_sees_rows_from_another_session(engine: Engine) -> None:
         with Session(engine) as other:
             BindingWidget(name="y").add(other)
         assert BindingWidget.count() == 2
+
+
+def test_url_from_config_missing_file_raises_and_creates_nothing(tmp_path: Path) -> None:
+    path = tmp_path / "db.ini"
+    with pytest.raises(FileNotFoundError):
+        orm.url_from_config(path)
+    assert not path.exists()
+
+
+def test_url_from_config_reads_existing_file(tmp_path: Path) -> None:
+    path = tmp_path / "db.ini"
+    path.write_text("[DbUrl]\ndriver = sqlite\nhost = example\nport = 1234\n")
+    before = path.read_text()
+    url = orm.url_from_config(path)
+    assert url.drivername == "sqlite"
+    assert url.host == "example"
+    assert url.port == 1234
+    assert url.username == "postgres"
+    assert path.read_text() == before

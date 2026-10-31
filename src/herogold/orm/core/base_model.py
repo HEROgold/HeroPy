@@ -4,7 +4,6 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Sequence  # noqa: TC003  # inject resolves annotations at runtime
-from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, ClassVar, Self, Unpack, override
 
 from sqlalchemy import BigInteger, func
@@ -17,7 +16,7 @@ from herogold.typing.check import contains_sub_type
 from herogold.typing.classproperty import classproperty
 from herogold.typing.inject import inject
 
-from .binding import OwnedSession, orm_session
+from .binding import OwnedSession, use_session
 from .errors import AlreadyExistsError, NotFoundError
 
 if TYPE_CHECKING:
@@ -173,7 +172,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             value,
             extra={"class": cls.__name__, "column": column, "value": value},
         )
-        with nullcontext(session) if session is not None else orm_session() as active:
+        with use_session(session) as active:
             return active.exec(select(cls).where(column == value)).all()
 
     def _validate_existing_record(self, session: Session) -> None:  # noqa: ARG002

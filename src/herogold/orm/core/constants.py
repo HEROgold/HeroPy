@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+from configparser import ConfigParser
 from typing import TYPE_CHECKING
 
 from sqlalchemy import URL
-
-from .config import DbConfig
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -14,30 +13,36 @@ if TYPE_CHECKING:
 
 CASCADE = "CASCADE"
 
+_DEFAULTS = {
+    "driver": "postgresql",
+    "username": "postgres",
+    "password": "SECURE_PASSWORD",
+    "host": "postgres",
+    "port": "5432",
+    "database": "postgres_db",
+}
+
 
 def url_from_config(path: Path) -> URL:
     """Build the database URL from the ini file at ``path``.
 
-    Reads the file (creating it with defaults if missing) only when called.
+    Only reads the file. Keys missing from the ``DbUrl`` section use defaults.
+
+    Raises:
+        FileNotFoundError: If ``path`` does not exist.
+
     """
-    DbConfig.set_file(path)
-
-    # Config descriptors read the ini when the class body runs, so build them here.
-    class DbUrl:
-        """Database URL components read from the ini file."""
-
-        driver = DbConfig("postgresql")
-        username = DbConfig("postgres")
-        password = DbConfig("SECURE_PASSWORD")
-        host = DbConfig("postgres")
-        port = DbConfig(5432)
-        database = DbConfig("postgres_db")
-
+    if not path.is_file():
+        msg = f"Database config file not found: {path}"
+        raise FileNotFoundError(msg)
+    parser = ConfigParser()
+    parser.read(path, encoding="utf-8")
+    section = parser["DbUrl"] if parser.has_section("DbUrl") else {}
     return URL.create(
-        DbUrl.driver,
-        username=DbUrl.username,
-        password=DbUrl.password,
-        host=DbUrl.host,
-        port=DbUrl.port,
-        database=DbUrl.database,
+        section.get("driver", _DEFAULTS["driver"]),
+        username=section.get("username", _DEFAULTS["username"]),
+        password=section.get("password", _DEFAULTS["password"]),
+        host=section.get("host", _DEFAULTS["host"]),
+        port=int(section.get("port", _DEFAULTS["port"])),
+        database=section.get("database", _DEFAULTS["database"]),
     )
