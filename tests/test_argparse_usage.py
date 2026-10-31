@@ -31,3 +31,16 @@ def test_error_usage_matches_help_usage(capsys: pytest.CaptureFixture[str]) -> N
     assert error_usage == help_usage
     assert help_usage.startswith("usage: tool")
     assert "usage: usage:" not in help_usage
+
+
+def test_store_bool_rejects_non_bool_default_factory() -> None:
+    """STORE_BOOL must reject factories that do not return a bool, or are not callable."""
+    import pytest
+
+    from herogold.argparse import Actions, Argument
+
+    with pytest.raises(ValueError, match="default_factory"):
+        Argument("flag", action=Actions.STORE_BOOL, default_factory=lambda: "x")
+    with pytest.raises(ValueError, match="default_factory"):
+        Argument("flag", action=Actions.STORE_BOOL, default_factory="x")  # type: ignore[arg-type]
+    Argument("flag", action=Actions.STORE_BOOL, default_factory=lambda: True)
