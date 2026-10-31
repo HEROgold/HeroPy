@@ -5,7 +5,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any, NamedTuple, Self, TypeVar, cast, overload
 
-from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, and_
+from sqlalchemy import Column, ForeignKey, Index, Select, Table, UniqueConstraint, and_, exists, tuple_
 from sqlalchemy.orm import object_session
 from sqlmodel import SQLModel, select
 
@@ -17,6 +17,7 @@ from .binding import OwnedSession  # noqa: TC001  # inject resolves annotations 
 
 if TYPE_CHECKING:
     import sys
+    from collections.abc import Iterable
 
     from sqlalchemy import ColumnElement
     from sqlmodel import Session
@@ -78,16 +79,25 @@ class LinkInfo[T: _BaseModel](NamedTuple):
         """Map the link-table target columns to ``target``'s primary-key values."""
         return {col: getattr(target, pk) for col, pk in zip(self.target_cols, self.target_pk, strict=True)}
 
+    def _all_equal(self, link_cols: list[str], right_values: Iterable[object]) -> ColumnElement[bool]:
+        """AND together ``link_table.c[col] == value`` for each link column and its paired value."""
+        return and_(*(self.table.c[col] == value for col, value in zip(link_cols, right_values, strict=True)))
+
     def owner_filter(self, owner: _BaseModel) -> ColumnElement[bool]:
         """Match the link row(s) belonging to ``owner``."""
-        return and_(*(self.table.c[col] == value for col, value in self.owner_values(owner).items()))
+        return self._all_equal(self.owner_cols, (getattr(owner, pk) for pk in self.owner_pk))
 
     def target_join(self) -> ColumnElement[bool]:
         """Join condition between the link table and the target table."""
-        return and_(*(
-            self.table.c[col] == self.target.__table__.c[pk]
-            for col, pk in zip(self.target_cols, self.target_pk, strict=True)
-        ))
+        return self._all_equal(self.target_cols, (self.target.__table__.c[pk] for pk in self.target_pk))
+
+    def target_filter(self, target: _BaseModel) -> ColumnElement[bool]:
+        """Match the link row(s) pointing at ``target``."""
+        return self._all_equal(self.target_cols, (getattr(target, pk) for pk in self.target_pk))
+
+    def owner_join(self, owner: type[_BaseModel]) -> ColumnElement[bool]:
+        """Join condition between the link table and the ``owner`` table."""
+        return self._all_equal(self.owner_cols, (owner.__table__.c[pk] for pk in self.owner_pk))
 
 
 class Relationship[T: _BaseModel](LoggerMixin):
@@ -225,6 +235,43 @@ class Relationship[T: _BaseModel](LoggerMixin):
         if self._is_self_referential(owner):
             return owner
         return self.related_model
+
+    def _info(self, owner: type[_BaseModel] | None) -> tuple[type[_BaseModel], LinkInfo[Any]]:
+        """Resolve ``owner`` (or the single registered owner) and its link info."""
+        if owner is None:
+            if len(self._links) != 1:
+                msg = f"Relationship '{self.name}' is shared by {len(self._links)} owners; pass owner=."
+                raise TypeError(msg)
+            owner = next(iter(self._links))
+        return owner, self._links[owner]
+
+    def owners_of(self, target: T, owner: type[_BaseModel] | None = None) -> Select[Any]:
+        """Return ``select(Owner)`` for the owners linked to ``target``. Executes nothing."""
+        owner, info = self._info(owner)
+        return select(owner).join(info.table, info.owner_join(owner)).where(info.target_filter(target))
+
+    def is_set(self, owner: type[_BaseModel] | None = None) -> ColumnElement[bool]:
+        """Return an EXISTS condition that is true for owners with a link. Negate with ``~``."""
+        owner, info = self._info(owner)
+        return exists().where(info.owner_join(owner))
+
+    def targets_of(self, owner_query: Select[Any], owner: type[_BaseModel] | None = None) -> Select[Any]:
+        """Return ``select(Target)`` for the targets of the owners matched by ``owner_query``.
+
+        ``owner`` defaults to the entity of ``owner_query``. Executes nothing.
+        """
+        if owner is None and len(self._links) != 1:
+            owner = owner_query.column_descriptions[0]["entity"]
+        owner, info = self._info(owner)
+        owners = owner_query.subquery()
+        pks = [owners.c[pk] for pk in info.owner_pk]
+        link_cols = [info.table.c[col] for col in info.owner_cols]
+        match = link_cols[0].in_(select(pks[0])) if len(pks) == 1 else tuple_(*link_cols).in_(select(*pks))
+        return select(info.target).join(info.table, info.target_join()).where(match)
+
+    def link_table(self, owner: type[_BaseModel]) -> Table:
+        """Return the association table the descriptor writes to for ``owner``."""
+        return self._links[owner].table
 
     def _is_self_referential(self, owner: type[_BaseModel]) -> TypeIs[type[T]]:
         """Return True if the relationship is self-referential for the given owner."""
