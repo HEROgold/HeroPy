@@ -21,8 +21,8 @@ from watchdog.events import (
     FileSystemEventHandler,
 )
 
+from herogold.log.config import log_directory
 from herogold.log.logger_mixin import LoggerMixin
-from herogold.mangling import get_mangled_attribute
 
 
 class BaseFileSystemWatcher(FileSystemEventHandler, LoggerMixin):
@@ -30,7 +30,8 @@ class BaseFileSystemWatcher(FileSystemEventHandler, LoggerMixin):
 
     def log(self, msg: str, event: FileSystemEvent) -> None:
         """Log a message using the logger."""
-        if Path(str(event.src_path)) == get_mangled_attribute(self, LoggerMixin, "log_directory"):
+        directory = log_directory()
+        if directory is not None and Path(str(event.src_path)).resolve().is_relative_to(directory.resolve()):
             return  # Skip logging events from the log directory
         self.logger.debug(msg, event)
 
