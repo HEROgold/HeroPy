@@ -18,6 +18,7 @@ with ExtraImportContext("herogold", "orm", "orm", "api"):
     from fastapi import APIRouter, HTTPException, Response, status
 
 
+from .binding import orm_session
 from .model import _BaseModel
 
 if TYPE_CHECKING:
@@ -91,7 +92,9 @@ class PaginatedResponse[T: _BaseModel]:
         """Iterate over the items for the current page, then yield from the next page if it exists."""
         if self._query is not None:
             offset = (self.page - 1) * self.size
-            yield from self.model.session.exec(self._query.offset(offset).limit(self.size)).all()
+            with orm_session() as session:
+                items = session.exec(self._query.offset(offset).limit(self.size)).all()
+            yield from items
             return
 
         if not self.model.id:
@@ -99,9 +102,11 @@ class PaginatedResponse[T: _BaseModel]:
             raise ValueError(msg)
 
         offset = (self.model.id - 1) * self.size
-        yield from self.model.session.exec(
-            select(self.model).where(self.model.id >= offset).limit(self.size),
-        ).all()
+        with orm_session() as session:
+            items = session.exec(
+                select(self.model).where(self.model.id >= offset).limit(self.size),
+            ).all()
+        yield from items
         yield from self.next or []
 
     @property
@@ -163,7 +168,9 @@ class RequestFilter[T: _BaseModel](Filterable, Sortable):
 
     def __iter__(self) -> Iterator[T]:
         """Execute the query and yield the matching records."""
-        yield from self.model.session.exec(self.query)
+        with orm_session() as session:
+            items = session.exec(self.query).all()
+        yield from items
 
     @override
     def filter(self, **kwargs: object) -> Self:

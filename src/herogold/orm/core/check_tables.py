@@ -21,11 +21,16 @@ RED = "\x1b[31m"
 RESET = "\x1b[0m"
 
 
-class TableCheck:
-    """Namespace for table check functions."""
+def _models_dir() -> str:
+    """Return the directory where the table classes are defined, read from db_config.ini."""
+    DbConfig.set_file(Path("db_config.ini"))
 
-    models_dir = DbConfig("models")
-    """Directory where the table classes are defined."""
+    class TableCheck:
+        """Namespace for table check functions."""
+
+        models_dir = DbConfig("models")
+
+    return TableCheck.models_dir
 
 
 def find_table_classes(py_path: Path) -> list[str]:
@@ -102,7 +107,7 @@ def add_decoded_item(items: list[str], elt: ast.Constant) -> None:
 def main() -> int:
     """Entry point."""
     root = Path(__file__).parent
-    tables_dir = root / TableCheck.models_dir
+    tables_dir = root / _models_dir()
     init_file = root / "__init__.py"
 
     if not tables_dir.exists():
