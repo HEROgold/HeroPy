@@ -55,8 +55,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     )
 
     if TYPE_CHECKING:
-        # pyrefly: ignore [bad-assignment, bad-dataclass-descriptor]
-        custom_data: Relationship[CustomData] = None  # ty: ignore[invalid-assignment]
+        custom_data: ClassVar[Relationship[CustomData]]
         # ``custom_data`` (a Relationship to the CustomData table) is attached below,
         # after CustomData is defined, because it targets a subclass of this class.
         __table__: ClassVar[Table]
