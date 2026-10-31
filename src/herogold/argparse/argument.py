@@ -409,11 +409,16 @@ class Argument[T](GenericClass[T]):
         default_factory: Callable[[], T] | None,
     ) -> None:
         """Validate that STORE_BOOL is not used with a type or default value other than bool."""
-        x = type_ not in (MISSING, bool)
-        x2 = default is not None and not isinstance(default, bool)
-        x3 = default_factory is not None and not callable(default_factory) and not isinstance(default_factory(), bool)
-        if action is Actions.STORE_BOOL and (x or x2 or x3):
-            msg = "Cannot set both action=STORE_BOOL and a type."
+        if action is not Actions.STORE_BOOL:
+            return
+        if type_ not in (MISSING, bool):
+            msg = "Cannot set both action=STORE_BOOL and a type other than bool."
+            raise ValueError(msg)
+        if default is not None and not isinstance(default, bool):
+            msg = "Cannot set both action=STORE_BOOL and a non-bool default."
+            raise ValueError(msg)
+        if default_factory is not None and (not callable(default_factory) or not isinstance(default_factory(), bool)):
+            msg = "Cannot set both action=STORE_BOOL and a default_factory that does not return a bool."
             raise ValueError(msg)
 
     def _setup_parser_argument(self, owner: type, name: str) -> None:
