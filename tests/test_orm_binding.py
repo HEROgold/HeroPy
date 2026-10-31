@@ -121,9 +121,11 @@ def test_count_sees_rows_from_another_session(engine: Engine) -> None:
         assert BindingWidget.count() == 0
         with Session(engine) as other:
             BindingWidget(name="x").add(other)
+            other.commit()  # the caller owns the commit
         assert BindingWidget.count() == 1
         with Session(engine) as other:
             BindingWidget(name="y").add(other)
+            other.commit()
         assert BindingWidget.count() == 2
 
 
