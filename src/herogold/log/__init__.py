@@ -51,10 +51,15 @@ from logging import (
 
 # Patch logging for Python 3.14+
 if sys.version_info >= (3, 14):
-    from .logger import Logger
+    import logging
 
-    logger = Logger("root")
-    getLogger = logger.getChild  # noqa: N816
+    from .logger import Logger, RootLogger
+
+    # Register the class so the manager builds, caches and parents our Logger.
+    setLoggerClass(Logger)
+    # Give the existing root logger t-string support without replacing it.
+    logging.root.__class__ = RootLogger
+    logger = logging.root
     debug = logger.debug
     info = logger.info
     warning = logger.warning

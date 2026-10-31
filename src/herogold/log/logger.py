@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from logging import Logger as LoggingLogger
+from logging import RootLogger as LoggingRootLogger
 from string.templatelib import Interpolation, Template  # ty: ignore[unresolved-import]  # 3.14+ only, guarded in __init__
 from typing import TYPE_CHECKING, Any, override
 
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator, Mapping
     from logging import _ExcInfoType
 
-__all__ = ["Logger"]
+__all__ = ["Logger", "RootLogger"]
 type SupportsStr = object
 
 
@@ -103,8 +104,9 @@ class Logger(LoggingLogger):
         stacklevel: int = 1,
         extra: Mapping[str, object] | None = None,
     ) -> None:
-        return super().exception(
-            self._build_msg(msg)[1:],
+        # The base exception() calls self.error(), which would build the message twice.
+        return super().error(
+            *self._build_msg(msg),
             *args,
             exc_info=exc_info,
             stack_info=stack_info,
@@ -152,13 +154,6 @@ class Logger(LoggingLogger):
             extra=extra,
         )
 
-    @override
-    def getChild(self, suffix: str | None = None) -> Logger:
-        """Get a child logger with the given suffix."""
-        if self.root is not self:
-            suffix = f"{self.name}.{suffix}"
-        return Logger(suffix or self.name)
-
     def _interpolate(self, msg: Template) -> Generator[tuple[str, Any]]:
         """Interpolate a Template message into a string and argument counterparts."""
         for part in msg:
@@ -174,10 +169,11 @@ class Logger(LoggingLogger):
                 case _:
                     yield "%s", part.value
 
-    def _build_msg(self, msg: SupportsStr) -> tuple[str, *tuple[object, ...]]:
+    def _build_msg(self, msg: SupportsStr) -> tuple[object, *tuple[object, ...]]:
         """Build the final log message string, combined with required arguments properly formatted."""
         if not isinstance(msg, Template):
-            return "%s", msg
+            # Leave plain messages as-is, so printf-style arguments format the stdlib way.
+            return (msg,)
 
         parts: list[str] = []
         arguments: list[object] = []
@@ -185,3 +181,7 @@ class Logger(LoggingLogger):
             parts.append(part)
             arguments.append(arg)
         return "".join(parts), *arguments
+
+
+class RootLogger(Logger, LoggingRootLogger):
+    """Root logger, supporting template string literals."""

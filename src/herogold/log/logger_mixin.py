@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from . import DEBUG, INFO, FileHandler, Formatter, Logger, StreamHandler, getLogger
+from . import DEBUG, INFO, FileHandler, Formatter, Logger, getLogger
 from .formats import formatter
 
 __all__ = ["LoggerMixin"]
@@ -125,4 +125,3 @@ class LoggerMixin:
 
         # Add handler to logger
         logger.addHandler(file_handler)
-        logger.addHandler(StreamHandler())
