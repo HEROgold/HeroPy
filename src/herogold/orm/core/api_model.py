@@ -10,8 +10,7 @@ from sqlalchemy.sql.elements import SQLCoreOperations
 from sqlmodel import Field, SQLModel, col, select
 
 from herogold.imports import ExtraImportContext
-from herogold.orm.core.model import CustomData
-from herogold.orm.custom_data import DEFAULT_SIZE_LIMIT, OutOfSpaceError, validate_size
+from herogold.orm.custom_data import DEFAULT_SIZE_LIMIT, OutOfSpaceError, set_custom_data, validate_size
 from herogold.protocols import Filterable, Sortable
 
 with ExtraImportContext("herogold", "orm", "orm", "api"):
@@ -220,8 +219,10 @@ class CustomDataContainer[T: _BaseModel]:
         if not self._data:
             return
         limit = getattr(self.item, "custom_data_size_limit", DEFAULT_SIZE_LIMIT)
-        if isinstance(err := validate_size(self._data, limit), OutOfSpaceError):
-            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=str(err))
+        try:
+            validate_size(self._data, limit)
+        except OutOfSpaceError as err:
+            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=str(err)) from err
 
     def set(self) -> None:
         """Persist ``data`` as a linked :class:`CustomData` row.
@@ -235,9 +236,7 @@ class CustomDataContainer[T: _BaseModel]:
         if not self._data:
             return
         self.validate()
-        row = CustomData(data=self._data)
-        row.add()
-        self.item.custom_data = row
+        set_custom_data(self.item, self._data)
 
 
 class QueryResponse[T: _BaseModel](TypedDict):
