@@ -395,11 +395,11 @@ class Argument[T](GenericClass[T]):
             Actions.STORE_BOOL,
         ):
             return bool
+        if type_ is not MISSING:
+            return type_
         if (stored := self._type_arg) is not None:
             return stored
-        if type_ is MISSING:
-            return str
-        return type_
+        return str
 
     def _validate_STORE_BOOL(  # noqa: N802
         self,

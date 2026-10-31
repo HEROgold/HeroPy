@@ -44,3 +44,15 @@ def test_store_bool_rejects_non_bool_default_factory() -> None:
     with pytest.raises(ValueError, match="default_factory"):
         Argument("flag", action=Actions.STORE_BOOL, default_factory="x")  # type: ignore[arg-type]
     Argument("flag", action=Actions.STORE_BOOL, default_factory=lambda: True)
+
+
+def test_explicit_type_wins_over_subscripted_type() -> None:
+    """An explicit type_ takes precedence over the type stored via Argument[T]."""
+    from herogold.argparse import Argument
+
+    def parse_hex(s: str) -> int:
+        return int(s, 16)
+
+    assert Argument[int]("n", type_=parse_hex, default=0).type is parse_hex
+    assert Argument("n", type_=parse_hex, default=0).type is parse_hex
+    assert Argument[int]("n", default=0).type is int
