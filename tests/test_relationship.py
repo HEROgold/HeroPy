@@ -8,7 +8,8 @@ from sqlalchemy.ext.compiler import compiles
 from sqlmodel import Session, SQLModel, create_engine
 
 import herogold.orm
-from herogold.orm.core.model import BaseModel, _BaseModel
+from herogold.orm.core.binding import bound
+from herogold.orm.core.model import BaseModel
 from herogold.orm.core.utils import SELF, Relationship, SelfRelationship, get_foreign_key
 
 if TYPE_CHECKING:
@@ -46,18 +47,11 @@ def session() -> Iterator[Session]:
     engine = create_engine(url="sqlite:///:memory:", poolclass=StaticPool)
     SQLModel.metadata.create_all(engine)
     sess = Session(engine)
-    originals = {cls: cls.__dict__.get("session") for cls in (_BaseModel, BaseModel)}
-    for cls in (_BaseModel, BaseModel):
-        cls.session = sess
     try:
-        yield sess
+        with bound(engine):
+            yield sess
     finally:
         sess.close()
-        for cls, original in originals.items():
-            if original is None:
-                delattr(cls, "session")
-            else:
-                cls.session = original
         engine.dispose()
 
 
