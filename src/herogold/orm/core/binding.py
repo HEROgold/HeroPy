@@ -2,11 +2,14 @@
 
 The application supplies an engine with :func:`bind`. Model methods that are not
 given a session open an owned one through :func:`orm_session`.
+
+The binding is process-wide. :func:`bound` is meant for tests and does not
+support concurrent per-thread engines.
 """
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING, Annotated
 
 import sqlmodel
@@ -18,10 +21,11 @@ from .errors import NoEngineBoundError
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from contextlib import AbstractContextManager
 
     from sqlalchemy import Engine
 
-__all__ = ["OwnedSession", "bind", "bound", "orm_session"]
+__all__ = ["OwnedSession", "bind", "bound", "orm_session", "use_session"]
 
 _factory: sessionmaker[sqlmodel.Session] | None = None
 
@@ -35,17 +39,13 @@ def bind(engine: Engine) -> None:
 @contextmanager
 def bound(engine: Engine) -> Iterator[None]:
     """Bind ``engine`` inside the block, then restore the previous binding."""
+    global _factory  # noqa: PLW0603
     previous = _factory
     bind(engine)
     try:
         yield
     finally:
-        _restore(previous)
-
-
-def _restore(previous: sessionmaker[sqlmodel.Session] | None) -> None:
-    global _factory  # noqa: PLW0603
-    _factory = previous
+        _factory = previous
 
 
 @contextmanager
@@ -71,6 +71,11 @@ def orm_session() -> Iterator[sqlmodel.Session]:
         raise
     finally:
         session.close()
+
+
+def use_session(session: sqlmodel.Session | None) -> AbstractContextManager[sqlmodel.Session]:
+    """Yield ``session`` untouched if given, else open an owned session."""
+    return nullcontext(session) if session is not None else orm_session()
 
 
 OwnedSession = Annotated[sqlmodel.Session | None, Depends(orm_session)]
