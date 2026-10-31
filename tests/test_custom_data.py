@@ -148,4 +148,3 @@ def test_overflow_returns_413(session: Session) -> None:
 def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
     # SQLite only autoincrements a rowid-aliased INTEGER PRIMARY KEY, not BIGINT.
     return "INTEGER"
-

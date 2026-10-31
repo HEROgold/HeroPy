@@ -23,4 +23,3 @@ class PlanPayments(DataModel, table=True):
     user = Relationship(User)
     plan = Relationship(BillingPlan)
     status: PaymentStatus
-
