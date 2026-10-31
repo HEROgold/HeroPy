@@ -25,8 +25,7 @@ _installed: list[Handler] = []
 _class_loggers: set[str] = set()
 _original_level: int | None = None
 _directory: Path | None = None
-_last_directory: Path | None = None
-_last_options: dict[str, Any] = {}
+_options: dict[str, Any] = {"directory": DEFAULT_DIRECTORY}
 _formatter: Formatter = default_formatter
 
 
@@ -47,16 +46,16 @@ def setup(
     stream: bool = True,
 ) -> None:
     """Install the herogold log handlers on the root logger. Creates no files until a record is written."""
-    global _original_level, _directory, _last_directory, _last_options  # noqa: PLW0603
+    global _original_level, _directory, _options  # noqa: PLW0603
     root = getLogger()
     _remove_installed()
     if _original_level is None:
         _original_level = root.level
 
-    path = Path(directory) if directory is not None else (_last_directory or DEFAULT_DIRECTORY)
-    _last_directory = path
-    _directory = path
-    _last_options = {
+    path = Path(directory) if directory is not None else _options["directory"]
+    _directory = path.resolve()
+    _options = {
+        "directory": path,
         "level": level,
         "global_file": global_file,
         "per_class_files": per_class_files,
@@ -91,24 +90,23 @@ def teardown() -> None:
 
 
 def log_directory() -> Path | None:
-    """Return the active log directory, or None when setup() is not active."""
+    """Return the active log directory as an absolute path, or None when setup() is not active."""
     return _directory
 
 
 def set_formatter(formatter: Formatter) -> None:
-    """Set the formatter for the installed handlers and for later setup() calls."""
+    """Set the log format. Applies to the installed handlers when setup() is active."""
     global _formatter  # noqa: PLW0603
     _formatter = formatter
-    for handler in _installed:
-        handler.setFormatter(formatter)
+    if _directory is not None:
+        setup(**_options)
 
 
 def set_directory(directory: str | Path) -> None:
     """Set the log directory. Moves the output when setup() is active."""
-    global _last_directory  # noqa: PLW0603
-    _last_directory = Path(directory)
+    _options["directory"] = Path(directory)
     if _directory is not None:
-        setup(_last_directory, **_last_options)
+        setup(**_options)
 
 
 def register_class_logger(name: str) -> None:

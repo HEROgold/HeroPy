@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import re
 from logging import (
-    DEBUG,
     INFO,
     FileHandler,
-    Formatter,
     Handler,
     LogRecord,
     StreamHandler,
@@ -24,13 +21,6 @@ if TYPE_CHECKING:
 stream_handler = StreamHandler()
 stream_handler.setFormatter(formatter)
 stream_handler.setLevel(INFO)
-
-_INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*]')
-
-
-def _windows_safe_name(name: str) -> str:
-    """Replace characters that are invalid in Windows file names."""
-    return _INVALID_FILENAME_CHARS.sub("_", name)
 
 
 class LazyFileHandler(FileHandler):
@@ -51,7 +41,7 @@ class PerNameFileHandler(Handler):
 
     def __init__(self, directory: str | Path, names: Container[str]) -> None:
         """Remember the directory and logger names without touching the filesystem."""
-        super().__init__(DEBUG)
+        super().__init__()
         self.directory = Path(directory)
         self.names = names
         self._children: dict[str, LazyFileHandler] = {}
@@ -62,16 +52,10 @@ class PerNameFileHandler(Handler):
             return
         child = self._children.get(record.name)
         if child is None:
-            child = LazyFileHandler(self.directory / f"{_windows_safe_name(record.name)}.log")
+            child = LazyFileHandler(self.directory / f"{record.name}.log")
             child.setFormatter(self.formatter)
             self._children[record.name] = child
         child.emit(record)
-
-    @override
-    def setFormatter(self, fmt: Formatter | None) -> None:
-        super().setFormatter(fmt)
-        for child in self._children.values():
-            child.setFormatter(fmt)
 
     @override
     def flush(self) -> None:

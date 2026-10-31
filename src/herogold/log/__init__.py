@@ -57,15 +57,10 @@ if sys.version_info >= (3, 14):
 
     def getLogger(name: str | None = None) -> Logger:  # noqa: N802
         """Return a logger registered with the stdlib manager, using the custom Logger class."""
-        if not name or name == "root":
-            return _logging.getLogger()
         manager = _logging.Logger.manager
+        # The manager only uses loggerClass for new loggers, so existing ones come back unchanged.
         with _logging._lock:  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
-            existing = manager.loggerDict.get(name)
-            if isinstance(existing, _logging.Logger):
-                return existing
-            previous = manager.loggerClass
-            manager.loggerClass = Logger
+            previous, manager.loggerClass = manager.loggerClass, Logger
             try:
                 return _logging.getLogger(name)
             finally:

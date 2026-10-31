@@ -1,8 +1,7 @@
-"""Tests for the opt-in logging setup in herogold.log (TDD red step)."""
+"""Tests for the opt-in logging setup in herogold.log."""
 
 from __future__ import annotations
 
-import importlib
 import logging
 import os
 import subprocess
@@ -22,11 +21,6 @@ def _teardown_after_test():
     """Remove the handlers and root level that setup() installed."""
     yield
     teardown()
-
-
-def _flush_root_handlers() -> None:
-    for handler in logging.getLogger().handlers:
-        handler.flush()
 
 
 def test_import_has_no_side_effects(tmp_path: Path) -> None:
@@ -88,7 +82,6 @@ def test_setup_creates_directory_lazily(tmp_path: Path) -> None:
     assert not d.exists()
 
     logging.getLogger("herogold.testlazy").info("hello lazy")
-    _flush_root_handlers()
 
     assert d.exists()
     assert "hello lazy" in (d / "_global.log").read_text()
@@ -131,7 +124,6 @@ def test_per_class_file(tmp_path: Path) -> None:
 
     logger = Bar().logger
     logger.debug("bar debug")
-    _flush_root_handlers()
 
     expected = tmp_path / f"{logger.name}.log"
     assert expected.exists()
@@ -143,7 +135,6 @@ def test_per_class_file_skips_other_loggers(tmp_path: Path) -> None:
     setup(tmp_path)
 
     logging.getLogger("thirdparty.engine").info("not a class logger")
-    _flush_root_handlers()
 
     assert not (tmp_path / "thirdparty.engine.log").exists()
     assert "not a class logger" in (tmp_path / "_global.log").read_text()
@@ -158,50 +149,26 @@ def test_set_log_directory_moves_output(tmp_path: Path) -> None:
     assert log_directory() == tmp_path / "b"
 
     logging.getLogger("herogold.testmove").info("moved")
-    _flush_root_handlers()
 
     assert "moved" in (tmp_path / "b" / "_global.log").read_text()
     assert not (tmp_path / "a").exists()
 
 
-def test_get_logger_registered() -> None:
+def test_get_logger_registered(caplog: pytest.LogCaptureFixture) -> None:
     """getLogger() returns the stdlib-registered logger and records propagate to parents."""
     name = "herogold.testreg.child"
     assert getLogger(name) is getLogger(name)
     assert getLogger(name) is logging.getLogger(name)
 
-    class ListHandler(logging.Handler):
-        def __init__(self) -> None:
-            super().__init__()
-            self.records: list[logging.LogRecord] = []
+    with caplog.at_level(logging.INFO, logger=name):
+        getLogger(name).info("propagated")
 
-        def emit(self, record: logging.LogRecord) -> None:
-            self.records.append(record)
-
-    parent = logging.getLogger("herogold.testreg")
-    child = getLogger(name)
-    handler = ListHandler()
-    handler.setLevel(logging.DEBUG)
-    old_parent_level = parent.level
-    old_child_level = child.level
-
-    parent.addHandler(handler)
-    parent.setLevel(logging.DEBUG)
-    child.setLevel(logging.DEBUG)
-    try:
-        child.info("propagated")
-    finally:
-        parent.removeHandler(handler)
-        parent.setLevel(old_parent_level)
-        child.setLevel(old_child_level)
-
-    assert len(handler.records) == 1
-    assert handler.records[0].getMessage() == "propagated"
+    assert caplog.messages == ["propagated"]
 
 
 @pytest.mark.skipif(sys.version_info < (3, 14), reason="custom logger class needs Python 3.14+")
 def test_get_logger_custom_class_on_314() -> None:
     """On Python 3.14+, getLogger() returns herogold.log.logger.Logger instances."""
-    custom = importlib.import_module("herogold.log.logger")
+    from herogold.log.logger import Logger  # noqa: PLC0415  # t-strings only parse on 3.14+
 
-    assert isinstance(getLogger("herogold.testcls"), custom.Logger)
+    assert isinstance(getLogger("herogold.testcls"), Logger)
