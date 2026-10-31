@@ -1,6 +1,6 @@
 [project]
 name = "herogold"
-version = "6.0.0"
+version = "6.0.1"
 description = "A single package containing personal utilities."
 readme = "README.md"
 requires-python = ">=3.12"
