@@ -33,8 +33,7 @@ class Logger(LoggingLogger):
             if args:
                 error = "a template message takes no extra arguments"
                 raise TypeError(error)
-            msg, *template_args = self._build_msg(msg)
-            args = tuple(template_args)
+            msg, args = self._build_msg(msg)
         # Skip this frame, so records point at the caller instead of this file.
         super()._log(level, msg, args, exc_info, extra, stack_info, stacklevel + 1)
 
@@ -48,19 +47,17 @@ class Logger(LoggingLogger):
                     yield "%f", part.value
                 case Interpolation(value=int()):
                     yield "%d", part.value
-                case Interpolation(value=bool()):
-                    yield "%b", part.value
                 case _:
                     yield "%s", part.value
 
-    def _build_msg(self, msg: Template) -> tuple[str, *tuple[object, ...]]:
+    def _build_msg(self, msg: Template) -> tuple[str, tuple[object, ...]]:
         """Build the final log message string, combined with required arguments properly formatted."""
         parts: list[str] = []
         arguments: list[object] = []
         for part, arg in self._interpolate(msg):
             parts.append(part)
             arguments.append(arg)
-        return "".join(parts), *arguments
+        return "".join(parts), tuple(arguments)
 
 
 class RootLogger(Logger, LoggingRootLogger):

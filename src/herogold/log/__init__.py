@@ -16,11 +16,9 @@ from logging import (
     Filter,
     Formatter,
     Handler,
-    Logger,
     LoggerAdapter,
     LogRecord,
     NullHandler,
-    RootLogger,
     StreamHandler,
     addLevelName,
     basicConfig,
@@ -35,7 +33,6 @@ from logging import (
     getHandlerNames,
     getLevelName,  # pyright: ignore[reportDeprecated]
     getLevelNamesMapping,
-    getLogger,
     getLoggerClass,
     getLogRecordFactory,
     info,
@@ -52,21 +49,23 @@ from logging import (
 # Patch logging for Python 3.14+
 if sys.version_info >= (3, 14):
     import logging
+    from typing import cast
 
     from .logger import Logger, RootLogger
 
     # Register the class so the manager builds, caches and parents our Logger.
     setLoggerClass(Logger)
     # Give the existing root logger t-string support without replacing it.
+    # The module-level debug, info, ... helpers log through it, so they accept t-strings too.
     logging.root.__class__ = RootLogger
-    logger = logging.root
-    debug = logger.debug
-    info = logger.info
-    warning = logger.warning
-    error = logger.error
-    exception = logger.exception
-    critical = logger.critical
-    fatal = logger.fatal
+
+    def getLogger(name: str | None = None) -> Logger:  # noqa: N802
+        """Return the logger with this name, typed as herogold's Logger."""
+        # Loggers created before herogold.log was imported are still stdlib Loggers.
+        return cast("Logger", logging.getLogger(name))
+else:
+    from logging import Logger, RootLogger, getLogger
+
 
 from .formats import BASIC_FORMAT, formatter, message, prefix
 from .handlers import stream_handler
