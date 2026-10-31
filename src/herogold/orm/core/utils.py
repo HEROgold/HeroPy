@@ -17,6 +17,7 @@ from .binding import OwnedSession  # noqa: TC001  # inject resolves annotations 
 
 if TYPE_CHECKING:
     import sys
+    from collections.abc import Iterable
 
     from sqlalchemy import ColumnElement
     from sqlmodel import Session
@@ -78,30 +79,25 @@ class LinkInfo[T: _BaseModel](NamedTuple):
         """Map the link-table target columns to ``target``'s primary-key values."""
         return {col: getattr(target, pk) for col, pk in zip(self.target_cols, self.target_pk, strict=True)}
 
+    def _all_equal(self, link_cols: list[str], right_values: Iterable[object]) -> ColumnElement[bool]:
+        """AND together ``link_table.c[col] == value`` for each link column and its paired value."""
+        return and_(*(self.table.c[col] == value for col, value in zip(link_cols, right_values, strict=True)))
+
     def owner_filter(self, owner: _BaseModel) -> ColumnElement[bool]:
         """Match the link row(s) belonging to ``owner``."""
-        return and_(*(self.table.c[col] == value for col, value in self.owner_values(owner).items()))
+        return self._all_equal(self.owner_cols, (getattr(owner, pk) for pk in self.owner_pk))
 
     def target_join(self) -> ColumnElement[bool]:
         """Join condition between the link table and the target table."""
-        return and_(*(
-            self.table.c[col] == self.target.__table__.c[pk]
-            for col, pk in zip(self.target_cols, self.target_pk, strict=True)
-        ))
+        return self._all_equal(self.target_cols, (self.target.__table__.c[pk] for pk in self.target_pk))
 
     def target_filter(self, target: _BaseModel) -> ColumnElement[bool]:
         """Match the link row(s) pointing at ``target``."""
-        return and_(*(
-            self.table.c[col] == getattr(target, pk)
-            for col, pk in zip(self.target_cols, self.target_pk, strict=True)
-        ))
+        return self._all_equal(self.target_cols, (getattr(target, pk) for pk in self.target_pk))
 
     def owner_join(self, owner: type[_BaseModel]) -> ColumnElement[bool]:
         """Join condition between the link table and the ``owner`` table."""
-        return and_(*(
-            self.table.c[col] == owner.__table__.c[pk]
-            for col, pk in zip(self.owner_cols, self.owner_pk, strict=True)
-        ))
+        return self._all_equal(self.owner_cols, (owner.__table__.c[pk] for pk in self.owner_pk))
 
 
 class Relationship[T: _BaseModel](LoggerMixin):
