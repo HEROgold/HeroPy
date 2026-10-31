@@ -11,8 +11,11 @@ The engine the app has attached to the ORM. Every model reads and writes through
 _Avoid_: global engine, default engine, connection
 
 **Caller session**:
-A session the app passes into an ORM call. The app owns its transaction, so the ORM never commits it.
+A session the app controls: one passed into an ORM call, or the one an owner was loaded in. The ORM never commits it.
 _Avoid_: external session, user session
+
+**Request session**:
+The session the API layer opens for one HTTP request. It commits when the handler succeeds and rolls back when it fails.
 
 **Owned session**:
 A short-lived session the ORM opens for a single call when no caller session is given. It is committed and closed before the call returns.
