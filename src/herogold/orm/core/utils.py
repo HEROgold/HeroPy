@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, Self, TypeVar, cast, overload
 
 from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, and_
+from sqlalchemy.orm import object_session
 from sqlmodel import SQLModel, select
 
 from herogold.log import LoggerMixin
 from herogold.sentinel import create_sentinel
+from herogold.typing.inject import inject
 
-from .binding import orm_session
+from .binding import OwnedSession  # noqa: TC001  # inject resolves annotations at runtime
 
 if TYPE_CHECKING:
     import sys
 
     from sqlalchemy import ColumnElement
+    from sqlmodel import Session
 
     if sys.version_info >= (3, 13):
         from typing import TypeIs
@@ -110,44 +113,82 @@ class Relationship[T: _BaseModel](LoggerMixin):
         """Record the attribute name (link tables are built later, per subclass)."""
         self.name = name
 
-    def __set__(self, instance: _BaseModel, value: T) -> None:
-        """Persist ``value`` if needed and replace the owner's single link row."""
+    def __set__(self, instance: _BaseModel, value: T | None) -> None:
+        """Link ``value`` to the owner, or unlink when ``value`` is ``None``.
+
+        Uses the session the owner is attached to, else an owned session.
+        """
         instance.logger.debug("Setting relationship '%s' to %s", self.name, value, extra={"record": instance})
-        info = self._links[type(instance)]
-        if instance.id is None:
-            msg = f"Owner must be persisted before setting relationship '{self.name}'."
-            raise ValueError(msg)
-        with orm_session() as session:
-            if value.id is None:
-                value.add(session)
-            session.exec(info.table.delete().where(info.owner_filter(instance)))
-            session.exec(info.table.insert().values(**info.owner_values(instance), **info.target_values(value)))
-            session.commit()
+        if value is None:
+            self.unlink(instance, _attached_session(instance))
+        else:
+            self.link(instance, value, _attached_session(instance))
 
     def __delete__(self, instance: _BaseModel) -> None:
-        """Remove the owner's link row(s)."""
-        info = self._links.get(type(instance))
-        if info is None:
-            return
-        with orm_session() as session:
-            session.exec(info.table.delete().where(info.owner_filter(instance)))
-            session.commit()
+        """Remove the owner's link row."""
+        self.unlink(instance, _attached_session(instance))
 
     @overload
-    def __get__(self, instance: None, owner: type[_BaseModel]) -> type[T]: ...
+    def __get__(self, instance: None, owner: type[_BaseModel]) -> Self: ...
     @overload
     def __get__(self, instance: _BaseModel, owner: type[_BaseModel]) -> T | None: ...
 
-    def __get__(self, instance: _BaseModel | None, owner: type[_BaseModel]) -> type[T] | T | None:
-        """Class access returns the target class; instance access joins the link table."""
+    def __get__(self, instance: _BaseModel | None, owner: type[_BaseModel]) -> Self | T | None:
+        """Class access returns the descriptor; instance access returns the target or ``None``."""
         if instance is None:
-            return self._resolve_target(owner)
-        info = self._links.get(type(instance))
-        if info is None:
+            return self
+        return self.get(instance, _attached_session(instance))
+
+    def link(self, owner: _BaseModel, target: T, session: Session | None = None) -> None:
+        """Replace ``owner``'s single link with ``target``.
+
+        An unsaved ``target`` is added and flushed first. Flushes, never commits;
+        a session opened here (none given) is committed by ``orm_session``.
+
+        Raises:
+            ValueError: If ``owner`` is not persisted.
+
+        """
+        self._link(owner, target, session)
+
+    def unlink(self, owner: _BaseModel, session: Session | None = None) -> None:
+        """Remove ``owner``'s link row. The owner and the target stay."""
+        self._unlink(owner, session)
+
+    def get(self, owner: _BaseModel, session: Session | None = None) -> T | None:
+        """Return ``owner``'s target, or ``None`` when there is no link."""
+        return cast("T | None", self._get(owner, session))
+
+    # The injected helpers use ``Any`` because ``@inject`` resolves annotations at
+    # runtime, and ``_BaseModel`` and ``T`` are not importable there.
+    @inject
+    def _link(self, owner: Any, target: Any, session: OwnedSession = None) -> None:  # noqa: ANN401
+        info = self._links[type(owner)]
+        if owner.id is None:
+            msg = f"Owner must be persisted before setting relationship '{self.name}'."
+            raise ValueError(msg)
+        if target.id is None:
+            session.add(target)
+            session.flush()
+        session.exec(info.table.delete().where(info.owner_filter(owner)))
+        session.exec(info.table.insert().values(**info.owner_values(owner), **info.target_values(target)))
+        session.flush()
+
+    @inject
+    def _unlink(self, owner: Any, session: OwnedSession = None) -> None:  # noqa: ANN401
+        info = self._links.get(type(owner))
+        if info is None or owner.id is None:
+            return
+        session.exec(info.table.delete().where(info.owner_filter(owner)))
+        session.flush()
+
+    @inject
+    def _get(self, owner: Any, session: OwnedSession = None) -> Any:  # noqa: ANN401
+        info = self._links.get(type(owner))
+        if info is None or owner.id is None:
             return None
-        query = select(info.target).join(info.table, info.target_join()).where(info.owner_filter(instance))
-        with orm_session() as session:
-            return cast("T | None", session.exec(query).first())
+        query = select(info.target).join(info.table, info.target_join()).where(info.owner_filter(owner))
+        return session.exec(query).first()
 
     def build_link_for(self, owner: type[_BaseModel]) -> None:
         """Build (once) the association table joining ``owner`` to the target.
@@ -157,7 +198,7 @@ class Relationship[T: _BaseModel](LoggerMixin):
         """
         if owner in self._links:
             return
-        target = self._resolve_target(owner)
+        target = self.target(owner)
         # Prefixes (owner tablename / attribute name) keep the self-referential case from colliding.
         owner_pk, owner_cols = _pk_columns(owner, prefix=str(owner.__tablename__))
         target_pk, target_cols = _pk_columns(target, prefix=self.name)
@@ -167,8 +208,8 @@ class Relationship[T: _BaseModel](LoggerMixin):
             table = _create_link_table(link_name, owner, owner_cols, target, target_cols)
         self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
 
-    def _resolve_target(self, owner: type[_BaseModel]) -> type[T]:
-        """Resolve ``SELF`` to the owner; otherwise return the declared target."""
+    def target(self, owner: type[_BaseModel]) -> type[T]:
+        """Return the target class: the owner for ``SELF``, else the declared model."""
         if self._is_self_referential(owner):
             return owner
         return self.related_model
@@ -193,12 +234,17 @@ class SelfRelationship(Relationship[Any]):
     if TYPE_CHECKING:
 
         @overload
-        def __get__[O: _BaseModel](self, instance: None, owner: type[O]) -> type[O]: ...
+        def __get__[O: _BaseModel](self, instance: None, owner: type[O]) -> Self: ...
         @overload
         def __get__[O: _BaseModel](self, instance: O, owner: type[O]) -> O | None: ...
         def __get__(self, instance: _BaseModel | None, owner: type[_BaseModel]) -> Any:
             """Typing-only signature; the runtime ``__get__`` is inherited from :class:`Relationship`."""
 
+
+
+def _attached_session(instance: object) -> Session | None:
+    """Return the session ``instance`` is attached to, or ``None`` when detached."""
+    return object_session(instance)  # ty: ignore[invalid-return-type]
 
 
 def _pk_columns(model: type[_BaseModel], prefix: str) -> tuple[list[str], list[str]]:
