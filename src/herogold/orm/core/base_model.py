@@ -93,7 +93,7 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         return {
             name: getattr(self, name)
             for name, info in self.__class__.model_fields.items()
-            if info.annotation and issubclass(info.annotation, _BaseModel)
+            if isinstance(info.annotation, type) and issubclass(info.annotation, _BaseModel)
         }
 
     def add(self, session: Session | None = None) -> None:
