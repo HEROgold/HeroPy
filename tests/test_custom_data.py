@@ -9,7 +9,7 @@ from sqlalchemy import BigInteger, StaticPool
 from sqlalchemy.ext.compiler import compiles
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from herogold.orm.core.api_model import APIModel
+from herogold.orm.api import APIModel
 from herogold.orm.core.binding import bound
 from herogold.orm.core.model import Actions, BaseModel, DataModel
 from herogold.orm.custom_data import OutOfSpaceError, validate_size
@@ -75,9 +75,9 @@ def test_owner_table_has_no_custom_data_column() -> None:
 
 def test_basemodel_create_persists_and_links(api: APIModel[Widget], session: Session) -> None:
     item = Widget(name="thing")
-    api.create(item, {"colour": "red", "tags": [1, 2, 3]})
+    api.create(item, {"colour": "red", "tags": [1, 2, 3]}, session=session)
 
-    fetched = api.get(item.id)
+    fetched = api.get(item.id, session=session)
     assert isinstance(fetched, Widget)
     assert fetched.custom_data is not None
     assert fetched.custom_data.data == {"colour": "red", "tags": [1, 2, 3]}
@@ -87,21 +87,21 @@ def test_basemodel_create_persists_and_links(api: APIModel[Widget], session: Ses
     assert len(rows) == 1
 
 
-def test_basemodel_update_replaces(api: APIModel[Widget]) -> None:
+def test_basemodel_update_replaces(api: APIModel[Widget], session: Session) -> None:
     item = Widget(name="thing2")
-    api.create(item, {"a": 1})
-    api.update(item, {"b": 2})  # replaces (single link + new CustomData row)
+    api.create(item, {"a": 1}, session=session)
+    api.update(item, {"b": 2}, session=session)  # replaces (single link + new CustomData row)
 
-    fetched = api.get(item.id)
+    fetched = api.get(item.id, session=session)
     assert isinstance(fetched, Widget)
     assert fetched.custom_data is not None
     assert fetched.custom_data.data == {"b": 2}  # replaced, not merged
 
 
-def test_no_custom_data_leaves_link_empty(api: APIModel[Widget]) -> None:
+def test_no_custom_data_leaves_link_empty(api: APIModel[Widget], session: Session) -> None:
     item = Widget(name="bare")
-    api.create(item)  # no custom_data
-    fetched = api.get(item.id)
+    api.create(item, session=session)  # no custom_data
+    fetched = api.get(item.id, session=session)
     assert isinstance(fetched, Widget)
     assert fetched.custom_data is None
 
@@ -112,9 +112,9 @@ def test_no_custom_data_leaves_link_empty(api: APIModel[Widget]) -> None:
 def test_datamodel_create_persists_and_links(session: Session) -> None:
     api = APIModel(History, APIRouter())
     item = History(label="v1", id=1, timestamp=datetime.now(UTC))
-    api.create(item, {"note": "first"})
+    api.create(item, {"note": "first"}, session=session)
 
-    fetched = api.get(item.id)
+    fetched = api.get(item.id, session=session)
     assert isinstance(fetched, History)
     assert fetched.custom_data is not None
     assert fetched.custom_data.data == {"note": "first"}
@@ -131,7 +131,7 @@ def test_overflow_returns_413(session: Session) -> None:
     tiny_api = APIModel(Tiny, APIRouter())
     item = Tiny(name="big")
     with pytest.raises(HTTPException) as excinfo:
-        tiny_api.create(item, {f"k{i}": i for i in range(50)})  # over the 64-byte limit
+        tiny_api.create(item, {f"k{i}": i for i in range(50)}, session=session)  # over the 64-byte limit
     assert excinfo.value.status_code == 413
 
 @compiles(BigInteger, "sqlite")
