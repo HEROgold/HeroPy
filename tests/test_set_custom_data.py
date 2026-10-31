@@ -57,7 +57,7 @@ def _payload_of_size(size: int) -> dict[str, str]:
     return {"k": "v" * (size - 8)}
 
 
-def _owner_data(engine: Engine, owner_cls: type[BaseModel], owner_id: int) -> dict | None | str:
+def _owner_data(engine: Engine, owner_cls: type[BaseModel], owner_id: int) -> dict | str | None:
     """Read an owner's custom data through a fresh session. Returns "missing" if the owner is not visible."""
     with Session(engine) as other:
         owner = other.get(owner_cls, owner_id)
