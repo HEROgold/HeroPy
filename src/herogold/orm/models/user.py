@@ -19,7 +19,7 @@ class User(BaseModel, table=True):
         index=True,
         sa_column_args=(ForeignKey(get_foreign_key(Email)),),
     )
-    primary_email = Relationship(Email, optional=True)
+    primary_email = Relationship(Email)
 
     def set_username(self, value: str) -> None:
         """Set and normalize a username."""

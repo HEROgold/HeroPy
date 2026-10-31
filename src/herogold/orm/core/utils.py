@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, NamedTuple, Self, TypeVar, cast, overload
 
 from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, and_
@@ -35,6 +36,14 @@ SELF = create_sentinel()
 
 
 T = TypeVar("T", bound=SQLModel)
+
+_UNSET: Any = object()
+"""Default for the deprecated ``optional`` argument, so only explicit use warns."""
+
+_OPTIONAL_DEPRECATION = (
+    "The 'optional' argument of Relationship is deprecated and will be removed in 8.0.0. "
+    "A relationship is always optional."
+)
 
 
 def get_foreign_key[M: SQLModel](table: type[M], column: str = "id") -> str:
@@ -97,14 +106,17 @@ class Relationship[T: _BaseModel](LoggerMixin):
     on ``_BaseModel`` yields a distinct link table for every model.
     """
 
-    def __init__(self, related_model: type[T] = SELF, *, optional: bool = True) -> None:
+    def __init__(self, related_model: type[T] = SELF, *, optional: bool = _UNSET) -> None:
         """Initialise the descriptor.
 
         ``related_model`` may be the ``SELF`` sentinel (self-referential) or a
-        concrete ``table=True`` model. ``optional`` is accepted for API symmetry;
-        access always returns ``None`` when there is no link.
+        concrete ``table=True`` model. ``optional`` is deprecated and ignored
+        (access always returns ``None`` when there is no link); passing it emits a
+        ``DeprecationWarning`` and it will be removed in 8.0.0.
         """
-        self.optional = optional
+        if optional is not _UNSET:
+            warnings.warn(_OPTIONAL_DEPRECATION, DeprecationWarning, stacklevel=2)
+        self.optional = True if optional is _UNSET else optional
         self.related_model = related_model
         # Per-owner registry: a single inherited descriptor serves many subclasses.
         self._links: dict[type, LinkInfo[_BaseModel]] = {}
@@ -227,9 +239,15 @@ class SelfRelationship(Relationship[Any]):
     ``parent = SelfRelationship()`` on ``Node`` makes ``node.parent`` a ``Node | None``.
     """
 
-    def __init__(self, *, optional: bool = True) -> None:
+    def __init__(self, *, optional: bool = _UNSET) -> None:
         """Initialise a relationship that targets the owning model."""
-        super().__init__(SELF, optional=optional)
+        if optional is _UNSET:
+            super().__init__(SELF)
+        else:
+            warnings.warn(_OPTIONAL_DEPRECATION, DeprecationWarning, stacklevel=2)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                super().__init__(SELF, optional=optional)
 
     if TYPE_CHECKING:
 
