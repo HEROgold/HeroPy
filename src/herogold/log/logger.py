@@ -11,146 +11,30 @@ if TYPE_CHECKING:
     from logging import _ExcInfoType
 
 __all__ = ["Logger"]
-type SupportsStr = object
 
 
 class Logger(LoggingLogger):
     """Custom logger, supporting template string literals."""
 
     @override
-    def debug(
-        self,
-        msg: SupportsStr,
-        *args: object,
-        exc_info: _ExcInfoType | None = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        return super().debug(
-            *self._build_msg(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    @override
-    def info(
-        self,
-        msg: SupportsStr,
-        *args: object,
-        exc_info: _ExcInfoType | None = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        return super().info(
-            *self._build_msg(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    @override
-    def warning(
-        self,
-        msg: SupportsStr,
-        *args: object,
-        exc_info: _ExcInfoType | None = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        return super().warning(
-            *self._build_msg(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    @override
-    def error(
-        self,
-        msg: SupportsStr,
-        *args: object,
-        exc_info: _ExcInfoType | None = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        return super().error(
-            *self._build_msg(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    @override
-    def exception(
-        self,
-        msg: SupportsStr,
-        *args: object,
-        exc_info: _ExcInfoType = True,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        return super().exception(
-            self._build_msg(msg)[1:],
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    @override
-    def critical(
-        self,
-        msg: SupportsStr,
-        *args: object,
-        exc_info: _ExcInfoType | None = None,
-        stack_info: bool = False,
-        stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
-    ) -> None:
-        return super().critical(
-            *self._build_msg(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
-
-    @override
-    def log(
+    def _log(
         self,
         level: int,
-        msg: SupportsStr,
-        *args: object,
+        msg: object,
+        args: tuple[object, ...] | Mapping[str, object],
         exc_info: _ExcInfoType | None = None,
+        extra: Mapping[str, object] | None = None,
         stack_info: bool = False,
         stacklevel: int = 1,
-        extra: Mapping[str, object] | None = None,
     ) -> None:
-        return super().log(
-            level,
-            *self._build_msg(msg),
-            *args,
-            exc_info=exc_info,
-            stack_info=stack_info,
-            stacklevel=stacklevel,
-            extra=extra,
-        )
+        # Every public logging method ends up here, so templates are handled once.
+        if isinstance(msg, Template):
+            if args:
+                error = "a template message takes no extra arguments"
+                raise TypeError(error)
+            msg, args = self._build_msg(msg)
+        # Skip this frame, so records point at the caller instead of this file.
+        super()._log(level, msg, args, exc_info, extra, stack_info, stacklevel + 1)
 
     def _interpolate(self, msg: Template) -> Generator[tuple[str, Any]]:
         """Interpolate a Template message into a string and argument counterparts."""
@@ -162,19 +46,14 @@ class Logger(LoggingLogger):
                     yield "%f", part.value
                 case Interpolation(value=int()):
                     yield "%d", part.value
-                case Interpolation(value=bool()):
-                    yield "%b", part.value
                 case _:
                     yield "%s", part.value
 
-    def _build_msg(self, msg: SupportsStr) -> tuple[str, *tuple[object, ...]]:
+    def _build_msg(self, msg: Template) -> tuple[str, tuple[object, ...]]:
         """Build the final log message string, combined with required arguments properly formatted."""
-        if not isinstance(msg, Template):
-            return "%s", msg
-
         parts: list[str] = []
         arguments: list[object] = []
         for part, arg in self._interpolate(msg):
             parts.append(part)
             arguments.append(arg)
-        return "".join(parts), *arguments
+        return "".join(parts), tuple(arguments)
