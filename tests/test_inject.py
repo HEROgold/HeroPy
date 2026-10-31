@@ -151,3 +151,18 @@ def test_unmarked_parameters_are_untouched() -> None:
 
     assert func() == (None, "provided")
     assert provider.entered == 1
+
+
+def test_inject_rejects_generator_and_async_functions() -> None:
+    def gen(x: Annotated[str | None, Depends(provider)] = None) -> Iterator[str]:  # type: ignore[assignment]
+        yield x
+
+    async def coro(x: Annotated[str | None, Depends(provider)] = None) -> str:  # type: ignore[assignment]
+        return x
+
+    async def agen(x: Annotated[str | None, Depends(provider)] = None):
+        yield x
+
+    for fn in (gen, coro, agen):
+        with pytest.raises(TypeError):
+            inject(fn)
