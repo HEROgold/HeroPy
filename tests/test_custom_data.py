@@ -54,10 +54,9 @@ def api(session: Session) -> APIModel[Widget]:
 # --- size validation helper -------------------------------------------------
 
 
-def test_validate_size_returns_error() -> None:
-    # with_known_exception makes validate_size RETURN the error rather than raise it
-    err = validate_size({"x": "y" * 1000}, 8)
-    assert isinstance(err, OutOfSpaceError)
+def test_validate_size_raises_out_of_space() -> None:
+    with pytest.raises(OutOfSpaceError, match="exceeds limit of 8 bytes"):
+        validate_size({"x": "y" * 1000}, 8)
     assert validate_size({"x": 1}, 10_000) is None
 
 

@@ -22,6 +22,7 @@ __all__ = [
     "bind",
     "bound",
     "get_foreign_key",
+    "set_custom_data",
     "url_from_config",
 ]
 
@@ -29,6 +30,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "BaseModel": ("orm.core.model", "BaseModel"),
     "bind": ("orm.core.binding", "bind"),
     "bound": ("orm.core.binding", "bound"),
+    "set_custom_data": ("orm.custom_data", "set_custom_data"),
     "url_from_config": ("orm.core.constants", "url_from_config"),
     "NoEngineBoundError": ("orm.core.errors", "NoEngineBoundError"),
     "SELF": ("orm.core.utils", "SELF"),
