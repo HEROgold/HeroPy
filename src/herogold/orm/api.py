@@ -18,7 +18,7 @@ with ExtraImportContext("herogold", "orm", "orm", "api"):
     from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 
-from .core.binding import orm_session
+from .core.binding import orm_session, use_session
 from .core.model import _BaseModel
 
 if TYPE_CHECKING:
@@ -105,9 +105,7 @@ class PaginatedResponse[T: _BaseModel]:
         self._session = session
 
     def _read[R](self, run: Callable[[Session], R]) -> R:
-        if self._session is not None:
-            return run(self._session)
-        with orm_session() as session:
+        with use_session(self._session) as session:
             return run(session)
 
     def __iter__(self) -> Generator[T]:
@@ -193,11 +191,9 @@ class RequestFilter[T: _BaseModel](Filterable, Sortable):
 
     def __iter__(self) -> Iterator[T]:
         """Execute the query and yield the matching records."""
-        if self.session is not None:
-            yield from self.session.exec(self.query).all()
-            return
-        with orm_session() as session:
-            yield from session.exec(self.query).all()
+        with use_session(self.session) as session:
+            rows = session.exec(self.query).all()
+        yield from rows
 
     @override
     def filter(self, **kwargs: object) -> Self:
@@ -392,8 +388,8 @@ class APIModel[T: _BaseModel]:
         """
         if not item.id or not self.model.get(item.id, session=session):
             return status.HTTP_404_NOT_FOUND
-        self._set_custom_data(item, custom_data, session)
         item.update(session=session)
+        self._set_custom_data(item, custom_data, session)
         return None
 
     def delete(self, _id: int, session: SessionDep) -> int | None:
