@@ -1,3 +1,4 @@
+"""The CustomData table, which stores extra JSONB data for any model."""
 
 from __future__ import annotations
 
