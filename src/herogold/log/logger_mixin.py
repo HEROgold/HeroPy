@@ -98,7 +98,6 @@ class LoggerMixin:
     def __setup_global_logger(cls) -> None:
         """Set up the global logger that captures all logs."""
         global_logger = getLogger()
-        global_logger.setLevel(DEBUG)
 
         # Create global file handler
         global_log_file = Path(cls.__log_directory) / "_global.log"
