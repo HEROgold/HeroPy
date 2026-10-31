@@ -16,9 +16,11 @@ from logging import (
     Filter,
     Formatter,
     Handler,
+    Logger,
     LoggerAdapter,
     LogRecord,
     NullHandler,
+    RootLogger,
     StreamHandler,
     addLevelName,
     basicConfig,
@@ -33,6 +35,7 @@ from logging import (
     getHandlerNames,
     getLevelName,  # pyright: ignore[reportDeprecated]
     getLevelNamesMapping,
+    getLogger,
     getLoggerClass,
     getLogRecordFactory,
     info,
@@ -48,34 +51,37 @@ from logging import (
 
 # Patch logging for Python 3.14+
 if sys.version_info >= (3, 14):
-    import logging
-    from typing import cast
+    import logging as _logging
 
-    from .logger import Logger, RootLogger
-
-    # Register the class so the manager builds, caches and parents our Logger.
-    setLoggerClass(Logger)
-    # Give the existing root logger t-string support without replacing it.
-    # The module-level debug, info, ... helpers log through it, so they accept t-strings too.
-    logging.root.__class__ = RootLogger
+    from .logger import Logger
 
     def getLogger(name: str | None = None) -> Logger:  # noqa: N802
-        """Return the logger with this name, typed as herogold's Logger."""
-        # Loggers created before herogold.log was imported are still stdlib Loggers.
-        return cast("Logger", logging.getLogger(name))
-else:
-    from logging import Logger, RootLogger, getLogger
+        """Return a logger registered with the stdlib manager, using the custom Logger class."""
+        manager = _logging.Logger.manager
+        # The manager only uses loggerClass for new loggers, so existing ones come back unchanged.
+        with _logging._lock:  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+            previous, manager.loggerClass = manager.loggerClass, Logger
+            try:
+                return _logging.getLogger(name)
+            finally:
+                manager.loggerClass = previous
 
+    logger = getLogger("herogold")
+    debug = logger.debug
+    info = logger.info
+    warning = logger.warning
+    error = logger.error
+    exception = logger.exception
+    critical = logger.critical
+    fatal = logger.fatal
 
+from .config import log_directory, setup, teardown
 from .formats import BASIC_FORMAT, formatter, message, prefix
 from .handlers import stream_handler
 from .logger_mixin import LoggerMixin
 
-basicConfig(
-    format=BASIC_FORMAT,
-    level=INFO,
-    handlers=[stream_handler],
-)
+# Library convention: stay silent unless the application configures logging.
+getLogger("herogold").addHandler(NullHandler())
 
 __all__ = [
     "BASIC_FORMAT",
@@ -118,13 +124,16 @@ __all__ = [
     "info",
     "lastResort",
     "log",
+    "log_directory",
     "makeLogRecord",
     "message",
     "prefix",
     "raiseExceptions",
     "setLogRecordFactory",
     "setLoggerClass",
+    "setup",
     "shutdown",
     "stream_handler",
+    "teardown",
     "warning",
 ]

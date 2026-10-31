@@ -54,28 +54,24 @@ def test_module_logger_record_reaches_root_handler(caplog: pytest.LogCaptureFixt
     assert _messages(caplog, "issue55.module") == ["seen 3 times"]
 
 
-def test_root_logger_is_the_logging_root_and_accepts_templates(caplog: pytest.LogCaptureFixture) -> None:
-    root = getLogger()
-    name = "root"
-
-    root.warning(t"hello from {name}")
-
-    assert root is logging.root
-    assert _messages(caplog, "root") == ["hello from root"]
+def test_root_logger_is_the_logging_root() -> None:
+    assert getLogger() is logging.root
 
 
-def test_module_level_helpers_log_through_the_root(caplog: pytest.LogCaptureFixture) -> None:
+def test_module_level_helpers_log_through_the_herogold_logger(caplog: pytest.LogCaptureFixture) -> None:
     item = "helper"
 
     log_module.warning(t"from the {item}")
 
-    assert _messages(caplog, "root") == ["from the helper"]
+    assert _messages(caplog, "herogold") == ["from the helper"]
 
 
 def test_mixin_record_is_printed_once_and_reaches_global_log(tmp_path: Path) -> None:
     code = dedent("""        import logging
 
-        from herogold.log import LoggerMixin
+        from herogold.log import INFO, LoggerMixin, setup
+
+        setup(level=INFO)
 
         class Issue55Mixin(LoggerMixin):
             pass

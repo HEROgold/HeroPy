@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from logging import Logger as LoggingLogger
-from logging import RootLogger as LoggingRootLogger
 from string.templatelib import Interpolation, Template  # ty: ignore[unresolved-import]  # 3.14+ only, guarded in __init__
 from typing import TYPE_CHECKING, Any, override
 
@@ -11,7 +10,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator, Mapping
     from logging import _ExcInfoType
 
-__all__ = ["Logger", "RootLogger"]
+__all__ = ["Logger"]
 
 
 class Logger(LoggingLogger):
@@ -58,7 +57,3 @@ class Logger(LoggingLogger):
             parts.append(part)
             arguments.append(arg)
         return "".join(parts), tuple(arguments)
-
-
-class RootLogger(Logger, LoggingRootLogger):
-    """Root logger, supporting template string literals."""
