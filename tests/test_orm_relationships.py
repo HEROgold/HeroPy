@@ -110,3 +110,9 @@ def test_foreign_key_targets_are_wired_via_helper() -> None:
     assert next(iter(UserRole.__table__.c.role_id.foreign_keys)).target_fullname == "role.id"
     assert next(iter(RolePermission.__table__.c.role_id.foreign_keys)).target_fullname == "role.id"
     assert next(iter(RolePermission.__table__.c.permission_id.foreign_keys)).target_fullname == "permission.id"
+
+
+def test_relations_skips_fields_annotated_with_non_classes(session: Session) -> None:
+    user = User(username="alice", primary_email_id=None)
+
+    assert user.relations == {}
