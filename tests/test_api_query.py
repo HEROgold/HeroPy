@@ -11,7 +11,7 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from herogold.orm.core.api_model import (
+from herogold.orm.api import (
     APIModel,
     Operator,
     PaginatedResponse,
@@ -193,135 +193,135 @@ def test_client_query_advertised_in_allow_header(client: TestClient) -> None:
     rows = _query(client, {})
     assert len(list(rows)) == 3
 
-def test_api_operator_eq(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.eq, value=20)]))["items"]
+def test_api_operator_eq(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.eq, value=20)]), session=session)["items"]  # noqa: E501
     assert len(items) == 0
     assert item.name == "big box"
     assert item.price == 20
     assert item.deleted_at is None
 
-def test_api_operator_ne(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.ne, value=20)]))["items"]
+def test_api_operator_ne(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.ne, value=20)]), session=session)["items"]  # noqa: E501
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
     assert item.deleted_at is None
 
-def test_api_operator_gt(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.gt, value=10)]))["items"]
+def test_api_operator_gt(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.gt, value=10)]), session=session)["items"]  # noqa: E501
     assert len(items) == 1
     assert item.name == "big box"
     assert item.price == 20
     assert item.deleted_at is None
 
-def test_api_operator_like(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.like, value="%box%")]))["items"]
+def test_api_operator_like(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.like, value="%box%")]), session=session)["items"]  # noqa: E501
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
     assert item.deleted_at is None
 
-def test_api_operator_ge(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.ge, value=20)]))["items"]
+def test_api_operator_ge(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.ge, value=20)]), session=session)["items"]  # noqa: E501
     assert len(items) == 1
     assert item.name == "big box"
     assert item.price == 20
     assert item.deleted_at is None
 
-def test_api_operator_lt(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.lt, value=20)]))["items"]
+def test_api_operator_lt(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.lt, value=20)]), session=session)["items"]  # noqa: E501
     assert len(items) == 0
     assert item.name == "small box"
     assert item.price == 5
     assert item.deleted_at is None
 
-def test_api_operator_le(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.le, value=20)]))["items"]
+def test_api_operator_le(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.le, value=20)]), session=session)["items"]  # noqa: E501
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
     assert item.deleted_at is None
 
-def test_api_operator_like_http(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.like, value="%box%")]))["items"]
+def test_api_operator_like_http(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.like, value="%box%")]), session=session)["items"]  # noqa: E501
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
     assert item.deleted_at is None
 
-def test_api_operator_ilike(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.ilike, value="%BOX%")]))["items"]
+def test_api_operator_ilike(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.ilike, value="%BOX%")]), session=session)["items"]  # noqa: E501
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
     assert item.deleted_at is None
 
-def test_api_operator_in(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]))["items"]  # noqa: E501
+def test_api_operator_in(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]), session=session)["items"]  # noqa: E501
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
     assert item.deleted_at is None
 
-def test_api_operator_in_http(api: APIModel[Item]) -> None:
-    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]))["items"]  # noqa: E501
+def test_api_operator_in_http(api: APIModel[Item], session: Session) -> None:
+    [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]), session=session)["items"]  # noqa: E501
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
     assert item.deleted_at is None
 
-def test_api_multiple_filters_combine(api: APIModel[Item]) -> None:
+def test_api_multiple_filters_combine(api: APIModel[Item], session: Session) -> None:
     filters = [
         QueryFilter(field="price", op=Operator.gt, value=10),
         QueryFilter(field="name", op=Operator.like, value="%box%"),
     ]
-    rows = api.query(QueryRequest(filters=filters))["items"]
+    rows = api.query(QueryRequest(filters=filters), session=session)["items"]
     assert [r.name for r in rows] == ["big box"]
 
-def test_request_filter_is_iterable(api: APIModel[Item]) -> None:
+def test_request_filter_is_iterable(api: APIModel[Item], session: Session) -> None:
     request = QueryRequest(filters=[QueryFilter(field="price", op=Operator.lt, value=50)])
-    request_filter = RequestFilter(Item, request).filter()
+    request_filter = RequestFilter(Item, request, session=session).filter()
     assert isinstance(request_filter, Filterable)
     assert isinstance(request_filter, Sortable)
     assert sorted((r.price for r in request_filter), reverse=True) == [20, 5]
 
-def test_api_sort_and_order(api: APIModel[Item]) -> None:
-    rows = api.query(QueryRequest(sort="price", order="desc"))["items"]
+def test_api_sort_and_order(api: APIModel[Item], session: Session) -> None:
+    rows = api.query(QueryRequest(sort="price", order="desc"), session=session)["items"]
     assert [r.price for r in rows] == [50, 20, 5]
 
-def test_api_pagination(api: APIModel[Item]) -> None:
-    page1 = api.query(QueryRequest(sort="price", order="asc", page=1, limit=2))["items"]
-    page2 = api.query(QueryRequest(sort="price", order="asc", page=2, limit=2))["items"]
+def test_api_pagination(api: APIModel[Item], session: Session) -> None:
+    page1 = api.query(QueryRequest(sort="price", order="asc", page=1, limit=2), session=session)["items"]
+    page2 = api.query(QueryRequest(sort="price", order="asc", page=2, limit=2), session=session)["items"]
     assert [r.price for r in page1] == [5, 20]
     assert [r.price for r in page2] == [50]
 
-def test_api_unknown_field_rejected(api: APIModel[Item]) -> None:
+def test_api_unknown_field_rejected(api: APIModel[Item], session: Session) -> None:
     with pytest.raises(HTTPException) as exc_info:
-        api.query(QueryRequest(filters=[QueryFilter(field="nope", op=Operator.eq, value=1)]))["items"]
+        api.query(QueryRequest(filters=[QueryFilter(field="nope", op=Operator.eq, value=1)]), session=session)["items"]
     assert exc_info.value.status_code == 422
 
-def test_api_soft_deleted_excluded(api: APIModel[Item]) -> None:
-    rows = api.query(QueryRequest())["items"]
+def test_api_soft_deleted_excluded(api: APIModel[Item], session: Session) -> None:
+    rows = api.query(QueryRequest(), session=session)["items"]
     assert "gone" not in {r.name for r in rows}
     assert len(rows) == 3
 
-def test_api_pagination_metadata(api: APIModel[Item]) -> None:
+def test_api_pagination_metadata(api: APIModel[Item], session: Session) -> None:
     request = QueryRequest(sort="price", order="asc", page=1, limit=2)
-    response = PaginatedResponse(Item, request.page, request.limit)
+    response = PaginatedResponse(Item, request.page, request.limit, session=session)
     assert response.meta["page"] == 1
     assert response.meta["size"] == 2
     assert response.meta["total_items"] == 3
     assert response.meta["total_pages"] == 2
     assert response.meta["next"] is not None
 
-def test_api_unknown_filter_field_rejected(api: APIModel[Item]) -> None:
+def test_api_unknown_filter_field_rejected(api: APIModel[Item], session: Session) -> None:
     with pytest.raises(HTTPException) as exc_info:
-        api.query(QueryRequest(filters=[QueryFilter(field="session", op=Operator.eq, value=1)]))["items"]
+        api.query(QueryRequest(filters=[QueryFilter(field="session", op=Operator.eq, value=1)]), session=session)["items"]
     assert exc_info.value.status_code == 422
 
-def test_api_unknown_sort_field_rejected(api: APIModel[Item]) -> None:
+def test_api_unknown_sort_field_rejected(api: APIModel[Item], session: Session) -> None:
     with pytest.raises(HTTPException) as exc_info:
-        api.query(QueryRequest(sort="logger"))["items"]
+        api.query(QueryRequest(sort="logger"), session=session)["items"]
     assert exc_info.value.status_code == 422
 
 def test_api_invalid_page_rejected(api: APIModel[Item]) -> None:
@@ -332,15 +332,15 @@ def test_api_invalid_limit_rejected(api: APIModel[Item]) -> None:
     with pytest.raises(ValidationError):
         QueryRequest(limit=0)
 
-def test_api_in_operator_with_non_iterable_value_rejected(api: APIModel[Item]) -> None:
+def test_api_in_operator_with_non_iterable_value_rejected(api: APIModel[Item], session: Session) -> None:
     with pytest.raises(HTTPException) as exc_info:
-        api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.in_, value=42)]))["items"]
+        api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.in_, value=42)]), session=session)["items"]
     assert exc_info.value.status_code == 422
 
-def test_api_query_advertised_in_allow_header(api: APIModel[Item]) -> None:
+def test_api_query_advertised_in_allow_header(api: APIModel[Item], session: Session) -> None:
     resp = api.options()
     assert "QUERY" in resp.headers.get("allow", "")
-    rows = api.query(QueryRequest())["items"]
+    rows = api.query(QueryRequest(), session=session)["items"]
     assert len(rows) == 3
 
 
