@@ -100,7 +100,7 @@ class BaseModel(_BaseModel):
     def _create_record(self, session: Session) -> None:
         self.logger.debug("Creating record: %s", self, extra={"record": self})
         session.add(self)
-        session.commit()
+        session.flush()
 
     @override
     def _update_record(self, session: Session, entry: Self) -> None:
@@ -109,7 +109,7 @@ class BaseModel(_BaseModel):
             setattr(entry, name, value)
         entry.updated_at = _current_utc()
         session.add(entry)
-        session.commit()
+        session.flush()
 
     @override
     def _delete_record(self, session: Session) -> None:
@@ -119,7 +119,7 @@ class BaseModel(_BaseModel):
             .with_for_update(),
         ).first():
             known.deleted_at = _current_utc()
-            session.commit()
+            session.flush()
             return
 
 class Actions(Enum):
@@ -176,7 +176,7 @@ class DataModel(_BaseModel):
         self.logger.debug("Creating record: %s", self, extra={"record": self})
         self.action = Actions.CREATE
         session.add(self)
-        session.commit()
+        session.flush()
 
     @override
     def _update_record(self, session: Session, entry: Self) -> None:
@@ -185,7 +185,7 @@ class DataModel(_BaseModel):
         for name, value in self._assignable_fields():
             setattr(entry, name, value)
         session.add(self)
-        session.commit()
+        session.flush()
 
     @override
     def _delete_record(self, session: Session) -> None:
@@ -196,5 +196,5 @@ class DataModel(_BaseModel):
         ).first():
             self.action = Actions.DELETE
             session.add(self)
-            session.commit()
+            session.flush()
             return
