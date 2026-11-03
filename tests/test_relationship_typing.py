@@ -91,3 +91,12 @@ def test_no_optional_keyword_does_not_warn() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         Relationship(Email)
+
+
+def test_self_relationship_optional_warning_points_at_caller() -> None:
+    """The warning for ``SelfRelationship(optional=...)`` names the caller's file."""
+    from herogold.orm.core.utils import SelfRelationship  # noqa: PLC0415
+
+    with pytest.warns(DeprecationWarning, match="8.0.0") as record:
+        SelfRelationship(optional=True)
+    assert record[0].filename == __file__

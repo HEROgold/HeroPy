@@ -233,7 +233,10 @@ class SelfRelationship(Relationship[Any]):
 
     def __init__(self, *, optional: bool = _UNSET) -> None:
         """Initialise a relationship that targets the owning model."""
-        super().__init__(SELF, optional=optional)
+        if optional is not _UNSET:
+            warnings.warn(_OPTIONAL_DEPRECATION, DeprecationWarning, stacklevel=2)
+        super().__init__(SELF)
+        self.optional = True if optional is _UNSET else optional
 
     if TYPE_CHECKING:
 
