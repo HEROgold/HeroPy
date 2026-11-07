@@ -25,7 +25,7 @@ class ProgressBar:
     def __init__(self, total: int) -> None:
         """Create a progress bar instance, with a total number of steps. This is the 100% marker."""
         self._total = total
-        self._current = 0
+        self._current: float = 0
         self._start_time = datetime.now(tz=UTC)
 
     @property
@@ -57,9 +57,23 @@ class ProgressBar:
         """Return the current progress as a fraction of the total."""
         return self._current / self._total
 
+    @property
+    def elapsed_time(self) -> timedelta:
+        """Return the elapsed time since the progress bar was started."""
+        return datetime.now(tz=UTC) - self._start_time
+
+    @property
+    def terminal_width(self) -> int:
+        """Return the width of the terminal."""
+        try:
+            t_size = get_terminal_size().columns
+        except OSError:
+            t_size = 0
+        return t_size
+
     def __str__(self) -> str:
         """Return the string representation of the progress bar."""
-        bar_area = self.calculate_bar_area()
+        bar_area = self.calculate_bar_area(self.terminal_width)
 
         bar_count = self.calculate_bar_count(bar_area)
         bar = self.generate_bar(int(bar_count))
@@ -82,12 +96,12 @@ class ProgressBar:
         """Calculate the number of spaces to use in the progress bar."""
         return math.floor(bar_area - len(bar)) - len(self.end)
 
-    def calculate_bar_area(self) -> int:
+    def calculate_bar_area(self, width: int) -> int:
         """Calculate the available width for the progress bar."""
         # - disable auto-formatting for readability
         # fmt: off
         return (
-            get_terminal_size().columns
+            width
             - len(self.message)
             - len(self.start)
             - len(self.arrow)
@@ -102,11 +116,6 @@ class ProgressBar:
     def update(self, current: float) -> None:
         """Update the current progress value."""
         self.current = current
-
-    @property
-    def elapsed_time(self) -> timedelta:
-        """Return the elapsed time since the progress bar was started."""
-        return datetime.now(tz=UTC) - self._start_time
 
     def reset_timer(self) -> None:
         """Reset the start time to the current time."""
@@ -125,12 +134,12 @@ class PreciseProgressBar(ProgressBar):
         """Set the current progress value, rounding to the specified precision."""
         self._current = round(value, self.precision)
 
-    def get_partial_bar(self) -> str:
+    def get_partial_bar(self, width: int) -> str:
         """Get the appropriate partial bar character based on the fractional progress."""
         if self.current >= self.total:
             return ""
 
-        bar_area = self.calculate_bar_area()
+        bar_area = self.calculate_bar_area(width)
         bar_count = self.calculate_bar_count(bar_area)
         frac = bar_count % 1
 
@@ -143,7 +152,8 @@ class PreciseProgressBar(ProgressBar):
     @override
     def update(self, current: float) -> None:
         super().update(current)
-        self.partial_bar = self.get_partial_bar()
+
+        self.partial_bar = self.get_partial_bar(self.terminal_width)
 
     @override
     def generate_bar(self, bar_count: int) -> str:
