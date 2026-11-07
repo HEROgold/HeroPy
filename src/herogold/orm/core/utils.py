@@ -32,15 +32,6 @@ SELF = create_sentinel()
 T = TypeVar("T", bound=SQLModel)
 
 
-def get_foreign_key[M: SQLModel](table: type[M], column: str = "id") -> str:
-    """Return ``<table>.<column>`` for the given model class.
-
-    The generic parameter allows callers such as ``Relationship[T]`` to pass
-    ``type[T]`` without a typing error.
-    """
-    return f"{table.__tablename__}.{column}"
-
-
 
 class LinkInfo[T: _BaseModel](NamedTuple):
     """Resolved association table for a single (owner, relationship) pair."""
@@ -199,6 +190,40 @@ class SelfRelationship(Relationship[Any]):
             """Typing-only signature; the runtime ``__get__`` is inherited from :class:`Relationship`."""
 
 
+class ModelMeta(type(SQLModel)):
+    """Metaclass that builds association tables for each concrete model.
+
+    SQLModel builds a class's ``__table__`` in the metaclass ``__init__`` (after
+    ``__new__``), so this is the earliest hook where a subclass's table exists.
+    For every concrete ``table=True`` subclass it scans the MRO for
+    :class:`Relationship` descriptors and asks each to build its link table.
+    """
+
+    def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, object], **kwargs: object) -> None:
+        """Build link tables once the owner's ``__table__`` has been created."""
+        super().__init__(name, bases, namespace, **kwargs)
+        if getattr(cls, "__table__", None) is None:
+            return  # abstract base (no table) -> nothing to link
+        seen: set[str] = set()
+        for cls2 in cls.__mro__:
+            for attr_name, attr in vars(cls2).items():
+                if attr_name in seen:
+                    continue
+                seen.add(attr_name)
+                if isinstance(attr, Relationship):
+                    # pyrefly: ignore [bad-argument-type]
+                    attr.build_link_for(cls)
+
+
+def get_foreign_key[M: SQLModel](table: type[M], column: str = "id") -> str:
+    """Return ``<table>.<column>`` for the given model class.
+
+    The generic parameter allows callers such as ``Relationship[T]`` to pass
+    ``type[T]`` without a typing error.
+    """
+    return f"{table.__tablename__}.{column}"
+
+
 
 def _pk_columns(model: type[_BaseModel], prefix: str) -> tuple[list[str], list[str]]:
     """Return ``model``'s primary-key attribute names and the matching ``<prefix>_<pk>`` link-table column names."""
@@ -232,28 +257,3 @@ def _create_link_table(
         # secondary index for reverse (target -> owners) lookups
         Index(f"ix_{name}_tgt", *target_cols),
     )
-
-
-class ModelMeta(type(SQLModel)):
-    """Metaclass that builds association tables for each concrete model.
-
-    SQLModel builds a class's ``__table__`` in the metaclass ``__init__`` (after
-    ``__new__``), so this is the earliest hook where a subclass's table exists.
-    For every concrete ``table=True`` subclass it scans the MRO for
-    :class:`Relationship` descriptors and asks each to build its link table.
-    """
-
-    def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, object], **kwargs: object) -> None:
-        """Build link tables once the owner's ``__table__`` has been created."""
-        super().__init__(name, bases, namespace, **kwargs)
-        if getattr(cls, "__table__", None) is None:
-            return  # abstract base (no table) -> nothing to link
-        seen: set[str] = set()
-        for cls2 in cls.__mro__:
-            for attr_name, attr in vars(cls2).items():
-                if attr_name in seen:
-                    continue
-                seen.add(attr_name)
-                if isinstance(attr, Relationship):
-                    # pyrefly: ignore [bad-argument-type]
-                    attr.build_link_for(cls)

@@ -16,13 +16,6 @@ from herogold.log import LoggerMixin, getLogger, log_directory, setup, teardown
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 
 
-@pytest.fixture(autouse=True)
-def _teardown_after_test():
-    """Remove the handlers and root level that setup() installed."""
-    yield
-    teardown()
-
-
 def test_import_has_no_side_effects(tmp_path: Path) -> None:
     """Importing herogold.log and herogold.orm changes no root state and creates no logs dir."""
     code = dedent("""\
@@ -172,3 +165,10 @@ def test_get_logger_custom_class_on_314() -> None:
     from herogold.log.logger import Logger  # noqa: PLC0415  # t-strings only parse on 3.14+
 
     assert isinstance(getLogger("herogold.testcls"), Logger)
+
+
+@pytest.fixture(autouse=True)
+def _teardown_after_test():
+    """Remove the handlers and root level that setup() installed."""
+    yield
+    teardown()

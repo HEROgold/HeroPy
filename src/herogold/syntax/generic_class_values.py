@@ -26,18 +26,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
-def _is_unresolved(item: object) -> bool:
-    """Return whether `item` is, or contains, a type variable."""
-    if isinstance(item, TypeVar | ParamSpec | TypeVarTuple):
-        return True
-    # `list[T]` and the like carry their free type variables in `__parameters__`
-    return not isinstance(item, type) and bool(getattr(item, "__parameters__", ()))
-
-
-def _display_name(item: object) -> str:
-    return item.__name__ if isinstance(item, type) else repr(item)
-
-
 class GenericClass[*Ts]:
     """A generic class whose concrete type arguments are stored in `__stored_types__`.
 
@@ -136,3 +124,15 @@ class TypeArg[X]:
         """Return the class stored for this type parameter on `owner`, or `None`."""
         value = owner.__stored_types__.get(self.name)
         return cast("type[X]", value) if isinstance(value, type) else None
+
+
+def _is_unresolved(item: object) -> bool:
+    """Return whether `item` is, or contains, a type variable."""
+    if isinstance(item, TypeVar | ParamSpec | TypeVarTuple):
+        return True
+    # `list[T]` and the like carry their free type variables in `__parameters__`
+    return not isinstance(item, type) and bool(getattr(item, "__parameters__", ()))
+
+
+def _display_name(item: object) -> str:
+    return item.__name__ if isinstance(item, type) else repr(item)

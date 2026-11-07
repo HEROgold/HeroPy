@@ -42,19 +42,6 @@ class UnsupportedPythonVersionError(ImportError):
     """Raised when the running Python is older than a feature requires."""
 
 
-def _format(version: tuple[int, ...]) -> str:
-    return ".".join(str(part) for part in version)
-
-
-def _check(minimum: Version, name: str) -> None:
-    if tuple(sys.version_info[:2]) < minimum:
-        msg = (
-            f"{name} requires Python >= {_format(minimum)} "
-            f"(running {_format(tuple(sys.version_info[:3]))})."
-        )
-        raise UnsupportedPythonVersionError(msg)
-
-
 def require_python(minimum: Version, *, module: ModuleType) -> None:
     """Raise UnsupportedPythonVersionError if Python is older than ``minimum``."""
     _check(minimum, module.__name__)
@@ -72,3 +59,16 @@ def requires_python[**P, R](minimum: Version) -> Callable[[Callable[P, R]], Call
         return wrapper
 
     return decorator
+
+
+def _format(version: tuple[int, ...]) -> str:
+    return ".".join(str(part) for part in version)
+
+
+def _check(minimum: Version, name: str) -> None:
+    if tuple(sys.version_info[:2]) < minimum:
+        msg = (
+            f"{name} requires Python >= {_format(minimum)} "
+            f"(running {_format(tuple(sys.version_info[:3]))})."
+        )
+        raise UnsupportedPythonVersionError(msg)

@@ -5,11 +5,6 @@ import pytest
 from herogold.mangling import InvalidNameError, ManglingError, get_mangled_attribute, mangle
 
 
-def contains_mangle(class_: type, mangled_name: str) -> bool:
-    """Helper function to check if a class contains a mangled attribute."""
-    return any(attr for attr in dir(class_) if attr == mangled_name)
-
-
 class TestInvalidNameError:
     def test_exception_message_format(self) -> None:
         """Test InvalidNameError has proper message format."""
@@ -282,6 +277,11 @@ class TestGetMangledAttributeDunderFallback:
             __attr__ = "dunder"
 
         assert get_mangled_attribute(TestClass, TestClass, "attr") == "private"
+
+
+def contains_mangle(class_: type, mangled_name: str) -> bool:
+    """Helper function to check if a class contains a mangled attribute."""
+    return any(attr for attr in dir(class_) if attr == mangled_name)
 
 
 def test_mangle_underscores_only_is_not_a_dunder() -> None:

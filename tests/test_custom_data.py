@@ -17,6 +17,19 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
+class Widget(BaseModel, table=True):
+    name: str
+
+
+class Tiny(BaseModel, table=True):
+    name: str
+    custom_data_size_limit: ClassVar[int] = 64  # a small budget so a modest payload overflows
+
+
+class History(DataModel, table=True):
+    label: str
+
+
 @pytest.fixture
 def session() -> Iterator[Session]:
     # On-disk engine (not in-memory) so the file survives for inspection.
@@ -39,19 +52,6 @@ def session() -> Iterator[Session]:
             else:
                 cls.session = original
         engine.dispose()  # release the sqlite file lock on Windows; file is kept
-
-
-class Widget(BaseModel, table=True):
-    name: str
-
-
-class Tiny(BaseModel, table=True):
-    name: str
-    custom_data_size_limit: ClassVar[int] = 64  # a small budget so a modest payload overflows
-
-
-class History(DataModel, table=True):
-    label: str
 
 
 @pytest.fixture

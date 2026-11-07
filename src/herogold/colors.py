@@ -101,11 +101,6 @@ class HighIntensityBackgrounds(Ansi):
     White = "\033[0;107m"
 
 
-def colorize(color: Ansi, s: str) -> str:
-    """Wrap string `s` in ANSI color `color` codes."""
-    return f"{color}{s}{Regular.Reset}"
-
-
 class ColorizedString(str):  # noqa: D101
     __slots__ = ()
 
@@ -113,3 +108,8 @@ class ColorizedString(str):  # noqa: D101
         super().__init__()
         if color:
             self = colorize(color, self)  # noqa: PLW0642
+
+
+def colorize(color: Ansi, s: str) -> str:
+    """Wrap string `s` in ANSI color `color` codes."""
+    return f"{color}{s}{Regular.Reset}"

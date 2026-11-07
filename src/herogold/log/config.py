@@ -29,14 +29,6 @@ _options: dict[str, Any] = {"directory": DEFAULT_DIRECTORY}
 _formatter: Formatter = default_formatter
 
 
-def _remove_installed() -> None:
-    root = getLogger()
-    for handler in _installed:
-        root.removeHandler(handler)
-        handler.close()
-    _installed.clear()
-
-
 def setup(
     directory: str | Path | None = None,
     level: int = DEBUG,
@@ -112,3 +104,11 @@ def set_directory(directory: str | Path) -> None:
 def register_class_logger(name: str) -> None:
     """Give the named logger its own file once setup() runs with per_class_files."""
     _class_loggers.add(name)
+
+
+def _remove_installed() -> None:
+    root = getLogger()
+    for handler in _installed:
+        root.removeHandler(handler)
+        handler.close()
+    _installed.clear()

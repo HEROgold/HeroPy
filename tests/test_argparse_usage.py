@@ -9,17 +9,6 @@ from herogold.argparse.argument import ColorArgumentParser
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
-def _plain(text: str) -> str:
-    return _ANSI.sub("", text)
-
-
-def _parser() -> ColorArgumentParser:
-    parser = ColorArgumentParser(prog="tool")
-    parser.add_argument("paths", nargs="+")
-    parser.add_argument("--check", action="store_true")
-    return parser
-
-
 def test_error_usage_matches_help_usage(capsys: pytest.CaptureFixture[str]) -> None:
     parser = _parser()
     help_usage = _plain(parser.format_help()).splitlines()[0]
@@ -56,3 +45,14 @@ def test_explicit_type_wins_over_subscripted_type() -> None:
     assert Argument[int]("n", type_=parse_hex, default=0).type is parse_hex
     assert Argument("n", type_=parse_hex, default=0).type is parse_hex
     assert Argument[int]("n", default=0).type is int
+
+
+def _plain(text: str) -> str:
+    return _ANSI.sub("", text)
+
+
+def _parser() -> ColorArgumentParser:
+    parser = ColorArgumentParser(prog="tool")
+    parser.add_argument("paths", nargs="+")
+    parser.add_argument("--check", action="store_true")
+    return parser

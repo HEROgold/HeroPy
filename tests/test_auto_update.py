@@ -18,23 +18,6 @@ if TYPE_CHECKING:
 GIT = shutil.which("git")
 
 
-def _git(cwd: Path, *args: str) -> None:
-    assert GIT is not None
-    subprocess.run(  # noqa: S603
-        [GIT, "-c", "user.name=test", "-c", "user.email=test@example.com", *args],
-        cwd=cwd,
-        check=True,
-        capture_output=True,
-    )
-
-
-def _commit(repo: Path, name: str) -> None:
-    (repo / name).write_text(name)
-    _git(repo, "add", name)
-    _git(repo, "commit", "-m", f"add {name}")
-    _git(repo, "push", "origin", "HEAD:main")
-
-
 @pytest.mark.skipif(GIT is None, reason="git is not installed")
 def test_git_checkout_fast_forwards_to_upstream(tmp_path: Path) -> None:
     remote, upstream, local = tmp_path / "remote.git", tmp_path / "upstream", tmp_path / "local"
@@ -55,27 +38,6 @@ def test_git_checkout_fast_forwards_to_upstream(tmp_path: Path) -> None:
     assert downloaded.install().success
     assert (local / "second.txt").read_text() == "second.txt"
     assert not connector.has_update
-
-
-def _zipball() -> bytes:
-    buffer = BytesIO()
-    with ZipFile(buffer, "w") as archive:
-        archive.writestr("owner-repo-abc123/pkg/new.txt", "new")
-    return buffer.getvalue()
-
-
-def _github_client() -> Client:
-    def handler(request: Request) -> Response:
-        if request.url.path == "/repos/owner/repo/releases/latest":
-            return Response(
-                200,
-                json={"tag_name": "v2.0.0", "zipball_url": "https://api.github.com/repos/owner/repo/zipball/v2.0.0"},
-            )
-        if request.url.path == "/repos/owner/repo/zipball/v2.0.0":
-            return Response(200, content=_zipball())
-        return Response(404)
-
-    return Client(transport=MockTransport(handler))
 
 
 @pytest.mark.parametrize(("installed", "expected"), [("1.0.0", True), ("2.0.0", False), ("v2.0.0", False)])
@@ -112,3 +74,41 @@ def test_github_source_api_url() -> None:
     source = Github("https://github.com/owner/repo/releases")
     assert source.api_latest_release == "https://api.github.com/repos/owner/repo/releases/latest"
     assert str(source) == "https://github.com/owner/repo"
+
+
+def _git(cwd: Path, *args: str) -> None:
+    assert GIT is not None
+    subprocess.run(  # noqa: S603
+        [GIT, "-c", "user.name=test", "-c", "user.email=test@example.com", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+    )
+
+
+def _commit(repo: Path, name: str) -> None:
+    (repo / name).write_text(name)
+    _git(repo, "add", name)
+    _git(repo, "commit", "-m", f"add {name}")
+    _git(repo, "push", "origin", "HEAD:main")
+
+
+def _zipball() -> bytes:
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as archive:
+        archive.writestr("owner-repo-abc123/pkg/new.txt", "new")
+    return buffer.getvalue()
+
+
+def _github_client() -> Client:
+    def handler(request: Request) -> Response:
+        if request.url.path == "/repos/owner/repo/releases/latest":
+            return Response(
+                200,
+                json={"tag_name": "v2.0.0", "zipball_url": "https://api.github.com/repos/owner/repo/zipball/v2.0.0"},
+            )
+        if request.url.path == "/repos/owner/repo/zipball/v2.0.0":
+            return Response(200, content=_zipball())
+        return Response(404)
+
+    return Client(transport=MockTransport(handler))

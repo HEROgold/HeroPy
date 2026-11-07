@@ -16,19 +16,6 @@ if TYPE_CHECKING:
 type Action = Callable[[], None]
 
 
-def _worker(task_q: JoinableQueue[Action | None], err_q: mp.Queue[BaseException]) -> None:
-    while True:
-        action = task_q.get()
-        try:
-            if action is None:
-                return
-            action()
-        except BaseException as exc:  # noqa: BLE001
-            err_q.put(exc)
-        finally:
-            task_q.task_done()
-
-
 class BaseWorkerPool(ABC):
     """Base class for worker pools."""
 
@@ -148,3 +135,16 @@ class AsyncWorkerPool(BaseWorkerPool):
     async def wait(self) -> None:
         """Wait for all worker processes to finish."""
         await asyncio.to_thread(self._tasks.join)
+
+
+def _worker(task_q: JoinableQueue[Action | None], err_q: mp.Queue[BaseException]) -> None:
+    while True:
+        action = task_q.get()
+        try:
+            if action is None:
+                return
+            action()
+        except BaseException as exc:  # noqa: BLE001
+            err_q.put(exc)
+        finally:
+            task_q.task_done()

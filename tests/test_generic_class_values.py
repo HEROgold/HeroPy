@@ -28,6 +28,14 @@ class Other[T](GenericClass[T]):
     pass
 
 
+class Typed[T, J](GenericClass[T, J]):
+    t = TypeArg[T]()
+    j = TypeArg[J]()
+
+    def __init__(self) -> None:
+        self.seen = (self.t, self.j)
+
+
 def test_one_param_visible_at_init() -> None:
     assert One[int]().seen == {"T": int}
 
@@ -104,14 +112,6 @@ def test_typevar_arguments_return_generic_alias() -> None:
     alias = make()
     assert get_origin(alias) is One
     assert get_origin(get_args(alias)[0]) is list
-
-
-class Typed[T, J](GenericClass[T, J]):
-    t = TypeArg[T]()
-    j = TypeArg[J]()
-
-    def __init__(self) -> None:
-        self.seen = (self.t, self.j)
 
 
 def test_type_arg_visible_at_init() -> None:

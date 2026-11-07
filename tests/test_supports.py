@@ -64,6 +64,11 @@ class DummyALL:
         return True
 
 
+class DummyMetadata:
+    __origin__ = int
+    __metadata__ = ("a", "b")
+
+
 def test_supports_gt_protocol() -> None:
     assert isinstance(DummyGT(), SupportsGT)
 
@@ -96,11 +101,6 @@ def test_supports_comparison_protocol() -> None:
     assert isinstance(DummyALL(), SupportsEq)
     assert isinstance(DummyALL(), SupportsNe)
     assert isinstance(DummyALL(), SupportsComparison)
-
-
-class DummyMetadata:
-    __origin__ = int
-    __metadata__ = ("a", "b")
 
 
 def test_supports_metadata_protocol() -> None:

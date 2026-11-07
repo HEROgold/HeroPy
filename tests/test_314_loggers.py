@@ -40,11 +40,6 @@ def test_get_logger_returns_same_instance_for_same_name() -> None:
     assert getLogger("issue55.same") is getLogger("issue55.same")
 
 
-def _messages(caplog: pytest.LogCaptureFixture, name: str) -> list[str]:
-    """Messages from one logger, so stray records from other loggers don't matter."""
-    return [record.getMessage() for record in caplog.records if record.name == name]
-
-
 def test_module_logger_record_reaches_root_handler(caplog: pytest.LogCaptureFixture) -> None:
     logger = getLogger("issue55.module")
     count = 3
@@ -124,3 +119,8 @@ def test_template_with_extra_arguments_is_rejected() -> None:
 
     with pytest.raises(TypeError):
         getLogger("issue55.extra").warning(t"value {value}", 5)
+
+
+def _messages(caplog: pytest.LogCaptureFixture, name: str) -> list[str]:
+    """Messages from one logger, so stray records from other loggers don't matter."""
+    return [record.getMessage() for record in caplog.records if record.name == name]

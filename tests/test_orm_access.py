@@ -17,25 +17,6 @@ if TYPE_CHECKING:
     from sqlmodel import Session
 
 
-def _permission(resource: str, action: str) -> Permission:
-    permission = Permission(name="", resource="", action="")
-    permission.set_from_parts(resource, action)
-    permission.add()
-    return permission
-
-
-def _user(username: str) -> User:
-    user = User(username=username)
-    user.add()
-    return user
-
-
-def _role(name: str) -> Role:
-    role = Role(name=name)
-    role.add()
-    return role
-
-
 def test_user_gets_permission_through_role(session: Session) -> None:
     user, role, permission = _user("alice"), _role("editor"), _permission("Posts", "Edit")
     UserRole(user_id=user.id, role_id=role.id).add()
@@ -69,3 +50,22 @@ def test_soft_deleted_grant_does_not_count(session: Session) -> None:
     grant.delete()
 
     assert not user_has_permission(user, "posts", "edit")
+
+
+def _permission(resource: str, action: str) -> Permission:
+    permission = Permission(name="", resource="", action="")
+    permission.set_from_parts(resource, action)
+    permission.add()
+    return permission
+
+
+def _user(username: str) -> User:
+    user = User(username=username)
+    user.add()
+    return user
+
+
+def _role(name: str) -> Role:
+    role = Role(name=name)
+    role.add()
+    return role

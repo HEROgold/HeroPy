@@ -24,24 +24,6 @@ if TYPE_CHECKING:
     from sqlmodel import Session
 
 
-def _make_plan(session: Session, *, until: datetime, currency: str = "USD", price: Decimal = Decimal("9.99")) -> BillingPlan:
-    plan = BillingPlan(name="pro", price=price, currency=currency, until=until)
-    plan.add(session)
-    return plan
-
-
-def _make_user(session: Session, username: str = "alice") -> User:
-    user = User(username=username)
-    user.add(session)
-    return user
-
-
-def _make_subscription(session: Session, status: SubscriptionStatus = SubscriptionStatus.ACTIVE) -> Subscription:
-    sub = Subscription(status=status)
-    sub.add(session)
-    return sub
-
-
 # --- BillingPlan --------------------------------------------------------
 
 
@@ -239,3 +221,21 @@ def test_update_does_not_preserve_prior_history_row(session: Session) -> None:
     assert len(rows) == 1
     assert rows[0].timestamp == original_timestamp
     assert rows[0].status is SubscriptionStatus.CANCELED
+
+
+def _make_plan(session: Session, *, until: datetime, currency: str = "USD", price: Decimal = Decimal("9.99")) -> BillingPlan:
+    plan = BillingPlan(name="pro", price=price, currency=currency, until=until)
+    plan.add(session)
+    return plan
+
+
+def _make_user(session: Session, username: str = "alice") -> User:
+    user = User(username=username)
+    user.add(session)
+    return user
+
+
+def _make_subscription(session: Session, status: SubscriptionStatus = SubscriptionStatus.ACTIVE) -> Subscription:
+    sub = Subscription(status=status)
+    sub.add(session)
+    return sub

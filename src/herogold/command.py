@@ -151,11 +151,6 @@ class MultipleRunner(CommandRunner):
             output = self._read_output(command)
             yield self._check_success(command, output)
 
-def _windows_shell() -> str:
-    """Get either powershell of cmd for windows."""
-    has_powershell = shutil.which("powershell")
-    return "powershell" if has_powershell else "cmd.exe"
-
 def command(
     *command: LiteralString | str,
     location: Path | None = None,
@@ -164,6 +159,11 @@ def command(
     location = location or Path.cwd()
     cd_loc = CLI(f"cd {location}\n")
     return CommandRunner([cd_loc, *[CLI(cmd) for cmd in command]]).run()
+
+def _windows_shell() -> str:
+    """Get either powershell of cmd for windows."""
+    has_powershell = shutil.which("powershell")
+    return "powershell" if has_powershell else "cmd.exe"
 
 
 __all__ = [

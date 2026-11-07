@@ -28,19 +28,6 @@ if TYPE_CHECKING:
 
     from sqlmodel.sql.expression import SelectOfScalar
 
-def _current_utc() -> datetime:
-    return datetime.now(UTC)
-
-
-
-# Attach the shared ``custom_data`` relationship to the base now that its target
-# (CustomData) exists. Placed here rather than in the _BaseModel body because it
-# points at a subclass; CustomData was built above, so it never gains its own
-# ``custom_data`` link table (it stays a leaf).
-_custom_data = Relationship(CustomData)
-_custom_data.__set_name__(_BaseModel, "custom_data")
-_BaseModel.custom_data = _custom_data
-
 
 class BaseModel(_BaseModel):
     """Base model class with custom methods."""
@@ -122,6 +109,16 @@ class BaseModel(_BaseModel):
             session.commit()
             return
 
+
+
+# Attach the shared ``custom_data`` relationship to the base now that its target
+# (CustomData) exists. Placed here rather than in the _BaseModel body because it
+# points at a subclass; CustomData was built above, so it never gains its own
+# ``custom_data`` link table (it stays a leaf).
+_custom_data = Relationship(CustomData)
+_custom_data.__set_name__(_BaseModel, "custom_data")
+_BaseModel.custom_data = _custom_data
+
 class Actions(Enum):
     """Enum for actions performed on a record."""
 
@@ -198,3 +195,6 @@ class DataModel(_BaseModel):
             session.add(self)
             session.commit()
             return
+
+def _current_utc() -> datetime:
+    return datetime.now(UTC)

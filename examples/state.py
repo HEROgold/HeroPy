@@ -39,6 +39,15 @@ class PaymentCtx:
 pay_sm = StateMachine[PayState, PayEvent, PaymentCtx]()
 
 
+@dataclass
+class Payment:
+    ctx: PaymentCtx
+    state: PayState = PayState.NEW
+
+    def handle(self, event: PayEvent) -> None:
+        self.state = pay_sm.handle(self.ctx, self.state, event)
+
+
 @pay_sm.add(PayState.NEW, event=PayEvent.AUTHORIZE, to_state=PayState.AUTHORIZED)
 def authorize(ctx: PaymentCtx) -> None:
     ctx.audit.append(f"{ctx.payment_id}: authorized")
@@ -57,15 +66,6 @@ def capture(ctx: PaymentCtx) -> None:
 @pay_sm.add(PayState.AUTHORIZED, PayState.CAPTURED, event=PayEvent.REFUND, to_state=PayState.REFUNDED)
 def refund(ctx: PaymentCtx) -> None:
     ctx.audit.append(f"{ctx.payment_id}: refunded")
-
-
-@dataclass
-class Payment:
-    ctx: PaymentCtx
-    state: PayState = PayState.NEW
-
-    def handle(self, event: PayEvent) -> None:
-        self.state = pay_sm.handle(self.ctx, self.state, event)
 
 
 def main() -> None:
