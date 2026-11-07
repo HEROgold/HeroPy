@@ -23,10 +23,15 @@ class Email(BaseModel, table=True):
             raise ValueError(msg)
         self.email = normalized
 
-    def mark_verified(self) -> None:
-        """Mark this email as verified using the current UTC timestamp."""
+    def mark_verified(self, now: datetime | None = None) -> None:
+        """Mark this email as verified.
+
+        Args:
+            now: Verification time to store. Defaults to the current UTC time.
+
+        """
         self.is_verified = True
-        self.verified_at = datetime.now(UTC)
+        self.verified_at = now or datetime.now(UTC)
 
     def clear_verification(self) -> None:
         """Clear verification status for this email."""
