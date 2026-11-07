@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+__lazy_modules__ = ["fastapi"]
+
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, ClassVar
 

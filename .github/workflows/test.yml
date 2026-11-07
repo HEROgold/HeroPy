@@ -16,9 +16,18 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.15"
     env:
       # uv-managed Python ships tkinter; the runner's system Python does not.
       UV_PYTHON_PREFERENCE: only-managed
+      UV_PYTHON: ${{ matrix.python-version }}
 
     steps:
     - uses: actions/checkout@v4
@@ -28,7 +37,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: .pytest_cache
-        key: ${{ runner.os }}-pytest-${{ hashFiles('**/tests/**/*.py', 'src/**') }}
+        key: ${{ runner.os }}-py${{ matrix.python-version }}-pytest-${{ hashFiles('**/tests/**/*.py', 'src/**') }}
 
     - name: Install uv
       if: steps.cache-pytest.outputs.cache-hit != 'true'

@@ -44,6 +44,9 @@ requires = ["hatchling>=1"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
+dev = [
+    "lazy-fix>=0.1.0 ; python_full_version >= '3.15'",
+]
 test = [
     "herogold[all]",
     "hypothesis>=6.168.0",
@@ -54,3 +57,9 @@ test = [
 
 [tool.ty.src]
 exclude = ["tests"]
+
+[tool.lazy-fix]
+# Only modules that no class or decorator uses while a module body runs.
+# sqlmodel, sqlalchemy, confkit, pydantic and httpxyz stay eager, because
+# subclassing or catching them resolves a lazy import immediately (ruff TID255).
+allow = ["fastapi", "watchdog", "dinero"]
