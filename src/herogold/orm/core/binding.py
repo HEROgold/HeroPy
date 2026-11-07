@@ -20,7 +20,7 @@ from herogold.typing.inject import Depends
 from .errors import NoEngineBoundError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from contextlib import AbstractContextManager
 
     from sqlalchemy import Engine
@@ -37,7 +37,7 @@ def bind(engine: Engine) -> None:
 
 
 @contextmanager
-def bound(engine: Engine) -> Iterator[None]:
+def bound(engine: Engine) -> Generator[None]:
     """Bind ``engine`` inside the block, then restore the previous binding."""
     global _factory  # noqa: PLW0603
     previous = _factory
@@ -49,7 +49,7 @@ def bound(engine: Engine) -> Iterator[None]:
 
 
 @contextmanager
-def orm_session() -> Iterator[sqlmodel.Session]:
+def orm_session() -> Generator[sqlmodel.Session]:
     """Open a session on the bound engine.
 
     Commits when the block succeeds, rolls back when it raises, and always closes.
