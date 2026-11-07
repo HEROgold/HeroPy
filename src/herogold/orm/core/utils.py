@@ -140,20 +140,20 @@ class Relationship[T: _BaseModel](LoggerMixin):
             ValueError: If ``owner`` is not persisted.
 
         """
-        self._link(owner, target, session)
+        self._link(owner, target, session)  # ty: ignore[invalid-argument-type]
 
     def unlink(self, owner: _BaseModel, session: Session | None = None) -> None:
         """Remove ``owner``'s link row. The owner and the target stay."""
-        self._unlink(owner, session)
+        self._unlink(owner, session)  # ty: ignore[invalid-argument-type]
 
     def get(self, owner: _BaseModel, session: Session | None = None) -> T | None:
         """Return ``owner``'s target, or ``None`` when there is no link."""
-        return cast("T | None", self._get(owner, session))
+        return cast("T | None", self._get(owner, session))  # ty: ignore[invalid-argument-type]
 
     # The injected helpers use ``Any`` because ``@inject`` resolves annotations at
     # runtime, and ``_BaseModel`` and ``T`` are not importable there.
     @inject
-    def _link(self, owner: Any, target: Any, session: OwnedSession = None) -> None:  # noqa: ANN401
+    def _link(self, owner: Any, target: Any, session: OwnedSession = None) -> None:  # noqa: ANN401  # ty: ignore[invalid-parameter-default]
         info = self._links[type(owner)]
         if owner.id is None:
             msg = f"Owner must be persisted before setting relationship '{self.name}'."
@@ -166,7 +166,7 @@ class Relationship[T: _BaseModel](LoggerMixin):
         session.flush()
 
     @inject
-    def _unlink(self, owner: Any, session: OwnedSession = None) -> None:  # noqa: ANN401
+    def _unlink(self, owner: Any, session: OwnedSession = None) -> None:  # noqa: ANN401  # ty: ignore[invalid-parameter-default]
         info = self._links.get(type(owner))
         if info is None or owner.id is None:
             return
@@ -174,7 +174,7 @@ class Relationship[T: _BaseModel](LoggerMixin):
         session.flush()
 
     @inject
-    def _get(self, owner: Any, session: OwnedSession = None) -> Any:  # noqa: ANN401
+    def _get(self, owner: Any, session: OwnedSession = None) -> Any:  # noqa: ANN401  # ty: ignore[invalid-parameter-default]
         info = self._links.get(type(owner))
         if info is None or owner.id is None:
             return None
