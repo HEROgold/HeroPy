@@ -22,7 +22,6 @@ from herogold.orm.core.binding import AUTO_SESSION, OwnedSession  # inject resol
 from herogold.orm.core.custom_data import CustomData
 from herogold.orm.core.utils import Relationship
 from herogold.typing.classproperty import classproperty
-from herogold.typing.inject import inject
 
 from .errors import AlreadyExistsError, NotFoundError
 
@@ -74,7 +73,6 @@ class BaseModel(_BaseModel):
 
     @override
     @classmethod
-    @inject
     def count(cls, session: OwnedSession = AUTO_SESSION) -> int:
         """Return the total count of records in the model."""
         return session.exec(
