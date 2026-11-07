@@ -63,7 +63,7 @@ def inject[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
         or inspect.iscoroutinefunction(fn)
         or inspect.isasyncgenfunction(fn)
     ):
-        msg = f"inject cannot wrap generator or async function {fn.__qualname__}"
+        msg = f"inject cannot wrap generator or async function {getattr(fn, "__qualname__", repr(fn))}"
         raise TypeError(msg)
     signature = inspect.signature(fn)
     dependencies: dict[str, Depends[Any]] | None = None
