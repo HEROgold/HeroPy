@@ -78,5 +78,5 @@ def use_session(session: sqlmodel.Session | None) -> AbstractContextManager[sqlm
     return nullcontext(session) if session is not None else orm_session()
 
 
-OwnedSession = Annotated[sqlmodel.Session | None, Depends(orm_session)]
+OwnedSession = Annotated[sqlmodel.Session, Depends(orm_session)]
 """Session parameter type. ``@inject`` fills it with an owned session when the caller passes none."""

@@ -76,7 +76,7 @@ class BaseModel(_BaseModel):
     @override
     @classmethod
     @inject
-    def count(cls, session: OwnedSession = None) -> int:
+    def count(cls, session: OwnedSession = None) -> int:  # ty: ignore[invalid-parameter-default]
         """Return the total count of records in the model."""
         return session.exec(
             select(func.count(col(cls.id))).where(cls.deleted_at == None),  # noqa: E711
