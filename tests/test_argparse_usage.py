@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+from herogold.argparse import Actions, Argument
 from herogold.argparse.argument import ColorArgumentParser
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
@@ -24,10 +25,6 @@ def test_error_usage_matches_help_usage(capsys: pytest.CaptureFixture[str]) -> N
 
 def test_store_bool_rejects_non_bool_default_factory() -> None:
     """STORE_BOOL must reject factories that do not return a bool, or are not callable."""
-    import pytest
-
-    from herogold.argparse import Actions, Argument
-
     with pytest.raises(ValueError, match="default_factory"):
         Argument("flag", action=Actions.STORE_BOOL, default_factory=lambda: "x")
     with pytest.raises(ValueError, match="default_factory"):
@@ -37,8 +34,6 @@ def test_store_bool_rejects_non_bool_default_factory() -> None:
 
 def test_explicit_type_wins_over_subscripted_type() -> None:
     """An explicit type_ takes precedence over the type stored via Argument[T]."""
-    from herogold.argparse import Argument
-
     def parse_hex(s: str) -> int:
         return int(s, 16)
 
