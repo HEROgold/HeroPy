@@ -1,0 +1,22 @@
+name: Update Python version matrix
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-matrix:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    # Keeps the matrix in test.yml between the project floor and the newest
+    # non-EOL CPython. The lowest listed version is the floor.
+    - uses: HEROgold/update-python-matrix@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
