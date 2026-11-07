@@ -45,7 +45,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "lazy-fix>=0.1.0 ; python_full_version >= '3.15'",
+    "lazy-fix",
 ]
 test = [
     "herogold[all]",
@@ -54,6 +54,9 @@ test = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
 ]
+
+[tool.uv.sources]
+lazy-fix = { git = "https://github.com/HEROgold/lazy-fix", rev = "111e8fec87e1df9e58404c469685a8173e387bd2" }
 
 [tool.ty.src]
 exclude = ["tests"]
