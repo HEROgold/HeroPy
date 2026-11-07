@@ -6,19 +6,28 @@ to wrap functions and handle exceptions in a more structured way.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast, overload
+from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 
 from herogold.asynchronous import dual_wraps
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Iterable
+    from collections.abc import Awaitable, Callable, Coroutine, Iterable
 
 
 class HerogoldError(Exception):
     """Base class for every exception raised by the herogold package."""
 
 
-def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable[[Callable[P, F | E]], Callable[P, F | E]]:
+class KnownExceptionDecorator[E: Exception](Protocol):
+    """Decorator returned by :func:`with_known_exception`, typed separately for sync and async functions."""
+
+    @overload
+    def __call__[**P, T](self, func: Callable[P, Coroutine[Any, Any, T]], /) -> Callable[P, Coroutine[Any, Any, T | E]]: ...
+    @overload
+    def __call__[**P, T](self, func: Callable[P, T], /) -> Callable[P, T | E]: ...
+
+
+def with_known_exception[E: Exception](*exceptions: type[E]) -> KnownExceptionDecorator[E]:
     """Wrap a function and returns any thrown exception if it's any instance of the provided exception types.
 
     Supports both sync and async functions.
@@ -33,11 +42,7 @@ def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable
             raise result
         return result
 
-    @overload
-    def with_exception[T](func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T | E]]: ...
-    @overload
-    def with_exception[T](func: Callable[P, T]) -> Callable[P, T | E]: ...
-    def with_exception[T](func: Callable[P, T]) -> Callable[P, T | E]:
+    def with_exception[**P, T](func: Callable[P, T]) -> Callable[P, T | E]:
         """Wrap a function and returns any thrown exception."""
 
         def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T | E:
@@ -49,7 +54,8 @@ def with_known_exception[**P, F, E: Exception](*exceptions: type[E]) -> Callable
 
         return dual_wraps(func, sync_wrapper, async_wrapper)
 
-    return with_exception
+    return cast("KnownExceptionDecorator[E]", with_exception)
+
 
 # TD: Iterable[float | Exception] is correct, when we are expecting Iterable[float] due to the group catching Exceptions.
 # ty is unable to properly infer the type of the Exception, throwing a fit.
