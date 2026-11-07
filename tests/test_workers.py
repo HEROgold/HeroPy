@@ -30,6 +30,68 @@ def test_workerpool_extracts_zero_division_error() -> None:
         assert list(pool.pop_errors()) == []  # All errors consumed!
 
 
+def test_workerpool_pop_errors_returns_every_error_after_wait() -> None:
+    count = 200
+    with WorkerPool(size=4) as pool:
+        for _ in range(count):
+            pool.submit(_raise_zero_division)
+        pool.wait()
+
+        errors = list(pool.pop_errors())
+        assert len(errors) == count
+        assert all(isinstance(e, ZeroDivisionError) for e in errors)
+
+
+def test_async_workerpool_pop_errors_returns_every_error_after_wait() -> None:
+    count = 200
+
+    async def run() -> None:
+        async with AsyncWorkerPool(size=4) as pool:
+            for _ in range(count):
+                await pool.submit(_raise_zero_division)
+            await asyncio.wait_for(pool.wait(), timeout=10)
+
+            errors = [i async for i in pool.pop_errors()]
+            assert len(errors) == count
+            assert all(isinstance(e, ZeroDivisionError) for e in errors)
+
+    asyncio.run(run())
+
+
+class _LaggingErrorQueue:
+    """Stands in for an error queue whose item has not reached the reader yet."""
+
+    def __init__(self, error: BaseException) -> None:
+        self._error = error
+
+    def empty(self) -> bool:
+        return True
+
+    def get(self) -> BaseException:
+        return self._error
+
+
+def test_workerpool_pop_errors_ignores_empty_while_error_is_in_flight() -> None:
+    pool = WorkerPool()
+    # pyrefly: ignore [bad-assignment]
+    pool._errors = _LaggingErrorQueue(ZeroDivisionError())
+    pool._error_count.value = 1
+
+    errors = list(pool.pop_errors())
+    assert len(errors) == 1
+    assert isinstance(errors[0], ZeroDivisionError)
+
+
+def test_workerpool_reports_unpicklable_error_instead_of_hanging() -> None:
+    with WorkerPool() as pool:
+        pool.submit(_raise_unpicklable)
+        pool.wait()
+
+        errors = list(pool.pop_errors())
+        assert len(errors) == 1
+        assert isinstance(errors[0], RuntimeError)
+
+
 def test_workerpool_waits_for_completed_tasks() -> None:
     with WorkerPool() as pool:
         pool.submit(no_op)
@@ -85,6 +147,11 @@ def _sort() -> None:
 
 def _raise_zero_division() -> None:
     _ = 1 / 0
+
+
+def _raise_unpicklable() -> None:
+    msg = "lambda arguments cannot be pickled"
+    raise ValueError(msg, lambda: 0)
 
 
 def _sleep_long() -> None:
