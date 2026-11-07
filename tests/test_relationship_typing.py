@@ -91,3 +91,19 @@ def test_no_optional_keyword_does_not_warn() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         Relationship(Email)
+
+
+def test_optional_warning_points_at_caller() -> None:
+    """The warning reports the caller's line for both Relationship and SelfRelationship."""
+    from herogold.orm.core.utils import SelfRelationship  # noqa: PLC0415
+    from herogold.orm.models.email import Email  # noqa: PLC0415
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        line_a = sys._getframe().f_lineno + 1
+        Relationship(Email, optional=True)
+        line_b = sys._getframe().f_lineno + 1
+        SelfRelationship(optional=True)
+
+    found = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+    assert [(w.filename, w.lineno) for w in found] == [(__file__, line_a), (__file__, line_b)]

@@ -97,7 +97,7 @@ class Relationship[T: _BaseModel](LoggerMixin):
     on ``_BaseModel`` yields a distinct link table for every model.
     """
 
-    def __init__(self, related_model: type[T] = SELF, *, optional: bool = _UNSET) -> None:
+    def __init__(self, related_model: type[T] = SELF, *, optional: bool = _UNSET, _stacklevel: int = 2) -> None:
         """Initialise the descriptor.
 
         ``related_model`` may be the ``SELF`` sentinel (self-referential) or a
@@ -106,7 +106,7 @@ class Relationship[T: _BaseModel](LoggerMixin):
         ``DeprecationWarning`` and it will be removed in 8.0.0.
         """
         if optional is not _UNSET:
-            warnings.warn(_OPTIONAL_DEPRECATION, DeprecationWarning, stacklevel=2)
+            warnings.warn(_OPTIONAL_DEPRECATION, DeprecationWarning, stacklevel=_stacklevel)
         self.optional = True if optional is _UNSET else optional
         self.related_model = related_model
         # Per-owner registry: a single inherited descriptor serves many subclasses.
@@ -232,7 +232,7 @@ class SelfRelationship(Relationship[Any]):
 
     def __init__(self, *, optional: bool = _UNSET) -> None:
         """Initialise a relationship that targets the owning model."""
-        super().__init__(SELF, optional=optional)
+        super().__init__(SELF, optional=optional, _stacklevel=3)
 
     if TYPE_CHECKING:
 
