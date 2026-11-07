@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_type
 
 import pytest
 
@@ -44,6 +44,31 @@ def test_with_known_exception_returns_exception_when_known() -> None:
         return 10 / value
 
     assert isinstance(divide(0), ZeroDivisionError)
+
+
+def test_with_known_exception_types_sync_result_with_exception() -> None:
+    @with_known_exception(ZeroDivisionError)
+    def divide(value: int) -> float:
+        return 10 / value
+
+    assert_type(divide(2), float | ZeroDivisionError)
+    assert divide(2) == 5
+
+
+def test_with_known_exception_types_async_result_with_exception() -> None:
+    @with_known_exception(ZeroDivisionError)
+    async def divide(value: int) -> float:
+        return 10 / value
+
+    async def run() -> tuple[float | ZeroDivisionError, float | ZeroDivisionError]:
+        ok = await divide(2)
+        assert_type(ok, float | ZeroDivisionError)
+        return ok, await divide(0)
+
+    ok, failed = asyncio.run(run())
+
+    assert ok == 5
+    assert isinstance(failed, ZeroDivisionError)
 
 
 def test_with_group_returns_values_for_successful_iterable() -> None:

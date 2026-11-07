@@ -54,10 +54,8 @@ def requires_python[**P, R](minimum: Version) -> Callable[[Callable[P, R]], Call
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             suffix = (
-                func.__qualname__
-                if hasattr(func, "__qualname__")
-                else func.__name__
-                if hasattr(func, "__name__")
+                func.__qualname__ if hasattr(func, "__qualname__")
+                else func.__name__ if hasattr(func, "__name__")
                 else repr(func)
             )
             _check(minimum, f"{func.__module__}.{suffix}")
