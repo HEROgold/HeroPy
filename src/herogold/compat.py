@@ -53,7 +53,8 @@ def requires_python[**P, R](minimum: Version) -> Callable[[Callable[P, R]], Call
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            _check(minimum, f"{func.__module__}.{func.__qualname__ if hasattr(func, '__qualname__') else func.__name__ if hasattr(func, '__name__') else repr(func)}")
+            name = getattr(func, "__qualname__", None) or getattr(func, "__name__", repr(func))
+            _check(minimum, f"{func.__module__}.{name}")
             return func(*args, **kwargs)
 
         return wrapper
