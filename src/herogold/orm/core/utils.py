@@ -12,7 +12,7 @@ from herogold.log import LoggerMixin
 from herogold.sentinel import create_sentinel
 from herogold.typing.inject import inject
 
-from .binding import OwnedSession  # noqa: TC001  # inject resolves annotations at runtime
+from .binding import AUTO_SESSION, OwnedSession  # inject resolves annotations at runtime
 
 if TYPE_CHECKING:
     import sys
@@ -131,7 +131,7 @@ class Relationship[T: _BaseModel](LoggerMixin):
             return self
         return self.get(instance, _attached_session(instance))
 
-    def link(self, owner: _BaseModel, target: T, session: Session | None = None) -> None:
+    def link(self, owner: _BaseModel, target: T, session: OwnedSession = AUTO_SESSION) -> None:
         """Replace ``owner``'s single link with ``target``.
 
         An unsaved ``target`` is added and flushed first. Flushes, never commits;
@@ -143,18 +143,18 @@ class Relationship[T: _BaseModel](LoggerMixin):
         """
         self._link(owner, target, session)
 
-    def unlink(self, owner: _BaseModel, session: Session | None = None) -> None:
+    def unlink(self, owner: _BaseModel, session: OwnedSession = AUTO_SESSION) -> None:
         """Remove ``owner``'s link row. The owner and the target stay."""
         self._unlink(owner, session)
 
-    def get(self, owner: _BaseModel, session: Session | None = None) -> T | None:
+    def get(self, owner: _BaseModel, session: OwnedSession = AUTO_SESSION) -> T | None:
         """Return ``owner``'s target, or ``None`` when there is no link."""
         return cast("T | None", self._get(owner, session))
 
     # The injected helpers use ``Any`` because ``@inject`` resolves annotations at
     # runtime, and ``_BaseModel`` and ``T`` are not importable there.
     @inject
-    def _link(self, owner: Any, target: Any, session: OwnedSession = None) -> None:  # noqa: ANN401
+    def _link(self, owner: Any, target: Any, session: OwnedSession = AUTO_SESSION) -> None:  # noqa: ANN401
         info = self._links[type(owner)]
         if owner.id is None:
             msg = f"Owner must be persisted before setting relationship '{self.name}'."
@@ -167,7 +167,7 @@ class Relationship[T: _BaseModel](LoggerMixin):
         session.flush()
 
     @inject
-    def _unlink(self, owner: Any, session: OwnedSession = None) -> None:  # noqa: ANN401
+    def _unlink(self, owner: Any, session: OwnedSession = AUTO_SESSION) -> None:  # noqa: ANN401
         info = self._links.get(type(owner))
         if info is None or owner.id is None:
             return
@@ -175,7 +175,7 @@ class Relationship[T: _BaseModel](LoggerMixin):
         session.flush()
 
     @inject
-    def _get(self, owner: Any, session: OwnedSession = None) -> Any:  # noqa: ANN401
+    def _get(self, owner: Any, session: OwnedSession = AUTO_SESSION) -> Any:  # noqa: ANN401
         info = self._links.get(type(owner))
         if info is None or owner.id is None:
             return None
@@ -267,9 +267,9 @@ def get_foreign_key[M: SQLModel](table: type[M], column: str = "id") -> str:
     return f"{table.__tablename__}.{column}"
 
 
-def _attached_session(instance: object) -> Session | None:
-    """Return the session ``instance`` is attached to, or ``None`` when detached."""
-    return object_session(instance)  # ty: ignore[invalid-return-type]
+def _attached_session(instance: object) -> Session:
+    """Return the session ``instance`` is attached to, or ``AUTO_SESSION`` when detached."""
+    return object_session(instance) or AUTO_SESSION  # ty: ignore[invalid-return-type]
 
 
 def _pk_columns(model: type[_BaseModel], prefix: str) -> tuple[list[str], list[str]]:
