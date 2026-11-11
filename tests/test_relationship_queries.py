@@ -22,19 +22,6 @@ class QFolder(BaseModel, table=True):
     parent = SelfRelationship()
 
 
-def _accounts_and_logins(s: Session) -> tuple[list[QAccount], list[QLogin]]:
-    accounts = [QAccount(name="a1"), QAccount(name="a2")]
-    s.add_all(accounts)
-    s.flush()
-    logins = [QLogin(), QLogin(), QLogin()]
-    s.add_all(logins)
-    s.flush()
-    QLogin.account.link(logins[0], accounts[0], session=s)
-    QLogin.account.link(logins[1], accounts[0], session=s)
-    QLogin.account.link(logins[2], accounts[1], session=s)
-    return accounts, logins
-
-
 def test_owners_of_returns_exactly_linked_owners(session: Session) -> None:
     accounts, logins = _accounts_and_logins(session)
     rows = session.exec(QLogin.account.owners_of(accounts[0])).all()
@@ -76,16 +63,6 @@ def test_nothing_executes_until_run(session: Session) -> None:
     assert len(session.exec(select(QLogin.account.link_table(QLogin))).all()) == 3
 
 
-def _folders(s: Session) -> tuple[QFolder, QFolder, QFolder, QFolder]:
-    root, a, b, c = (QFolder(name=n) for n in ("root", "a", "b", "c"))
-    s.add_all([root, a, b, c])
-    s.flush()
-    QFolder.parent.link(a, root, session=s)
-    QFolder.parent.link(b, root, session=s)
-    QFolder.parent.link(c, a, session=s)
-    return root, a, b, c
-
-
 def test_self_owners_of(session: Session) -> None:
     root, a, b, _ = _folders(session)
     rows = session.exec(QFolder.parent.owners_of(root)).all()
@@ -120,3 +97,26 @@ def test_shared_descriptor_requires_owner() -> None:
         shared.owners_of(QAccount())
     assert shared.link_table(QLogin) is shared._links[QLogin].table
     assert shared.is_set(owner=QLogin) is not None
+
+
+def _accounts_and_logins(s: Session) -> tuple[list[QAccount], list[QLogin]]:
+    accounts = [QAccount(name="a1"), QAccount(name="a2")]
+    s.add_all(accounts)
+    s.flush()
+    logins = [QLogin(), QLogin(), QLogin()]
+    s.add_all(logins)
+    s.flush()
+    QLogin.account.link(logins[0], accounts[0], session=s)
+    QLogin.account.link(logins[1], accounts[0], session=s)
+    QLogin.account.link(logins[2], accounts[1], session=s)
+    return accounts, logins
+
+
+def _folders(s: Session) -> tuple[QFolder, QFolder, QFolder, QFolder]:
+    root, a, b, c = (QFolder(name=n) for n in ("root", "a", "b", "c"))
+    s.add_all([root, a, b, c])
+    s.flush()
+    QFolder.parent.link(a, root, session=s)
+    QFolder.parent.link(b, root, session=s)
+    QFolder.parent.link(c, a, session=s)
+    return root, a, b, c
