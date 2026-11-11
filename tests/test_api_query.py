@@ -270,8 +270,8 @@ def test_api_operator_ilike(api: APIModel[Item]) -> None:
 
 def test_api_operator_in(api: APIModel[Item]) -> None:
     [item, *items] = api.query(
-        QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])])
-    )["items"]  # noqa: E501
+        QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]),
+    )["items"]
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
@@ -280,8 +280,8 @@ def test_api_operator_in(api: APIModel[Item]) -> None:
 
 def test_api_operator_in_http(api: APIModel[Item]) -> None:
     [item, *items] = api.query(
-        QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])])
-    )["items"]  # noqa: E501
+        QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]),
+    )["items"]
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5

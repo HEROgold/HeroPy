@@ -66,7 +66,7 @@ class LinkInfo[T: _BaseModel](NamedTuple):
             *(
                 self.table.c[col] == self.target.__table__.c[pk]
                 for col, pk in zip(self.target_cols, self.target_pk, strict=True)
-            )
+            ),
         )
 
 

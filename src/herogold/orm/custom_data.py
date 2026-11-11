@@ -4,6 +4,7 @@ The persisted ``CustomData`` table itself lives in :mod:`herogold.orm.model`;
 this module only holds the size-limit helpers so they can be imported without a
 circular dependency.
 """
+
 from __future__ import annotations
 
 from sys import getsizeof

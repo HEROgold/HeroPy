@@ -179,17 +179,20 @@ class RequestFilter[T: _BaseModel](Filterable, Sortable):
         for f in self.request.filters:
             if f.field not in self.model.model_fields:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter field: {f.field}"
-                )  # noqa: E501
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid filter field: {f.field}",
+                )
             operator = self._operators.get(f.op)
             if f.op is Operator.in_ and not isinstance(f.value, Iterable):
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid value for 'in' operator: {f.value}"
-                )  # noqa: E501
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid value for 'in' operator: {f.value}",
+                )
             if not operator:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter operator: {f.op}"
-                )  # noqa: E501
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid filter operator: {f.op}",
+                )
             q = q.where(operator(col(getattr(self.model, f.field)), f.value))
         return type(self)(self.model, self.request, q)
 
@@ -199,8 +202,9 @@ class RequestFilter[T: _BaseModel](Filterable, Sortable):
         q = self.query
         if self.request.sort and self.request.sort not in self.model.model_fields:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid sort field: {self.request.sort}"
-            )  # noqa: E501
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Invalid sort field: {self.request.sort}",
+            )
         if self.request.sort and self.request.sort in self.model.model_fields:
             sort_col = col(getattr(self.model, self.request.sort))
             q = self.query.order_by(sort_col.desc() if self.request.order.casefold() == "desc" else sort_col.asc())
