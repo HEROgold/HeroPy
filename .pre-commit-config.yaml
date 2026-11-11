@@ -58,6 +58,7 @@ repos:
         pass_filenames: false
         stages: [manual]
 
-# pre-commit.ci has no uv or project environment. GitHub Actions runs ty already.
+# pre-commit.ci has no network for the git dependency (uv-lock) and no project
+# environment (type checkers). GitHub Actions runs ty already.
 ci:
-  skip: [ty-check, pyrefly-check]
+  skip: [uv-lock, ty-check, pyrefly-check]

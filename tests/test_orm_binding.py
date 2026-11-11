@@ -40,14 +40,15 @@ def engine(tmp_path: Path) -> Iterator[Engine]:
 
 
 def test_import_has_no_side_effects(tmp_path: Path) -> None:
-    code = (
-        "import herogold.orm\n"
-        "from herogold.orm import BaseModel, User\n"
-        "User.__tablename__\n"
-    )
+    code = "import herogold.orm\nfrom herogold.orm import BaseModel, User\nUser.__tablename__\n"
     env = {**os.environ, "PYTHONPATH": str(SRC)}
     result = subprocess.run(  # noqa: S603
-        [sys.executable, "-I", "-c", code], cwd=tmp_path, env=env, capture_output=True, text=True, check=False,
+        [sys.executable, "-I", "-c", code],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert result.returncode == 0, result.stderr
     assert list(tmp_path.iterdir()) == []
@@ -107,6 +108,7 @@ def test_returned_objects_readable_after_call(engine: Engine) -> None:
 
 def test_threads_use_separate_owned_sessions(engine: Engine) -> None:
     with orm.bound(engine):
+
         def work(i: int) -> int:
             BindingWidget(name=f"w{i}").add()
             return len(BindingWidget.get_all())

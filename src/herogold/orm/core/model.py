@@ -27,7 +27,6 @@ from herogold.typing.inject import inject
 from .errors import AlreadyExistsError, NotFoundError
 
 if TYPE_CHECKING:
-
     from sqlmodel.sql.expression import SelectOfScalar
 
 
@@ -100,14 +99,11 @@ class BaseModel(_BaseModel):
     @override
     def _delete_record(self, session: Session) -> None:
         if known := session.exec(
-            select(self.__class__)
-            .where(self.__class__.id == self.id)
-            .with_for_update(),
+            select(self.__class__).where(self.__class__.id == self.id).with_for_update(),
         ).first():
             known.deleted_at = _current_utc()
             session.commit()
             return
-
 
 
 # Attach the shared ``custom_data`` relationship to the base now that its target
@@ -118,6 +114,7 @@ _custom_data = Relationship(CustomData)
 _custom_data.__set_name__(_BaseModel, "custom_data")
 _BaseModel.custom_data = _custom_data
 
+
 class Actions(Enum):
     """Enum for actions performed on a record."""
 
@@ -125,6 +122,7 @@ class Actions(Enum):
     UPDATE = auto()
     DELETE = auto()
     QUERY = auto()
+
 
 class DataModel(_BaseModel):
     """Base model for models that require a history of changes."""
@@ -187,13 +185,13 @@ class DataModel(_BaseModel):
     def _delete_record(self, session: Session) -> None:
         self.action = Actions.DELETE
         if _entry := session.exec(
-            select(self.__class__)
-            .where(self.__class__.id == self.id),
+            select(self.__class__).where(self.__class__.id == self.id),
         ).first():
             self.action = Actions.DELETE
             session.add(self)
             session.commit()
             return
+
 
 def _current_utc() -> datetime:
     return datetime.now(UTC)

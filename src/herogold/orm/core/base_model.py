@@ -1,4 +1,5 @@
 """Base model class for all models."""
+
 from __future__ import annotations
 
 import inspect
@@ -32,11 +33,13 @@ if TYPE_CHECKING:
 
 models: set[type[_BaseModel]] = set()
 
+
 class ModelLogger(LoggerMixin):
     """Polymorphic logger for model, on cls level methods.
 
     Avoids the issue of cls.logger raising AttributeError, property has no attribute `xxx`
     """
+
 
 class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     """Base model class for all models."""
@@ -202,9 +205,11 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
 
         entry contains the current record in the database, and self contains the new values.
         """
+
     @abstractmethod
     def _create_record(self, session: Session) -> None:
         """Create the record in the database with the current instance's values."""
+
     @abstractmethod
     def _delete_record(self, session: Session) -> None:
         """Delete the record in the database with the current instance's values."""

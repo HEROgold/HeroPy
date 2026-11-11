@@ -10,8 +10,8 @@ from sys import getsizeof
 
 from herogold.errors import HerogoldError, with_known_exception
 
+# Default byte budget for a model's custom data (the old descriptor default).
 DEFAULT_SIZE_LIMIT = 1024 * 10
-"""Default byte budget for a model's custom data (the old descriptor default)."""
 
 
 class OutOfSpaceError(HerogoldError, ValueError):

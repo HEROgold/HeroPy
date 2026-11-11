@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-
 # Association tables require real tables, so every model here is table=True.
 class Other(BaseModel, table=True):
     name: str = "o"
@@ -41,6 +40,7 @@ class Node(BaseModel, table=True):
 @compiles(BigInteger, "sqlite")
 def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
     return "INTEGER"
+
 
 @pytest.fixture
 def session() -> Iterator[Session]:

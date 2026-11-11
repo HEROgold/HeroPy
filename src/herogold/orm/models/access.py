@@ -3,6 +3,7 @@
 A user holds a permission when any of their roles grants it, or failing that,
 when it was granted to them directly. Soft-deleted links and permissions never count.
 """
+
 from __future__ import annotations
 
 from sqlmodel import col, select

@@ -27,12 +27,11 @@ if TYPE_CHECKING:
     # Importing it at runtime creates a circular import (model -> utils -> model).
     from herogold.orm.core.model import _BaseModel
 
+# Sentinel value for self-referential relationships in SQLModel classes.
 SELF = create_sentinel()
-"""Sentinel value for self-referential relationships in SQLModel classes."""
 
 
 T = TypeVar("T", bound=SQLModel)
-
 
 
 class LinkInfo[T: _BaseModel](NamedTuple):
@@ -63,10 +62,12 @@ class LinkInfo[T: _BaseModel](NamedTuple):
 
     def target_join(self) -> ColumnElement[bool]:
         """Join condition between the link table and the target table."""
-        return and_(*(
-            self.table.c[col] == self.target.__table__.c[pk]
-            for col, pk in zip(self.target_cols, self.target_pk, strict=True)
-        ))
+        return and_(
+            *(
+                self.table.c[col] == self.target.__table__.c[pk]
+                for col, pk in zip(self.target_cols, self.target_pk, strict=True)
+            )
+        )
 
 
 class Relationship[T: _BaseModel](LoggerMixin):
@@ -223,7 +224,6 @@ def get_foreign_key[M: SQLModel](table: type[M], column: str = "id") -> str:
     ``type[T]`` without a typing error.
     """
     return f"{table.__tablename__}.{column}"
-
 
 
 def _pk_columns(model: type[_BaseModel], prefix: str) -> tuple[list[str], list[str]]:

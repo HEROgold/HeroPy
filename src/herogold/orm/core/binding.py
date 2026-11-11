@@ -83,4 +83,3 @@ OwnedSession = Annotated[sqlmodel.Session, Depends(orm_session)]
 
 # Default for an ``OwnedSession`` parameter. Typed ``Any`` so the parameter stays a plain ``Session``.
 AUTO_SESSION: Final[Any] = None
-
