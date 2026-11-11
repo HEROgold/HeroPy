@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+__lazy_modules__ = ["fastapi"]
+
 import subprocess
 import sys
 from typing import TYPE_CHECKING, Annotated, ClassVar
