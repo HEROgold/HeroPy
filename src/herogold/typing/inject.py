@@ -16,7 +16,7 @@ from contextlib import ExitStack, suppress
 from dataclasses import dataclass
 from functools import wraps
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Annotated, Any, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Annotated, Any, cast, get_args, get_origin, get_type_hints
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -103,8 +103,11 @@ def inject_annotated(attr: object) -> object:
     functions without a resolvable ``Depends`` annotation, come back unchanged.
     """
     if isinstance(attr, (classmethod, staticmethod)):
-        wrapped = inject_annotated(attr.__func__)
-        return type(attr)(wrapped) if wrapped is not attr.__func__ else attr
+        func = attr.__func__
+        wrapped = inject_annotated(func)
+        if wrapped is func:
+            return attr
+        return type(attr)(cast("Callable[..., Any]", wrapped))
     if not inspect.isfunction(attr) or inspect.isgeneratorfunction(attr) or inspect.iscoroutinefunction(attr):
         return attr
     if inspect.isasyncgenfunction(attr) or not _find_dependencies(attr, strict=False):
