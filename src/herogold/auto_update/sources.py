@@ -1,4 +1,5 @@
 """Module that helps with tracking and automatically updating your project from production servers."""
+
 from __future__ import annotations
 
 from typing import override
@@ -18,6 +19,7 @@ class Source:
     def __str__(self) -> str:
         """Return a string representation of the source."""
         return str(self.url)
+
 
 class Github(Source):
     """Github source for auto-updates."""

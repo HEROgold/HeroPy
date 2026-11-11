@@ -1,4 +1,5 @@
 """Subscription model."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -21,11 +22,13 @@ class SubscriptionStatus(StrEnum):
     PENDING = "pending"
     TRIALING = "trialing"
 
+
 class Features(BaseModel, table=True):
     """Container for subscription features."""
 
     name: str
     value: str
+
 
 class Subscription(DataModel, table=True):
     """Subscription model."""

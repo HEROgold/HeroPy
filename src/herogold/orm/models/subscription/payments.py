@@ -1,4 +1,5 @@
 """Track a user's subscription plan and payment history."""
+
 from __future__ import annotations
 
 from enum import StrEnum
@@ -16,6 +17,7 @@ class PaymentStatus(StrEnum):
     PENDING = "pending"
     COMPLETED = "completed"
     FAILED = "failed"
+
 
 class PlanPayments(DataModel, table=True):
     """Track a user's subscription plan and payment history."""

@@ -21,18 +21,6 @@ RED = "\x1b[31m"
 RESET = "\x1b[0m"
 
 
-def _models_dir() -> str:
-    """Return the directory where the table classes are defined, read from db_config.ini."""
-    DbConfig.set_file(Path("db_config.ini"))
-
-    class TableCheck:
-        """Namespace for table check functions."""
-
-        models_dir = DbConfig("models")
-
-    return TableCheck.models_dir
-
-
 def find_table_classes(py_path: Path) -> list[str]:
     """Find all class names in the given Python file that define SQLModel tables."""
     src = py_path.read_text(encoding="utf8")
@@ -139,6 +127,18 @@ def main() -> int:
             print(f"{YELLOW}EXTRA: {_x}{RESET}")  # noqa: T201
 
     return 1 if any_missing else 0
+
+
+def _models_dir() -> str:
+    """Return the directory where the table classes are defined, read from db_config.ini."""
+    DbConfig.set_file(Path("db_config.ini"))
+
+    class TableCheck:
+        """Namespace for table check functions."""
+
+        models_dir = DbConfig("models")
+
+    return TableCheck.models_dir
 
 
 if __name__ == "__main__":

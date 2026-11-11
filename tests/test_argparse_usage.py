@@ -34,6 +34,7 @@ def test_store_bool_rejects_non_bool_default_factory() -> None:
 
 def test_explicit_type_wins_over_subscripted_type() -> None:
     """An explicit type_ takes precedence over the type stored via Argument[T]."""
+
     def parse_hex(s: str) -> int:
         return int(s, 16)
 

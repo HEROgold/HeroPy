@@ -59,22 +59,6 @@ def client() -> Iterator[TestClient]:
         engine.dispose()
 
 
-def _populated_client() -> Iterator[TestClient]:
-    try:
-        for name, price in [("small box", 5), ("big box", 20), ("crate", 50), ("gone", 99)]:
-            Item(name=name, price=price).add()
-        # soft-delete one row so it must be excluded from query results
-        Item.get_all()[-1].delete()
-
-        router = APIRouter()
-        APIModel(Item, router)
-        app = FastAPI()
-        app.include_router(router)
-        yield TestClient(app)
-    finally:
-        pass
-
-
 def test_client_operator_eq(client: TestClient) -> None:
     rows = _query(client, {"filters": [{"field": "price", "op": "eq", "value": 20}]})
     assert {r["name"] for r in rows} == {"big box"}
@@ -372,6 +356,22 @@ def test_api_query_advertised_in_allow_header(api: APIModel[Item]) -> None:
     assert "QUERY" in resp.headers.get("allow", "")
     rows = api.query(QueryRequest())["items"]
     assert len(rows) == 3
+
+
+def _populated_client() -> Iterator[TestClient]:
+    try:
+        for name, price in [("small box", 5), ("big box", 20), ("crate", 50), ("gone", 99)]:
+            Item(name=name, price=price).add()
+        # soft-delete one row so it must be excluded from query results
+        Item.get_all()[-1].delete()
+
+        router = APIRouter()
+        APIModel(Item, router)
+        app = FastAPI()
+        app.include_router(router)
+        yield TestClient(app)
+    finally:
+        pass
 
 
 @compiles(BigInteger, "sqlite")

@@ -140,6 +140,7 @@ class _Connected[T: Connector]:
         """Download the update from the source."""
         return self.connector.download()
 
+
 ## Concrete connector implementations
 
 
