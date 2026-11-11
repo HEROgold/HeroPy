@@ -37,8 +37,8 @@ SELF = create_sentinel()
 
 T = TypeVar("T", bound=SQLModel)
 
+# Default for the deprecated ``optional`` argument, so only explicit use warns.
 _UNSET: Any = object()
-"""Default for the deprecated ``optional`` argument, so only explicit use warns."""
 
 _OPTIONAL_DEPRECATION = (
     "The 'optional' argument of Relationship is deprecated and will be removed in 8.0.0. "
