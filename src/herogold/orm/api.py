@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable, Generator, Iterable, Iterator
 from enum import StrEnum
+from functools import wraps
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self, TypedDict, override
 
 from sqlalchemy.sql.elements import SQLCoreOperations
@@ -332,12 +333,11 @@ class APIModel[T: _BaseModel]:
         signature = inspect.signature(route)
         params = [p.replace(annotation=self.model) if p.name == "item" else p for p in signature.parameters.values()]
 
+        @wraps(route)
         def endpoint(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
             return route(*args, **kwargs)
 
-        endpoint.__signature__ = signature.replace(parameters=params)  # pyrefly: ignore [missing-attribute]
-        endpoint.__name__ = route.__name__
-        endpoint.__doc__ = route.__doc__
+        endpoint.__signature__ = signature.replace(parameters=params)  # pyrefly: ignore [missing-attribute]  # ty: ignore[unresolved-attribute]
         return endpoint
 
     def options(self) -> Response:
