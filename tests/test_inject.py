@@ -192,3 +192,10 @@ def test_inject_annotated_leaves_other_attributes_alone() -> None:
     assert inject_annotated(plain) is plain
     assert inject_annotated(unresolvable) is unresolvable
     assert inject_annotated(42) == 42
+
+
+@pytest.fixture(autouse=True)
+def _reset_provider() -> None:
+    provider.entered = 0
+    provider.exited = 0
+    provider.exit_exception = None

@@ -37,26 +37,6 @@ class Depends[T]:
     provider: Callable[[], AbstractContextManager[T]]
 
 
-def _find_dependencies(fn: Callable[..., Any], *, strict: bool = True) -> dict[str, Depends[Any]]:
-    if strict:
-        hints = get_type_hints(fn, include_extras=True)
-    else:
-        hints = {}
-        for name, annotation in getattr(fn, "__annotations__", {}).items():
-            holder = SimpleNamespace(__annotations__={name: annotation})
-            with suppress(Exception):  # unresolvable names cannot be Depends aliases
-                hints.update(get_type_hints(holder, globalns=getattr(fn, "__globals__", None), include_extras=True))
-    found: dict[str, Depends[Any]] = {}
-    for name, hint in hints.items():
-        if name == "return" or get_origin(hint) is not Annotated:
-            continue
-        for meta in get_args(hint)[1:]:
-            if isinstance(meta, Depends):
-                found[name] = meta
-                break
-    return found
-
-
 def inject[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
     """Fill ``Depends`` parameters that are missing or ``None`` from their providers.
 
@@ -113,3 +93,23 @@ def inject_annotated(attr: object) -> object:
     if inspect.isasyncgenfunction(attr) or not _find_dependencies(attr, strict=False):
         return attr
     return inject(attr)
+
+
+def _find_dependencies(fn: Callable[..., Any], *, strict: bool = True) -> dict[str, Depends[Any]]:
+    if strict:
+        hints = get_type_hints(fn, include_extras=True)
+    else:
+        hints = {}
+        for name, annotation in getattr(fn, "__annotations__", {}).items():
+            holder = SimpleNamespace(__annotations__={name: annotation})
+            with suppress(Exception):  # unresolvable names cannot be Depends aliases
+                hints.update(get_type_hints(holder, globalns=getattr(fn, "__globals__", None), include_extras=True))
+    found: dict[str, Depends[Any]] = {}
+    for name, hint in hints.items():
+        if name == "return" or get_origin(hint) is not Annotated:
+            continue
+        for meta in get_args(hint)[1:]:
+            if isinstance(meta, Depends):
+                found[name] = meta
+                break
+    return found
