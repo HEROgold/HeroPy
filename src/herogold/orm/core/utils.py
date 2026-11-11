@@ -255,7 +255,7 @@ class Relationship[T: _BaseModel](LoggerMixin):
             if len(self._links) != 1:
                 msg = f"Relationship '{self.name}' is shared by {len(self._links)} owners; pass owner=."
                 raise TypeError(msg)
-            owner = next(iter(self._links))
+            owner = cast("type[_BaseModel]", next(iter(self._links)))
         return owner, self._links[owner]
 
     def owners_of(self, target: T, owner: type[_BaseModel] | None = None) -> Select[Any]:
