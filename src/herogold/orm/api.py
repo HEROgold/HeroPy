@@ -243,6 +243,7 @@ class RequestFilter[T: _BaseModel](Filterable, Sortable):
             q = q.where(getattr(self.model, key) == value)
         return q
 
+
 class QueryResponse[T: _BaseModel](TypedDict):
     """TypedDict for the response of a QUERY request."""
 
