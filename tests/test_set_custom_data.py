@@ -51,27 +51,6 @@ def engine(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Engine]:
         engine.dispose()  # release the sqlite file lock on Windows
 
 
-def _payload_of_size(size: int) -> dict[str, str]:
-    """Return ``{"k": "vvv..."}`` whose compact JSON is exactly ``size`` bytes (size >= 9)."""
-    # '{"k":"' is 6 bytes and '"}' is 2 bytes, so the value needs size - 8 characters.
-    return {"k": "v" * (size - 8)}
-
-
-def _owner_data(engine: Engine, owner_cls: type[BaseModel], owner_id: int) -> dict | str | None:
-    """Read an owner's custom data through a fresh session. Returns "missing" if the owner is not visible."""
-    with Session(engine) as other:
-        owner = other.get(owner_cls, owner_id)
-        if owner is None:
-            return "missing"
-        row = owner_cls.custom_data.get(owner, other)
-        return None if row is None else row.data
-
-
-def _custom_data_rows(engine: Engine) -> int:
-    with Session(engine) as other:
-        return len(other.exec(select(CustomData)).all())
-
-
 # --- size measurement ---------------------------------------------------------
 
 
@@ -216,3 +195,24 @@ def test_custom_data_module_imports_without_fastapi() -> None:
     code = "import sys, herogold.orm.custom_data; assert 'fastapi' not in sys.modules, 'fastapi imported'"
     result = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, check=False)  # noqa: S603
     assert result.returncode == 0, result.stderr
+
+
+def _payload_of_size(size: int) -> dict[str, str]:
+    """Return ``{"k": "vvv..."}`` whose compact JSON is exactly ``size`` bytes (size >= 9)."""
+    # '{"k":"' is 6 bytes and '"}' is 2 bytes, so the value needs size - 8 characters.
+    return {"k": "v" * (size - 8)}
+
+
+def _owner_data(engine: Engine, owner_cls: type[BaseModel], owner_id: int) -> dict | str | None:
+    """Read an owner's custom data through a fresh session. Returns "missing" if the owner is not visible."""
+    with Session(engine) as other:
+        owner = other.get(owner_cls, owner_id)
+        if owner is None:
+            return "missing"
+        row = owner_cls.custom_data.get(owner, other)
+        return None if row is None else row.data
+
+
+def _custom_data_rows(engine: Engine) -> int:
+    with Session(engine) as other:
+        return len(other.exec(select(CustomData)).all())
