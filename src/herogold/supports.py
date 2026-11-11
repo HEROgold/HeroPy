@@ -173,7 +173,7 @@ class SupportsBitComparison(SupportsComparison, SupportsBitwise, Protocol):
 
 @runtime_checkable
 class SupportsDelete(Protocol):
-    def __delete__(self, instance: object) -> None: ...
+    def __del__(self) -> None: ...
 
 
 @runtime_checkable

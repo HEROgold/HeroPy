@@ -5,12 +5,12 @@ These usually represent more complex protocols that combine multiple supports pr
 
 from __future__ import annotations
 
-from herogold.supports import SupportsDelete, SupportsGet, SupportsSet
+from typing import TYPE_CHECKING
 
-type DescriptorType[Value, Owner] = SupportsGet[Value, Owner] | SupportsSet[Value, Owner] | SupportsDelete
-type DataDescriptorType[Value, Owner] = SupportsSet[Value, Owner] | SupportsDelete
-type NonDataDescriptorType[Value, Owner] = (
-    SupportsGet[Value, Owner]
-    & ~SupportsSet[Value, Owner]  # ty:ignore[experimental-syntax]
-    & ~SupportsDelete  # ty:ignore[experimental-syntax]
-)
+if TYPE_CHECKING:
+
+    from herogold.supports import SupportsDelete, SupportsGet, SupportsSet
+
+    type DataDescriptorType[Value, Owner] = SupportsSet[Value, Owner] | SupportsDelete
+    type NonDataDescriptorType[Value, Owner] = SupportsGet[Value, Owner]
+    type DescriptorType[Value, Owner] = DataDescriptorType[Value, Owner] | NonDataDescriptorType[Value, Owner]
