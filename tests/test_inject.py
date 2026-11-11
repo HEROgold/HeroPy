@@ -38,13 +38,6 @@ class FakeProvider:
 provider = FakeProvider()
 
 
-@pytest.fixture(autouse=True)
-def _reset_provider() -> None:
-    provider.entered = 0
-    provider.exited = 0
-    provider.exit_exception = None
-
-
 def test_missing_argument_is_provided() -> None:
 
     @inject
@@ -166,3 +159,10 @@ def test_inject_rejects_generator_and_async_functions() -> None:
     for fn in (gen, coro, agen):
         with pytest.raises(TypeError):
             inject(fn)
+
+
+@pytest.fixture(autouse=True)
+def _reset_provider() -> None:
+    provider.entered = 0
+    provider.exited = 0
+    provider.exit_exception = None

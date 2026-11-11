@@ -12,7 +12,8 @@ from sqlalchemy.ext.compiler import compiles
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from herogold.orm.core.api_model import APIModel
-from herogold.orm.core.model import Actions, BaseModel, DataModel, _BaseModel
+from herogold.orm.core.binding import bound
+from herogold.orm.core.model import Actions, BaseModel, DataModel
 from herogold.orm.custom_data import OutOfSpaceError, validate_size
 
 if TYPE_CHECKING:
@@ -38,21 +39,11 @@ def session() -> Iterator[Session]:
     engine = create_engine(url="sqlite:///:memory:", poolclass=StaticPool)
     SQLModel.metadata.create_all(engine)  # idempotent; keeps accumulated rows
     sess = Session(engine)
-    # `session` is a ClassVar on _BaseModel; set it on the root (reaches CustomData,
-    # which subclasses _BaseModel directly) AND on BaseModel, because other test
-    # modules leave a class-level shadow that would otherwise win via the MRO.
-    originals = {cls: cls.__dict__.get("session") for cls in (_BaseModel, BaseModel, DataModel)}
-    for cls in (_BaseModel, BaseModel, DataModel):
-        cls.session = sess
     try:
-        yield sess
+        with bound(engine):
+            yield sess
     finally:
         sess.close()
-        for cls, original in originals.items():
-            if original is None:
-                delattr(cls, "session")
-            else:
-                cls.session = original
         engine.dispose()  # release the sqlite file lock on Windows; file is kept
 
 
@@ -145,6 +136,7 @@ def test_overflow_returns_413(session: Session) -> None:
     with pytest.raises(HTTPException) as excinfo:
         tiny_api.create(item, {f"k{i}": i for i in range(50)})  # over the 64-byte limit
     assert excinfo.value.status_code == 413
+
 
 @compiles(BigInteger, "sqlite")
 def _bigint_as_integer_on_sqlite(type_, compiler, **kw):

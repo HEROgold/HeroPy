@@ -19,6 +19,7 @@ def get_async_loop() -> AbstractEventLoop:
     except RuntimeError:
         return asyncio.get_event_loop()
 
+
 @overload
 def dual_wraps[**P, R](
     func: Callable[P, Awaitable[object]],

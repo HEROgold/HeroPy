@@ -10,6 +10,8 @@ from sqlmodel import SQLModel, select
 from herogold.log import LoggerMixin
 from herogold.sentinel import create_sentinel
 
+from .binding import orm_session
+
 if TYPE_CHECKING:
     import sys
 
@@ -25,12 +27,11 @@ if TYPE_CHECKING:
     # Importing it at runtime creates a circular import (model -> utils -> model).
     from herogold.orm.core.model import _BaseModel
 
+# Sentinel value for self-referential relationships in SQLModel classes.
 SELF = create_sentinel()
-"""Sentinel value for self-referential relationships in SQLModel classes."""
 
 
 T = TypeVar("T", bound=SQLModel)
-
 
 
 class LinkInfo[T: _BaseModel](NamedTuple):
@@ -61,10 +62,12 @@ class LinkInfo[T: _BaseModel](NamedTuple):
 
     def target_join(self) -> ColumnElement[bool]:
         """Join condition between the link table and the target table."""
-        return and_(*(
-            self.table.c[col] == self.target.__table__.c[pk]
-            for col, pk in zip(self.target_cols, self.target_pk, strict=True)
-        ))
+        return and_(
+            *(
+                self.table.c[col] == self.target.__table__.c[pk]
+                for col, pk in zip(self.target_cols, self.target_pk, strict=True)
+            ),
+        )
 
 
 class Relationship[T: _BaseModel](LoggerMixin):
@@ -106,21 +109,21 @@ class Relationship[T: _BaseModel](LoggerMixin):
         if instance.id is None:
             msg = f"Owner must be persisted before setting relationship '{self.name}'."
             raise ValueError(msg)
-        if value.id is None:
-            value.add()
-        session = type(instance).session
-        session.exec(info.table.delete().where(info.owner_filter(instance)))
-        session.exec(info.table.insert().values(**info.owner_values(instance), **info.target_values(value)))
-        session.commit()
+        with orm_session() as session:
+            if value.id is None:
+                value.add(session)
+            session.exec(info.table.delete().where(info.owner_filter(instance)))
+            session.exec(info.table.insert().values(**info.owner_values(instance), **info.target_values(value)))
+            session.commit()
 
     def __delete__(self, instance: _BaseModel) -> None:
         """Remove the owner's link row(s)."""
         info = self._links.get(type(instance))
         if info is None:
             return
-        session = type(instance).session
-        session.exec(info.table.delete().where(info.owner_filter(instance)))
-        session.commit()
+        with orm_session() as session:
+            session.exec(info.table.delete().where(info.owner_filter(instance)))
+            session.commit()
 
     @overload
     def __get__(self, instance: None, owner: type[_BaseModel]) -> type[T]: ...
@@ -134,10 +137,9 @@ class Relationship[T: _BaseModel](LoggerMixin):
         info = self._links.get(type(instance))
         if info is None:
             return None
-        # pyrefly: ignore [missing-attribute]
-        session = type(instance).session
         query = select(info.target).join(info.table, info.target_join()).where(info.owner_filter(instance))
-        return cast("T | None", session.exec(query).first())
+        with orm_session() as session:
+            return cast("T | None", session.exec(query).first())
 
     def build_link_for(self, owner: type[_BaseModel]) -> None:
         """Build (once) the association table joining ``owner`` to the target.
@@ -222,7 +224,6 @@ def get_foreign_key[M: SQLModel](table: type[M], column: str = "id") -> str:
     ``type[T]`` without a typing error.
     """
     return f"{table.__tablename__}.{column}"
-
 
 
 def _pk_columns(model: type[_BaseModel], prefix: str) -> tuple[list[str], list[str]]:

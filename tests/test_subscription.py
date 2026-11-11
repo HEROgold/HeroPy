@@ -5,6 +5,7 @@ boundaries, timezone handling, currency precision, dangling/unset
 relationships, and whether the "audit history" DataModel actually keeps
 history.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta

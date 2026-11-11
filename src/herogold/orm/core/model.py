@@ -9,7 +9,7 @@ import contextlib
 from datetime import UTC, datetime
 from enum import Enum, auto
 from functools import partial
-from typing import TYPE_CHECKING, Any, Self, override
+from typing import TYPE_CHECKING, Any, Self, cast, override
 
 from sqlalchemy import JSON, BigInteger, func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -18,14 +18,15 @@ from sqlalchemy.schema import Index
 from sqlmodel import Field, Session, col, select
 
 from herogold.orm.core.base_model import _BaseModel
+from herogold.orm.core.binding import AUTO_SESSION, OwnedSession  # inject resolves annotations at runtime
 from herogold.orm.core.custom_data import CustomData
 from herogold.orm.core.utils import Relationship
 from herogold.typing.classproperty import classproperty
+from herogold.typing.inject import inject
 
 from .errors import AlreadyExistsError, NotFoundError
 
 if TYPE_CHECKING:
-
     from sqlmodel.sql.expression import SelectOfScalar
 
 
@@ -73,25 +74,22 @@ class BaseModel(_BaseModel):
 
     @override
     @classmethod
-    def count(cls) -> int:
+    @inject
+    def count(cls, session: OwnedSession = AUTO_SESSION) -> int:
         """Return the total count of records in the model."""
-        if not cls.__count or cls.session.identity_map.check_modified():
-            cls.__count = cls.session.exec(
-                select(func.count(col(cls.id))).where(cls.deleted_at == None),  # noqa: E711
-            ).one()
-        return cls.__count
+        return session.exec(
+            select(func.count(col(cls.id))).where(cls.deleted_at == None),  # noqa: E711
+        ).one()
 
     @override
     def _create_record(self, session: Session) -> None:
         self.logger.debug("Creating record: %s", self, extra={"record": self})
-        session = self._get_session(session)
         session.add(self)
         session.commit()
 
     @override
     def _update_record(self, session: Session, entry: Self) -> None:
         self.logger.debug("Updating record: %s", self, extra={"record": self})
-        session = self._get_session(session)
         for name, value in self._assignable_fields():
             setattr(entry, name, value)
         entry.updated_at = _current_utc()
@@ -101,14 +99,11 @@ class BaseModel(_BaseModel):
     @override
     def _delete_record(self, session: Session) -> None:
         if known := session.exec(
-            select(self.__class__)
-            .where(self.__class__.id == self.id)
-            .with_for_update(),
+            select(self.__class__).where(self.__class__.id == self.id).with_for_update(),
         ).first():
             known.deleted_at = _current_utc()
             session.commit()
             return
-
 
 
 # Attach the shared ``custom_data`` relationship to the base now that its target
@@ -119,6 +114,7 @@ _custom_data = Relationship(CustomData)
 _custom_data.__set_name__(_BaseModel, "custom_data")
 _BaseModel.custom_data = _custom_data
 
+
 class Actions(Enum):
     """Enum for actions performed on a record."""
 
@@ -126,6 +122,7 @@ class Actions(Enum):
     UPDATE = auto()
     DELETE = auto()
     QUERY = auto()
+
 
 class DataModel(_BaseModel):
     """Base model for models that require a history of changes."""
@@ -157,14 +154,14 @@ class DataModel(_BaseModel):
     # itself is safe to share.
     changes: dict[str, Any] = Field(
         default_factory=dict,
-        sa_type=JSON().with_variant(JSONB(), "postgresql"),
+        sa_type=cast("type[Any]", JSON().with_variant(JSONB(), "postgresql")),
     )
 
     @override
-    def _validate_existing_record(self) -> None:
+    def _validate_existing_record(self, session: Session) -> None:
         """Check if a record with the same id and timestamp already exists."""
         with contextlib.suppress(NotFoundError):
-            if self.id and self.get(self.id, session=self._get_session()):
+            if self.id and self.get(self.id, session=session):
                 msg = f"Record with {self.__class__.__name__}.id={self.id} already exists."
                 raise AlreadyExistsError(msg)
 
@@ -188,13 +185,13 @@ class DataModel(_BaseModel):
     def _delete_record(self, session: Session) -> None:
         self.action = Actions.DELETE
         if _entry := session.exec(
-            select(self.__class__)
-            .where(self.__class__.id == self.id),
+            select(self.__class__).where(self.__class__.id == self.id),
         ).first():
             self.action = Actions.DELETE
             session.add(self)
             session.commit()
             return
+
 
 def _current_utc() -> datetime:
     return datetime.now(UTC)

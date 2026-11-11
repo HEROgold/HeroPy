@@ -58,6 +58,7 @@ class AutoUpdater:
                 raise result
             result.install()
 
+
 def main() -> None:
     """Auto-update workflow is as follows.
 

@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 cpu_count = os.cpu_count() or 1
 
+
 def parallel[T, P](action: Callable[[P], T], data: Iterable[P]) -> Iterator[T]:
     """Run a function in parallel across multiple CPU cores."""
     with ProcessPoolExecutor(max_workers=cpu_count) as executor:

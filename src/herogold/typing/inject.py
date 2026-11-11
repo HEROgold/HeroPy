@@ -32,19 +32,6 @@ class Depends[T]:
     provider: Callable[[], AbstractContextManager[T]]
 
 
-def _find_dependencies(fn: Callable[..., Any]) -> dict[str, Depends[Any]]:
-    hints = get_type_hints(fn, include_extras=True)
-    found: dict[str, Depends[Any]] = {}
-    for name, hint in hints.items():
-        if name == "return" or get_origin(hint) is not Annotated:
-            continue
-        for meta in get_args(hint)[1:]:
-            if isinstance(meta, Depends):
-                found[name] = meta
-                break
-    return found
-
-
 def inject[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
     """Fill ``Depends`` parameters that are missing or ``None`` from their providers.
 
@@ -58,18 +45,10 @@ def inject[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
         TypeError: If ``fn`` is a generator, coroutine or async generator function.
 
     """
-    if (
-        inspect.isgeneratorfunction(fn)
-        or inspect.iscoroutinefunction(fn)
-        or inspect.isasyncgenfunction(fn)
-    ):
+    if inspect.isgeneratorfunction(fn) or inspect.iscoroutinefunction(fn) or inspect.isasyncgenfunction(fn):
         match fn:
-            case (staticmethod() | classmethod()):
-                name = (
-                    fn.__qualname__
-                    or fn.__name__
-                    or str(fn)
-                )
+            case staticmethod() | classmethod():
+                name = fn.__qualname__ or fn.__name__ or str(fn)
             case _:
                 name = str(fn)
         msg = f"inject cannot wrap generator or async function {name}"
@@ -90,3 +69,16 @@ def inject[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
             return fn(*arguments.args, **arguments.kwargs)
 
     return wrapper
+
+
+def _find_dependencies(fn: Callable[..., Any]) -> dict[str, Depends[Any]]:
+    hints = get_type_hints(fn, include_extras=True)
+    found: dict[str, Depends[Any]] = {}
+    for name, hint in hints.items():
+        if name == "return" or get_origin(hint) is not Annotated:
+            continue
+        for meta in get_args(hint)[1:]:
+            if isinstance(meta, Depends):
+                found[name] = meta
+                break
+    return found

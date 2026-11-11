@@ -18,6 +18,7 @@ with ExtraImportContext("herogold", "orm", "orm", "api"):
     from fastapi import APIRouter, HTTPException, Response, status
 
 
+from .binding import orm_session
 from .model import _BaseModel
 
 if TYPE_CHECKING:
@@ -91,7 +92,9 @@ class PaginatedResponse[T: _BaseModel]:
         """Iterate over the items for the current page, then yield from the next page if it exists."""
         if self._query is not None:
             offset = (self.page - 1) * self.size
-            yield from self.model.session.exec(self._query.offset(offset).limit(self.size)).all()
+            with orm_session() as session:
+                items = session.exec(self._query.offset(offset).limit(self.size)).all()
+            yield from items
             return
 
         if not self.model.id:
@@ -99,9 +102,11 @@ class PaginatedResponse[T: _BaseModel]:
             raise ValueError(msg)
 
         offset = (self.model.id - 1) * self.size
-        yield from self.model.session.exec(
-            select(self.model).where(self.model.id >= offset).limit(self.size),
-        ).all()
+        with orm_session() as session:
+            items = session.exec(
+                select(self.model).where(self.model.id >= offset).limit(self.size),
+            ).all()
+        yield from items
         yield from self.next or []
 
     @property
@@ -163,7 +168,9 @@ class RequestFilter[T: _BaseModel](Filterable, Sortable):
 
     def __iter__(self) -> Iterator[T]:
         """Execute the query and yield the matching records."""
-        yield from self.model.session.exec(self.query)
+        with orm_session() as session:
+            items = session.exec(self.query).all()
+        yield from items
 
     @override
     def filter(self, **kwargs: object) -> Self:
@@ -171,12 +178,21 @@ class RequestFilter[T: _BaseModel](Filterable, Sortable):
         q = self._kwargs_filter(**kwargs) if kwargs else self.query
         for f in self.request.filters:
             if f.field not in self.model.model_fields:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter field: {f.field}")  # noqa: E501
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid filter field: {f.field}",
+                )
             operator = self._operators.get(f.op)
             if f.op is Operator.in_ and not isinstance(f.value, Iterable):
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid value for 'in' operator: {f.value}")  # noqa: E501
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid value for 'in' operator: {f.value}",
+                )
             if not operator:
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid filter operator: {f.op}")  # noqa: E501
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid filter operator: {f.op}",
+                )
             q = q.where(operator(col(getattr(self.model, f.field)), f.value))
         return type(self)(self.model, self.request, q)
 
@@ -185,7 +201,10 @@ class RequestFilter[T: _BaseModel](Filterable, Sortable):
         """Return a copy ordered by the request's sort field and order."""
         q = self.query
         if self.request.sort and self.request.sort not in self.model.model_fields:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid sort field: {self.request.sort}")  # noqa: E501
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Invalid sort field: {self.request.sort}",
+            )
         if self.request.sort and self.request.sort in self.model.model_fields:
             sort_col = col(getattr(self.model, self.request.sort))
             q = self.query.order_by(sort_col.desc() if self.request.order.casefold() == "desc" else sort_col.asc())
@@ -199,6 +218,7 @@ class RequestFilter[T: _BaseModel](Filterable, Sortable):
                 continue
             q = q.where(getattr(self.model, key) == value)
         return q
+
 
 class CustomDataContainer[T: _BaseModel]:
     """A container for managing custom data associated with a model."""
@@ -359,7 +379,7 @@ class APIModel[T: _BaseModel]:
     def create(self, item: T, custom_data: dict[str, Any] | None = None) -> T:
         """Create a new record, then link any ``custom_data`` via the CustomData table."""
         c = CustomDataContainer(item, custom_data)
-        c.validate() # Validate before adding to ensure we don't create an item with invalid custom data
+        c.validate()  # Validate before adding to ensure we don't create an item with invalid custom data
         self.model.add(item)  # Create first so item.id exists for the link
         c.set()
         return item

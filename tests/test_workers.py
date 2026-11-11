@@ -8,6 +8,19 @@ from herogold.workers import AsyncWorkerPool, WorkerPool
 timeout = 1  # seconds
 
 
+class _LaggingErrorQueue:
+    """Stands in for an error queue whose item has not reached the reader yet."""
+
+    def __init__(self, error: BaseException) -> None:
+        self._error = error
+
+    def empty(self) -> bool:
+        return True
+
+    def get(self) -> BaseException:
+        return self._error
+
+
 def no_op() -> None:
     return
 
@@ -56,19 +69,6 @@ def test_async_workerpool_pop_errors_returns_every_error_after_wait() -> None:
             assert all(isinstance(e, ZeroDivisionError) for e in errors)
 
     asyncio.run(run())
-
-
-class _LaggingErrorQueue:
-    """Stands in for an error queue whose item has not reached the reader yet."""
-
-    def __init__(self, error: BaseException) -> None:
-        self._error = error
-
-    def empty(self) -> bool:
-        return True
-
-    def get(self) -> BaseException:
-        return self._error
 
 
 def test_workerpool_pop_errors_ignores_empty_while_error_is_in_flight() -> None:

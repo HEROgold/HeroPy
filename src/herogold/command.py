@@ -1,4 +1,5 @@
 """Run a series of command line interface commands."""
+
 from __future__ import annotations
 
 import os
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
 class CommandError(HerogoldError):
     """Raised when a command fails to execute successfully."""
 
+
 class CommandState(Enum):
     """State of the command line interface."""
 
@@ -27,6 +29,7 @@ class CommandState(Enum):
     RUNNING = auto()
     SUCCESS = auto()
     FAILURE = auto()
+
 
 @dataclass
 class CLI:
@@ -36,6 +39,7 @@ class CLI:
     """Where possible, prefer LiteralString for safety. *Never* use user input for this value."""
     state = CommandState.WAITING
     """State of the command."""
+
 
 class CommandRunner:
     """Run a series of command line interface commands."""
@@ -78,7 +82,7 @@ class CommandRunner:
         self.stdin = self.process.stdin
         self.stdout = self.process.stdout
         self.stderr = self.process.stderr
-        self._read_output() # Clear any initial output
+        self._read_output()  # Clear any initial output
 
     def _send(self, command: CLI) -> None:
         """Send a command to the subprocess."""
@@ -111,11 +115,13 @@ class CommandRunner:
     def _check_success(self, command: CLI, output: list[bytes]) -> list[bytes]:
         if command.state == CommandState.SUCCESS:
             return output
-        error_msg = dedent(f"""
+        error_msg = dedent(
+            f"""
             Failed to run command: {command.command}.
-            {self.stderr.read().decode() if self.stderr else 'No error message available.'}""",
+            {self.stderr.read().decode() if self.stderr else "No error message available."}""",
         )
         raise CommandError(error_msg)
+
 
 class SingleRunner(CommandRunner):
     """Run a single command line interface command."""
@@ -126,6 +132,7 @@ class SingleRunner(CommandRunner):
             msg = "expected a single command to execute."
             raise ValueError(msg)
         super().__init__(commands)
+
 
 class MultipleRunner(CommandRunner):
     """Run multiple commands, each in a new process."""
@@ -151,6 +158,7 @@ class MultipleRunner(CommandRunner):
             output = self._read_output(command)
             yield self._check_success(command, output)
 
+
 def command(
     *command: LiteralString | str,
     location: Path | None = None,
@@ -159,6 +167,7 @@ def command(
     location = location or Path.cwd()
     cd_loc = CLI(f"cd {location}\n")
     return CommandRunner([cd_loc, *[CLI(cmd) for cmd in command]]).run()
+
 
 def _windows_shell() -> str:
     """Get either powershell of cmd for windows."""
