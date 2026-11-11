@@ -32,32 +32,32 @@ repos:
     hooks:
       - id: funcsort
         name: funcsort
-        entry: uvx funcsort
+        entry: uv run funcsort
         language: system
         types: [python]
 
       - id: ruff-format
         name: ruff format
-        entry: uvx ruff@0.16.5 format
+        entry: uv run ruff format
         language: system
         types: [python]
 
       - id: ruff-check
         name: ruff check --fix
-        entry: uvx ruff@0.16.5 check --fix --unsafe-fixes --force-exclude
+        entry: uv run ruff check --fix --unsafe-fixes --force-exclude
         language: system
         types: [python]
 
       - id: ty-check
         name: ty check
-        entry: uvx ty@0.0.77 check
+        entry: uv run ty check
         language: system
         types: [python]
         pass_filenames: false
 
       - id: pyrefly-check
         name: pyrefly check (fallback — run manually with `prek run pyrefly-check`)
-        entry: uvx pyrefly@1.3.1 check
+        entry: uv run pyrefly check
         language: system
         types: [python]
         pass_filenames: false
