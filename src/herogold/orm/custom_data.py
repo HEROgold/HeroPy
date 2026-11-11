@@ -12,7 +12,7 @@ from typing import Any
 
 from herogold.errors import HerogoldError
 from herogold.orm.core.base_model import _BaseModel  # noqa: TC001  # inject resolves annotations at runtime
-from herogold.orm.core.binding import OwnedSession  # noqa: TC001  # inject resolves annotations at runtime
+from herogold.orm.core.binding import AUTO_SESSION, OwnedSession  # inject resolves annotations at runtime
 from herogold.orm.core.custom_data import CustomData
 from herogold.typing.inject import inject
 
@@ -44,7 +44,7 @@ def validate_size(data: Any, size_limit: int = DEFAULT_SIZE_LIMIT) -> None:  # n
 
 
 @inject
-def set_custom_data(item: _BaseModel, data: dict[str, Any], session: OwnedSession = None) -> CustomData:
+def set_custom_data(item: _BaseModel, data: dict[str, Any], session: OwnedSession = AUTO_SESSION) -> CustomData:
     """Store ``data`` as ``item``'s custom data, linked in the caller's session.
 
     Validates the size against the model's ``custom_data_size_limit`` (default
