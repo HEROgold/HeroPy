@@ -28,11 +28,6 @@ class Crate(BaseModel, table=True):
     custom_data_size_limit: ClassVar[int] = 64
 
 
-@compiles(BigInteger, "sqlite")
-def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
-    return "INTEGER"
-
-
 @pytest.fixture
 def router() -> APIRouter:
     return APIRouter()
@@ -57,11 +52,6 @@ def client(router: APIRouter) -> Iterator[TestClient]:
             yield TestClient(app, raise_server_exceptions=False)
     finally:
         engine.dispose()
-
-
-def _names() -> list[str]:
-    with orm_session() as s:
-        return [c.name for c in s.exec(select(Crate)).all()]
 
 
 def test_oversize_custom_data_returns_413_and_stores_nothing(client: TestClient) -> None:
@@ -89,3 +79,13 @@ def test_failing_route_rolls_back(client: TestClient) -> None:
 def test_core_import_does_not_load_fastapi() -> None:
     code = "import sys, herogold.orm, herogold.orm.core.model; sys.exit('fastapi' in sys.modules)"
     assert subprocess.run([sys.executable, "-I", "-c", code], check=False).returncode == 0  # noqa: S603
+
+
+@compiles(BigInteger, "sqlite")
+def _bigint_as_integer_on_sqlite(type_, compiler, **kw):
+    return "INTEGER"
+
+
+def _names() -> list[str]:
+    with orm_session() as s:
+        return [c.name for c in s.exec(select(Crate)).all()]

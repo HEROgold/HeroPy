@@ -105,10 +105,6 @@ class PaginatedResponse[T: _BaseModel]:
         self._query = query
         self._session = session
 
-    def _read[R](self, run: Callable[[Session], R]) -> R:
-        with use_session(self._session) as session:
-            return run(session)
-
     def __iter__(self) -> Generator[T]:
         """Iterate over the items for the current page, then yield from the next page if it exists."""
         if self._query is not None:
@@ -153,6 +149,10 @@ class PaginatedResponse[T: _BaseModel]:
             "total_items": self._read(self.model.count),
             "next": self.next.url if self.next else None,
         }
+
+    def _read[R](self, run: Callable[[Session], R]) -> R:
+        with use_session(self._session) as session:
+            return run(session)
 
 
 class RequestFilter[T: _BaseModel](Filterable, Sortable):
@@ -326,21 +326,6 @@ class APIModel[T: _BaseModel]:
             },
         )
 
-    def _typed(self, route: Callable[..., Any]) -> Callable[..., Any]:
-        """Return ``route`` with its ``item`` parameter annotated as the model class.
-
-        FastAPI cannot read a body schema from the unresolved type variable ``T``.
-        """
-        signature = inspect.signature(route)
-        params = [p.replace(annotation=self.model) if p.name == "item" else p for p in signature.parameters.values()]
-
-        @wraps(route)
-        def endpoint(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
-            return route(*args, **kwargs)
-
-        endpoint.__signature__ = signature.replace(parameters=params)  # pyrefly: ignore [missing-attribute]  # ty: ignore[unresolved-attribute]
-        return endpoint
-
     def options(self) -> Response:
         """Advertise the methods supported on the collection endpoint, including QUERY."""
         return Response(status_code=status.HTTP_204_NO_CONTENT, headers={"Allow": "GET, POST, PUT, PATCH, QUERY"})
@@ -412,6 +397,21 @@ class APIModel[T: _BaseModel]:
             return status.HTTP_404_NOT_FOUND
         inst.delete(session=session)
         return None
+
+    def _typed(self, route: Callable[..., Any]) -> Callable[..., Any]:
+        """Return ``route`` with its ``item`` parameter annotated as the model class.
+
+        FastAPI cannot read a body schema from the unresolved type variable ``T``.
+        """
+        signature = inspect.signature(route)
+        params = [p.replace(annotation=self.model) if p.name == "item" else p for p in signature.parameters.values()]
+
+        @wraps(route)
+        def endpoint(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+            return route(*args, **kwargs)
+
+        endpoint.__signature__ = signature.replace(parameters=params)  # pyrefly: ignore [missing-attribute]  # ty: ignore[unresolved-attribute]
+        return endpoint
 
     @staticmethod
     def _set_custom_data(item: _BaseModel, custom_data: dict[str, Any] | None, session: Session) -> None:
