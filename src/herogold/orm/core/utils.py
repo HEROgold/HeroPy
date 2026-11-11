@@ -41,8 +41,7 @@ T = TypeVar("T", bound=SQLModel)
 _UNSET: Any = object()
 
 _OPTIONAL_DEPRECATION = (
-    "The 'optional' argument of Relationship is deprecated and will be removed in 8.0.0. "
-    "A relationship is always optional."
+    "The 'optional' argument of Relationship is deprecated and will be removed in 8.0.0. A relationship is always optional."
 )
 
 
