@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from sqlmodel import col, select
 
-from herogold.orm.core.binding import OwnedSession  # noqa: TC001  # inject resolves annotations at runtime
+from herogold.orm.core.binding import AUTO_SESSION, OwnedSession  # inject resolves annotations at runtime
 from herogold.orm.core.errors import PermissionDeniedError
 from herogold.orm.models.permission import Permission
 from herogold.orm.models.role import Role  # noqa: TC001  # inject resolves annotations at runtime
@@ -19,7 +19,7 @@ from herogold.typing.inject import inject
 
 
 @inject
-def role_has_permission(role: Role, resource: str, action: str, session: OwnedSession = None) -> bool:
+def role_has_permission(role: Role, resource: str, action: str, session: OwnedSession = AUTO_SESSION) -> bool:
     """Return whether ``role`` grants the ``resource:action`` permission."""
     name = Permission.build_name(resource, action)
     query = (
@@ -36,14 +36,14 @@ def role_has_permission(role: Role, resource: str, action: str, session: OwnedSe
 
 
 @inject
-def user_has_permission(user: User, resource: str, action: str, session: OwnedSession = None) -> bool:
+def user_has_permission(user: User, resource: str, action: str, session: OwnedSession = AUTO_SESSION) -> bool:
     """Return whether ``user`` holds ``resource:action``, checking their roles before direct grants."""
     name = Permission.build_name(resource, action)
     return _granted_by_role(user, name, session) or _granted_directly(user, name, session)
 
 
 @inject
-def require_permission(user: User, resource: str, action: str, session: OwnedSession = None) -> None:
+def require_permission(user: User, resource: str, action: str, session: OwnedSession = AUTO_SESSION) -> None:
     """Raise :class:`PermissionDeniedError` unless ``user`` holds ``resource:action``."""
     if not user_has_permission(user, resource, action, session):
         msg = f"User {user.username!r} lacks permission {Permission.build_name(resource, action)!r}."
@@ -51,7 +51,7 @@ def require_permission(user: User, resource: str, action: str, session: OwnedSes
 
 
 @inject
-def _granted_by_role(user: User, permission_name: str, session: OwnedSession = None) -> bool:
+def _granted_by_role(user: User, permission_name: str, session: OwnedSession = AUTO_SESSION) -> bool:
     """Return whether any of ``user``'s roles grants ``permission_name``."""
     query = (
         select(UserRole.id)
@@ -69,7 +69,7 @@ def _granted_by_role(user: User, permission_name: str, session: OwnedSession = N
 
 
 @inject
-def _granted_directly(user: User, permission_name: str, session: OwnedSession = None) -> bool:
+def _granted_directly(user: User, permission_name: str, session: OwnedSession = AUTO_SESSION) -> bool:
     """Return whether ``permission_name`` was granted to ``user`` directly."""
     query = (
         select(UserPermission.id)

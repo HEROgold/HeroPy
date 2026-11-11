@@ -10,7 +10,7 @@ support concurrent per-thread engines.
 from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any, Final
 
 import sqlmodel
 from sqlalchemy.orm import sessionmaker
@@ -20,12 +20,12 @@ from herogold.typing.inject import Depends
 from .errors import NoEngineBoundError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from contextlib import AbstractContextManager
 
     from sqlalchemy import Engine
 
-__all__ = ["OwnedSession", "bind", "bound", "orm_session", "use_session"]
+__all__ = ["AUTO_SESSION", "OwnedSession", "bind", "bound", "orm_session", "use_session"]
 
 _factory: sessionmaker[sqlmodel.Session] | None = None
 
@@ -37,7 +37,7 @@ def bind(engine: Engine) -> None:
 
 
 @contextmanager
-def bound(engine: Engine) -> Iterator[None]:
+def bound(engine: Engine) -> Generator[None]:
     """Bind ``engine`` inside the block, then restore the previous binding."""
     global _factory  # noqa: PLW0603
     previous = _factory
@@ -49,7 +49,7 @@ def bound(engine: Engine) -> Iterator[None]:
 
 
 @contextmanager
-def orm_session() -> Iterator[sqlmodel.Session]:
+def orm_session() -> Generator[sqlmodel.Session]:
     """Open a session on the bound engine.
 
     Commits when the block succeeds, rolls back when it raises, and always closes.
@@ -78,5 +78,8 @@ def use_session(session: sqlmodel.Session | None) -> AbstractContextManager[sqlm
     return nullcontext(session) if session is not None else orm_session()
 
 
-OwnedSession = Annotated[sqlmodel.Session | None, Depends(orm_session)]
+OwnedSession = Annotated[sqlmodel.Session, Depends(orm_session)]
 """Session parameter type. ``@inject`` fills it with an owned session when the caller passes none."""
+
+AUTO_SESSION: Final[Any] = None
+"""Default for an ``OwnedSession`` parameter. Typed ``Any`` so the parameter stays a plain ``Session``."""

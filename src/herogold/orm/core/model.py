@@ -9,7 +9,7 @@ import contextlib
 from datetime import UTC, datetime
 from enum import Enum, auto
 from functools import partial
-from typing import TYPE_CHECKING, Any, Self, override
+from typing import TYPE_CHECKING, Any, Self, cast, override
 
 from sqlalchemy import JSON, BigInteger, func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -18,7 +18,7 @@ from sqlalchemy.schema import Index
 from sqlmodel import Field, Session, col, select
 
 from herogold.orm.core.base_model import _BaseModel
-from herogold.orm.core.binding import OwnedSession  # noqa: TC001  # inject resolves annotations at runtime
+from herogold.orm.core.binding import AUTO_SESSION, OwnedSession  # inject resolves annotations at runtime
 from herogold.orm.core.custom_data import CustomData
 from herogold.orm.core.utils import Relationship
 from herogold.typing.classproperty import classproperty
@@ -76,7 +76,7 @@ class BaseModel(_BaseModel):
     @override
     @classmethod
     @inject
-    def count(cls, session: OwnedSession = None) -> int:
+    def count(cls, session: OwnedSession = AUTO_SESSION) -> int:
         """Return the total count of records in the model."""
         return session.exec(
             select(func.count(col(cls.id))).where(cls.deleted_at == None),  # noqa: E711
@@ -156,7 +156,7 @@ class DataModel(_BaseModel):
     # itself is safe to share.
     changes: dict[str, Any] = Field(
         default_factory=dict,
-        sa_type=JSON().with_variant(JSONB(), "postgresql"),
+        sa_type=cast("type[Any]", JSON().with_variant(JSONB(), "postgresql")),
     )
 
     @override
