@@ -183,7 +183,7 @@ def test_client_query_advertised_in_allow_header(client: TestClient) -> None:
 def test_api_operator_eq(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.eq, value=20)]), session=session)[
         "items"
-    ]  # noqa: E501
+    ]
     assert len(items) == 0
     assert item.name == "big box"
     assert item.price == 20
@@ -193,7 +193,7 @@ def test_api_operator_eq(api: APIModel[Item], session: Session) -> None:
 def test_api_operator_ne(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.ne, value=20)]), session=session)[
         "items"
-    ]  # noqa: E501
+    ]
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
@@ -203,7 +203,7 @@ def test_api_operator_ne(api: APIModel[Item], session: Session) -> None:
 def test_api_operator_gt(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.gt, value=10)]), session=session)[
         "items"
-    ]  # noqa: E501
+    ]
     assert len(items) == 1
     assert item.name == "big box"
     assert item.price == 20
@@ -212,8 +212,9 @@ def test_api_operator_gt(api: APIModel[Item], session: Session) -> None:
 
 def test_api_operator_like(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(
-        QueryRequest(filters=[QueryFilter(field="name", op=Operator.like, value="%box%")]), session=session
-    )["items"]  # noqa: E501
+        QueryRequest(filters=[QueryFilter(field="name", op=Operator.like, value="%box%")]),
+        session=session,
+    )["items"]
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
@@ -223,7 +224,7 @@ def test_api_operator_like(api: APIModel[Item], session: Session) -> None:
 def test_api_operator_ge(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.ge, value=20)]), session=session)[
         "items"
-    ]  # noqa: E501
+    ]
     assert len(items) == 1
     assert item.name == "big box"
     assert item.price == 20
@@ -233,7 +234,7 @@ def test_api_operator_ge(api: APIModel[Item], session: Session) -> None:
 def test_api_operator_lt(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.lt, value=20)]), session=session)[
         "items"
-    ]  # noqa: E501
+    ]
     assert len(items) == 0
     assert item.name == "small box"
     assert item.price == 5
@@ -243,7 +244,7 @@ def test_api_operator_lt(api: APIModel[Item], session: Session) -> None:
 def test_api_operator_le(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(QueryRequest(filters=[QueryFilter(field="price", op=Operator.le, value=20)]), session=session)[
         "items"
-    ]  # noqa: E501
+    ]
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
@@ -252,8 +253,9 @@ def test_api_operator_le(api: APIModel[Item], session: Session) -> None:
 
 def test_api_operator_like_http(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(
-        QueryRequest(filters=[QueryFilter(field="name", op=Operator.like, value="%box%")]), session=session
-    )["items"]  # noqa: E501
+        QueryRequest(filters=[QueryFilter(field="name", op=Operator.like, value="%box%")]),
+        session=session,
+    )["items"]
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
@@ -262,8 +264,9 @@ def test_api_operator_like_http(api: APIModel[Item], session: Session) -> None:
 
 def test_api_operator_ilike(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(
-        QueryRequest(filters=[QueryFilter(field="name", op=Operator.ilike, value="%BOX%")]), session=session
-    )["items"]  # noqa: E501
+        QueryRequest(filters=[QueryFilter(field="name", op=Operator.ilike, value="%BOX%")]),
+        session=session,
+    )["items"]
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
@@ -272,8 +275,9 @@ def test_api_operator_ilike(api: APIModel[Item], session: Session) -> None:
 
 def test_api_operator_in(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(
-        QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]), session=session
-    )["items"]  # noqa: E501
+        QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]),
+        session=session,
+    )["items"]
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
@@ -282,8 +286,9 @@ def test_api_operator_in(api: APIModel[Item], session: Session) -> None:
 
 def test_api_operator_in_http(api: APIModel[Item], session: Session) -> None:
     [item, *items] = api.query(
-        QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]), session=session
-    )["items"]  # noqa: E501
+        QueryRequest(filters=[QueryFilter(field="name", op=Operator.in_, value=["crate", "small box"])]),
+        session=session,
+    )["items"]
     assert len(items) == 1
     assert item.name == "small box"
     assert item.price == 5
