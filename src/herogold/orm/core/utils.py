@@ -151,6 +151,30 @@ class Relationship[T: _BaseModel](LoggerMixin):
         """Return ``owner``'s target, or ``None`` when there is no link."""
         return cast("T | None", self._get(owner, session))
 
+    def build_link_for(self, owner: type[_BaseModel]) -> None:
+        """Build (once) the association table joining ``owner`` to the target.
+
+        Called from :class:`ModelMeta` for each concrete ``table=True`` subclass.
+        Idempotent per owner and guarded against duplicate metadata registration.
+        """
+        if owner in self._links:
+            return
+        target = self.target(owner)
+        # Prefixes (owner tablename / attribute name) keep the self-referential case from colliding.
+        owner_pk, owner_cols = _pk_columns(owner, prefix=str(owner.__tablename__))
+        target_pk, target_cols = _pk_columns(target, prefix=self.name)
+        link_name = f"{owner.__tablename__}_{self.name}"
+        table = owner.metadata.tables.get(link_name)
+        if table is None:
+            table = _create_link_table(link_name, owner, owner_cols, target, target_cols)
+        self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
+
+    def target(self, owner: type[_BaseModel]) -> type[T]:
+        """Return the target class: the owner for ``SELF``, else the declared model."""
+        if self._is_self_referential(owner):
+            return owner
+        return self.related_model
+
     # The injected helpers use ``Any`` because ``@inject`` resolves annotations at
     # runtime, and ``_BaseModel`` and ``T`` are not importable there.
     @inject
@@ -181,30 +205,6 @@ class Relationship[T: _BaseModel](LoggerMixin):
             return None
         query = select(info.target).join(info.table, info.target_join()).where(info.owner_filter(owner))
         return session.exec(query).first()
-
-    def build_link_for(self, owner: type[_BaseModel]) -> None:
-        """Build (once) the association table joining ``owner`` to the target.
-
-        Called from :class:`ModelMeta` for each concrete ``table=True`` subclass.
-        Idempotent per owner and guarded against duplicate metadata registration.
-        """
-        if owner in self._links:
-            return
-        target = self.target(owner)
-        # Prefixes (owner tablename / attribute name) keep the self-referential case from colliding.
-        owner_pk, owner_cols = _pk_columns(owner, prefix=str(owner.__tablename__))
-        target_pk, target_cols = _pk_columns(target, prefix=self.name)
-        link_name = f"{owner.__tablename__}_{self.name}"
-        table = owner.metadata.tables.get(link_name)
-        if table is None:
-            table = _create_link_table(link_name, owner, owner_cols, target, target_cols)
-        self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
-
-    def target(self, owner: type[_BaseModel]) -> type[T]:
-        """Return the target class: the owner for ``SELF``, else the declared model."""
-        if self._is_self_referential(owner):
-            return owner
-        return self.related_model
 
     def _is_self_referential(self, owner: type[_BaseModel]) -> TypeIs[type[T]]:
         """Return True if the relationship is self-referential for the given owner."""

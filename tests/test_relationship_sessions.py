@@ -45,25 +45,6 @@ def engine(tmp_path: Path) -> Iterator[Engine]:
         engine.dispose()
 
 
-def _links(engine: Engine, rel: Relationship, owner_cls: type) -> int:
-    """Count link rows visible to a fresh, independent session."""
-    table = rel._links[owner_cls].table
-    with Session(engine) as other:
-        return len(other.exec(select(table)).all())
-
-
-def _rows(engine: Engine, model: type[BaseModel]) -> int:
-    with Session(engine) as other:
-        return len(other.exec(select(model)).all())
-
-
-def _committed_target_id(engine: Engine, owner: SessOwner) -> int | None:
-    """Read the owner's target through a fresh session, committed state only."""
-    with Session(engine) as other:
-        found = SessOwner.target.get(owner, session=other)
-        return found.id if found else None
-
-
 def test_class_access_returns_descriptor() -> None:
     assert isinstance(SessOwner.target, Relationship)
     assert isinstance(SessNode.parent, Relationship)
@@ -227,3 +208,22 @@ def test_self_relationship(engine: Engine) -> None:
         s.commit()
     assert _links(engine, SessNode.parent, SessNode) == 0
     assert _rows(engine, SessNode) == 2
+
+
+def _links(engine: Engine, rel: Relationship, owner_cls: type) -> int:
+    """Count link rows visible to a fresh, independent session."""
+    table = rel._links[owner_cls].table
+    with Session(engine) as other:
+        return len(other.exec(select(table)).all())
+
+
+def _rows(engine: Engine, model: type[BaseModel]) -> int:
+    with Session(engine) as other:
+        return len(other.exec(select(model)).all())
+
+
+def _committed_target_id(engine: Engine, owner: SessOwner) -> int | None:
+    """Read the owner's target through a fresh session, committed state only."""
+    with Session(engine) as other:
+        found = SessOwner.target.get(owner, session=other)
+        return found.id if found else None
