@@ -40,30 +40,6 @@ def engine(tmp_path: Path) -> Iterator[Engine]:
         engine.dispose()  # release the sqlite file lock on Windows
 
 
-def _widget_name(engine: Engine, widget_id: int) -> str | None:
-    """Read a widget's name through a fresh, independent session."""
-    with Session(engine) as other:
-        row = other.get(CommitRuleWidget, widget_id)
-        return row.name if row else None
-
-
-def _widget_deleted_at(engine: Engine, widget_id: int) -> object:
-    with Session(engine) as other:
-        row = other.get(CommitRuleWidget, widget_id)
-        assert row is not None
-        return row.deleted_at
-
-
-def _widget_count(engine: Engine) -> int:
-    with Session(engine) as other:
-        return len(other.exec(select(CommitRuleWidget)).all())
-
-
-def _history_count(engine: Engine) -> int:
-    with Session(engine) as other:
-        return len(other.exec(select(CommitRuleHistory)).all())
-
-
 # --- add ---------------------------------------------------------------------
 
 
@@ -150,3 +126,27 @@ def test_datamodel_add_with_session_stays_invisible_until_commit(engine: Engine)
         assert _history_count(engine) == 0
         s.commit()
         assert _history_count(engine) == 1
+
+
+def _widget_name(engine: Engine, widget_id: int) -> str | None:
+    """Read a widget's name through a fresh, independent session."""
+    with Session(engine) as other:
+        row = other.get(CommitRuleWidget, widget_id)
+        return row.name if row else None
+
+
+def _widget_deleted_at(engine: Engine, widget_id: int) -> object:
+    with Session(engine) as other:
+        row = other.get(CommitRuleWidget, widget_id)
+        assert row is not None
+        return row.deleted_at
+
+
+def _widget_count(engine: Engine) -> int:
+    with Session(engine) as other:
+        return len(other.exec(select(CommitRuleWidget)).all())
+
+
+def _history_count(engine: Engine) -> int:
+    with Session(engine) as other:
+        return len(other.exec(select(CommitRuleHistory)).all())
