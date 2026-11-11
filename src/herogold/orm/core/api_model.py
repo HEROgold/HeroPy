@@ -250,7 +250,7 @@ class CustomDataContainer[T: _BaseModel]:
         self.validate()
         row = CustomData(data=self._data)
         row.add()
-        self.item.custom_data = row
+        self.item.custom_data = row  # ty: ignore[invalid-attribute-access]  # descriptor __set__ links the row
 
 
 class QueryResponse[T: _BaseModel](TypedDict):
