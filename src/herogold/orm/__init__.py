@@ -21,6 +21,7 @@ __all__ = [
     "UserPermission",
     "UserRole",
     "assert_statements",
+    "configure",
     "count_statements",
     "forbid_unbatched_loads",
     "get_foreign_key",
@@ -32,6 +33,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "Relationship": ("orm.core.utils", "Relationship"),
     "SelfRelationship": ("orm.core.utils", "SelfRelationship"),
     "get_foreign_key": ("orm.core.utils", "get_foreign_key"),
+    "configure": ("orm.core.configure", "configure"),
     "assert_statements": ("orm.testing", "assert_statements"),
     "count_statements": ("orm.testing", "count_statements"),
     "forbid_unbatched_loads": ("orm.testing", "forbid_unbatched_loads"),
@@ -49,6 +51,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
 
 if TYPE_CHECKING:
     # Static names for type checkers. At runtime `__getattr__` below imports lazily.
+    from herogold.orm.core.configure import configure
     from herogold.orm.core.model import BaseModel
     from herogold.orm.core.utils import SELF, Relationship, SelfRelationship, get_foreign_key
     from herogold.orm.models.configuration import Configuration

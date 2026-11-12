@@ -74,6 +74,16 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         super().__init_subclass__(**kwargs)
         models.add(cls)
 
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
+        """Explain a missing ``<name>_id`` that ``configure()`` would have generated."""
+        try:
+            return super().__getattr__(name)  # ty: ignore[missing-attribute]
+        except AttributeError:
+            from .configure import missing_column_hint  # noqa: PLC0415  # configure imports utils, which this module imports
+
+            missing_column_hint(type(self), name)
+            raise
+
     @override
     def __setattr__(self, name: str, value: Any) -> None:
         """Route ``Relationship``-backed attributes to the descriptor's ``__set__``.

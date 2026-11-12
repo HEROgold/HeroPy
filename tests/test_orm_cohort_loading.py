@@ -7,12 +7,15 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Optional
 
 import pytest
-from sqlalchemy import create_engine, insert, select
+from sqlalchemy import create_engine, delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm.attributes import set_attribute
 from sqlmodel import Session, SQLModel
 
 from herogold.orm.core import loading
-from herogold.orm.core.loading import AsyncLoadError, UnbatchedLoadError, build_links, link_for
+from herogold.orm.core.configure import configure
+from herogold.orm.core.loading import AsyncLoadError, UnbatchedLoadError
 from herogold.orm.core.model import BaseModel
 from herogold.orm.core.utils import Relationship
 from herogold.orm.testing import assert_statements, forbid_unbatched_loads
@@ -26,7 +29,7 @@ class CoTeam(BaseModel, table=True):
 
     name: str = ""
     members = Relationship[list["CoPlayer"]]()
-    captain = Relationship[Optional["CoPlayer"]]()
+    captain = Relationship[Optional["CoPlayer"]](inverse=None)
 
 
 class CoPlayer(BaseModel, table=True):
@@ -43,12 +46,10 @@ class CoDesk(BaseModel, table=True):
     chair = Relationship["CoPlayer"]()  # required: not Optional
 
 
-build_links(CoTeam, CoPlayer)
-build_links(CoDesk, CoPlayer)
+configure([CoTeam, CoPlayer, CoDesk])
 
-def _link(session: Session, owner: BaseModel, name: str, target: BaseModel) -> None:
-    info = link_for(type(owner), name)
-    session.execute(insert(info.table).values(**info.owner_values(owner), **info.target_values(target)))
+def _set_fk(session: Session, owner: BaseModel, column: str, target: BaseModel) -> None:
+    session.execute(update(type(owner)).where(type(owner).id == owner.id).values({column: target.id}))
 
 
 def _teams(session: Session, count: int, members: int = 2) -> None:
@@ -56,13 +57,10 @@ def _teams(session: Session, count: int, members: int = 2) -> None:
     session.add_all(teams)
     session.flush()
     for team in teams:
-        players = [CoPlayer(name=f"{team.name}-p{j}") for j in range(members)]
+        players = [CoPlayer(name=f"{team.name}-p{j}", team_id=team.id) for j in range(members)]
         session.add_all(players)
         session.flush()
-        for player in players:
-            _link(session, team, "members", player)
-            _link(session, player, "team", team)
-        _link(session, team, "captain", players[0])
+        set_attribute(team, "captain_id", players[0].id)
     session.commit()
     session.expunge_all()
 
@@ -116,18 +114,27 @@ def test_single_valued_shape_returns_object_or_none(session: Session) -> None:
 def test_required_single_relationship_without_a_linked_row_reads_as_none(session: Session) -> None:
     _teams(session, 1)
     player = session.exec(select(CoPlayer)).scalars().first()
-    linked, lonely = CoDesk(label="linked"), CoDesk(label="lonely")
-    session.add_all([linked, lonely])
+    pending = CoDesk(label="pending")
+    session.add(pending)
+    assert CoDesk.chair.shape.optional is False
+    assert CoDesk(label="transient").chair is None
+    assert pending.chair is None  # not flushed: the NOT NULL column is still unset
+
+    session.expunge(pending)
+    session.add(CoDesk(label="persisted", chair_id=player.id))
     session.flush()
-    _link(session, linked, "chair", player)
+    session.execute(delete(CoPlayer).where(CoPlayer.id == player.id))  # SQLite does not enforce the foreign key
     session.commit()
     session.expunge_all()
 
-    desks = list(session.exec(select(CoDesk).order_by(CoDesk.id)).scalars())
+    assert session.exec(select(CoDesk)).scalars().one().chair is None  # reading does not raise
 
-    assert CoDesk.chair.shape.optional is False
-    assert [d.chair.name if d.chair else None for d in desks] == ["team0-p0", None]  # reading does not raise
 
+def test_required_single_relationship_is_not_null_at_insert(session: Session) -> None:
+    session.add(CoDesk(label="no chair"))
+
+    with pytest.raises(IntegrityError):
+        session.flush()
 
 def test_player_team_batches_through_the_loaded_members(session: Session) -> None:
     _teams(session, 10)
@@ -186,7 +193,7 @@ def test_transient_result_is_not_cached(session: Session) -> None:
     player = CoPlayer(name="p")
     session.add(player)
     session.flush()
-    _link(session, team, "members", player)
+    _set_fk(session, player, "team_id", team)
 
     assert [p.name for p in team.members] == ["p"]
 
@@ -319,7 +326,7 @@ def test_commit_drops_cached_values(session: Session) -> None:
     extra = CoPlayer(name="extra")
     session.add(extra)
     session.flush()
-    _link(session, teams[0], "members", extra)
+    _set_fk(session, extra, "team_id", teams[0])
     session.commit()
 
     assert len(teams[0].members) == 3
@@ -332,7 +339,7 @@ def test_refresh_drops_the_cached_value(session: Session) -> None:
     extra = CoPlayer(name="extra")
     session.add(extra)
     session.flush()
-    _link(session, team, "members", extra)
+    _set_fk(session, extra, "team_id", team)
     session.flush()
 
     session.refresh(team)
@@ -347,7 +354,7 @@ def test_expire_drops_the_cached_value(session: Session) -> None:
     extra = CoPlayer(name="extra")
     session.add(extra)
     session.flush()
-    _link(session, team, "members", extra)
+    _set_fk(session, extra, "team_id", team)
     session.flush()
 
     session.expire(team)
