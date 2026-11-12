@@ -7,12 +7,14 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import event
 
+from herogold.orm.core.loading import forbid_unbatched
+
 if TYPE_CHECKING:
     from collections.abc import Generator
 
     from sqlalchemy.engine import Engine
 
-__all__ = ["StatementCounter", "assert_statements", "count_statements"]
+__all__ = ["StatementCounter", "assert_statements", "count_statements", "forbid_unbatched_loads"]
 
 
 class StatementCounter:
@@ -58,3 +60,14 @@ def assert_statements(engine: Engine, expected: int) -> Generator[StatementCount
         listing = "\n".join(f"  {i}. {statement}" for i, statement in enumerate(counter.statements, start=1))
         msg = f"expected {expected} statements, got {counter.count}:\n{listing}"
         raise AssertionError(msg)
+
+
+@contextmanager
+def forbid_unbatched_loads() -> Generator[None]:
+    """Raise UnbatchedLoadError for a relationship load that no other row shares, inside the block.
+
+    This is the test-mode counterpart of SQLAlchemy's ``lazy="raise"``. A load is batched when
+    its row came from a query that returned other rows still in memory.
+    """
+    with forbid_unbatched():
+        yield

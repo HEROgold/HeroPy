@@ -206,6 +206,8 @@ class Relationship[T](LoggerMixin):
         """Class access returns the target class; instance access joins the link table."""
         if instance is None:
             return self if self._declared else self._resolve_target(cast("type[_BaseModel]", owner))
+        if self._declared:
+            return loading.load_typed(self, instance)
         info = self._links.get(type(instance))
         if info is None:
             return None
@@ -412,3 +414,7 @@ def _create_link_table(
         # secondary index for reverse (target -> owners) lookups
         Index(f"ix_{name}_tgt", *target_cols),
     )
+
+
+# Imported last: loading imports this module, and importing it registers the cohort ``load`` listener.
+from herogold.orm.core import loading  # noqa: E402

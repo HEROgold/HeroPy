@@ -48,6 +48,8 @@ dev = [
     "lazy-fix",
 ]
 test = [
+    "aiosqlite>=0.20",
+    "greenlet>=3.1",
     "herogold[all]",
     "hypothesis>=6.168.0",
     "psycopg[binary]>=3.2",
