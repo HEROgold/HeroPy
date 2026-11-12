@@ -11,7 +11,7 @@ from enum import Enum, auto
 from functools import partial
 from typing import TYPE_CHECKING, Any, Self, override
 
-from sqlalchemy import JSON, BigInteger, func
+from sqlalchemy import JSON, BigInteger
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declared_attr
 from sqlalchemy.schema import Index
@@ -20,13 +20,12 @@ from sqlmodel import Field, Session, col, select
 from herogold.orm.core.base_model import _BaseModel
 from herogold.orm.core.custom_data import CustomData
 from herogold.orm.core.utils import Relationship
-from herogold.typing.classproperty import classproperty
 
 from .errors import AlreadyExistsError, NotFoundError
 
 if TYPE_CHECKING:
 
-    from sqlmodel.sql.expression import SelectOfScalar
+    from sqlalchemy import ColumnElement
 
 
 class BaseModel(_BaseModel):
@@ -66,20 +65,20 @@ class BaseModel(_BaseModel):
             ),
         )
 
-    @classproperty
-    def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805  # ty: ignore[invalid-type-form]
-        """Return a default query for the model."""
-        return super().query.where(cls.deleted_at == None)  # noqa: E711
+    @classmethod
+    def soft_delete_criteria(cls) -> ColumnElement[bool]:
+        """Return the criterion that marks a row as alive, `deleted_at IS NULL` by default.
+
+        `default_criteria` includes it, and `Repository.with_deleted()` and `only_deleted()` read it.
+        A subclass that changes what "alive" means overrides this method, not `default_criteria`.
+        """
+        return col(cls.deleted_at).is_(None)
 
     @override
     @classmethod
-    def count(cls) -> int:
-        """Return the total count of records in the model."""
-        if not cls.__count or cls.session.identity_map.check_modified():
-            cls.__count = cls.session.exec(
-                select(func.count(col(cls.id))).where(cls.deleted_at == None),  # noqa: E711
-            ).one()
-        return cls.__count
+    def default_criteria(cls) -> list[ColumnElement[bool]]:
+        """Return the base criteria plus `soft_delete_criteria()`."""
+        return [*super().default_criteria(), cls.soft_delete_criteria()]
 
     @override
     def _create_record(self, session: Session) -> None:
