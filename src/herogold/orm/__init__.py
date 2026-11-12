@@ -12,10 +12,13 @@ __all__ = [
     "Email",
     "Password",
     "Permission",
+    "QuerySet",
     "Relationship",
+    "Repository",
     "Role",
     "RolePermission",
     "SelfRelationship",
+    "Upserted",
     "User",
     "UserEmail",
     "UserPermission",
@@ -37,6 +40,9 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "assert_statements": ("orm.testing", "assert_statements"),
     "count_statements": ("orm.testing", "count_statements"),
     "forbid_unbatched_loads": ("orm.testing", "forbid_unbatched_loads"),
+    "QuerySet": ("orm.repository", "QuerySet"),
+    "Repository": ("orm.repository", "Repository"),
+    "Upserted": ("orm.repository", "Upserted"),
     "Configuration": ("orm.models.configuration", "Configuration"),
     "Email": ("orm.models.email", "Email"),
     "Password": ("orm.models.password", "Password"),
@@ -64,6 +70,7 @@ if TYPE_CHECKING:
     from herogold.orm.models.user_email import UserEmail
     from herogold.orm.models.user_permission import UserPermission
     from herogold.orm.models.user_role import UserRole
+    from herogold.orm.repository import QuerySet, Repository, Upserted
     from herogold.orm.testing import assert_statements, count_statements, forbid_unbatched_loads
 
 
