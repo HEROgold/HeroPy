@@ -196,8 +196,11 @@ class Relationship[T](LoggerMixin):
     def __set__(self, instance: Any, value: T) -> None:  # noqa: ANN401
         """Persist ``value`` if needed and replace the owner's single link row."""
         if self._declared:
-            msg = f"Assigning to the typed relationship '{self.name}' is not implemented yet."
-            raise NotImplementedError(msg)
+            from herogold.orm.core.configure import check_readable  # noqa: PLC0415  # configure imports this module
+
+            check_readable(self)
+            related.assign(self, instance, value)
+            return
         target = cast("_BaseModel", value)
         instance.logger.debug("Setting relationship '%s' to %s", self.name, value, extra={"record": instance})
         info = self._links[type(instance)]
@@ -464,4 +467,4 @@ def _create_link_table(
 
 
 # Imported last: loading imports this module, and importing it registers the cohort ``load`` listener.
-from herogold.orm.core import loading  # noqa: E402
+from herogold.orm.core import loading, related  # noqa: E402

@@ -22,6 +22,8 @@ from sqlalchemy import event, inspect, select, tuple_
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
 
+from herogold.orm.core import related
+
 if TYPE_CHECKING:
     from collections.abc import Generator
 
@@ -32,6 +34,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "CHUNK_SIZE",
+    "MISSING",
     "AsyncLoadError",
     "Cohort",
     "FkLoader",
@@ -44,11 +47,15 @@ __all__ = [
     "internal_write",
     "is_internal_write",
     "load_typed",
+    "peek",
     "register_loader",
 ]
 
 CHUNK_SIZE = 500
 """Most values in one ``IN`` list. Postgres drivers cap bound parameters at 32,767."""
+
+MISSING = object()
+"""What :func:`peek` returns when a relationship has not been loaded."""
 
 _CACHE_KEY = "rel"
 _COHORT_KEY = "cohort"
@@ -187,8 +194,22 @@ def register_loader(owner: type, name: str, loader: Loader) -> None:
 
 
 def store(state: InstanceState[Any], name: str, value: object) -> None:
-    """Cache ``value`` as the loaded relationship ``name`` of ``state``'s instance."""
+    """Cache ``value`` as the loaded relationship ``name`` of ``state``'s instance; a list becomes a related list."""
+    if isinstance(value, list):
+        value = related.wrap(state, name, value)
     state.info.setdefault(_CACHE_KEY, {})[name] = value
+
+
+def peek(state: InstanceState[Any], name: str) -> object:
+    """Return the cached value of relationship ``name`` of ``state``'s instance, or :data:`MISSING`."""
+    return state.info.get(_CACHE_KEY, {}).get(name, MISSING)
+
+
+def drop_empty(state: InstanceState[Any]) -> None:
+    """Forget cached empty lists of ``state``'s instance, so a row that just got its id loads them again."""
+    cache = state.info.get(_CACHE_KEY, {})
+    for name in [name for name, value in cache.items() if isinstance(value, list) and not value]:
+        del cache[name]
 
 
 def load_typed(relationship: Relationship[Any], instance: _BaseModel) -> object:
@@ -199,12 +220,16 @@ def load_typed(relationship: Relationship[Any], instance: _BaseModel) -> object:
         return cached[relationship.name]
     shape = relationship.shape
     if state.key is None:  # transient or pending: nothing stored, and a query would autoflush it
-        return [] if shape.many else None
+        if not shape.many:
+            return None
+        store(state, relationship.name, [])  # kept, so that appends to the list reach the owner's session
+        return state.info[_CACHE_KEY][relationship.name]
     session = state.session
     if session is None:  # detached: one query of its own
         session = type(instance).session
         members = [state]
     else:
+        related.settle(session)  # a read must see the writes queued so far
         members = _cohort_members(state, session, relationship.name)
     _check_async(session, relationship)
     if _forbid_unbatched.get() and len(members) <= 1:
