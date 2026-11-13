@@ -65,6 +65,8 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
     query: ClassVar[SelectOfScalar[Self]]
     """Default query for the model, may be overridden by subclasses."""
     session: ClassVar[Session] = db_session
+    natural_key: ClassVar[tuple[str, ...]] = ()
+    """Field names that identify a row apart from `id`, used by `Repository.upsert`."""
     logger: ClassVar[logging.Logger] = ModelLogger().logger
     __count: ClassVar[int | None] = None
     """Cached count of records. avoiding excessive queries."""
