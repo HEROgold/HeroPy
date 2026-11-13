@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Annotated
 
 import pytest
 
-from herogold.typing.inject import Depends, inject
+from herogold.typing.inject import Depends, inject, inject_annotated
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -159,6 +159,39 @@ def test_inject_rejects_generator_and_async_functions() -> None:
     for fn in (gen, coro, agen):
         with pytest.raises(TypeError):
             inject(fn)
+
+
+def test_inject_annotated_wraps_methods_without_decorator() -> None:
+    class Repo:
+        def read(self, res: Annotated[str | None, Depends(provider)] = None) -> str | None:
+            return res
+
+        @classmethod
+        def read_cls(cls, res: Annotated[str | None, Depends(provider)] = None) -> str | None:
+            return res
+
+        @staticmethod
+        def read_static(res: Annotated[str | None, Depends(provider)] = None) -> str | None:
+            return res
+
+    for name in ("read", "read_cls", "read_static"):
+        setattr(Repo, name, inject_annotated(Repo.__dict__[name]))
+
+    assert Repo().read() == "provided"
+    assert Repo.read_cls() == "provided"
+    assert Repo.read_static("given") == "given"
+    assert provider.entered == 2
+
+
+def test_inject_annotated_leaves_other_attributes_alone() -> None:
+    def plain(x: int, y: Annotated[int, "note"] = 0) -> int:
+        return x + y
+
+    def unresolvable(x: Missing) -> None: ...  # noqa: F821
+
+    assert inject_annotated(plain) is plain
+    assert inject_annotated(unresolvable) is unresolvable
+    assert inject_annotated(42) == 42
 
 
 @pytest.fixture(autouse=True)

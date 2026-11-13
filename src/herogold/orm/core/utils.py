@@ -11,7 +11,7 @@ from sqlmodel import SQLModel, select
 
 from herogold.log import LoggerMixin
 from herogold.sentinel import create_sentinel
-from herogold.typing.inject import inject
+from herogold.typing.inject import inject, inject_annotated
 
 from .binding import AUTO_SESSION, OwnedSession  # inject resolves annotations at runtime
 
@@ -300,6 +300,17 @@ class ModelMeta(type(SQLModel)):
     For every concrete ``table=True`` subclass it scans the MRO for
     :class:`Relationship` descriptors and asks each to build its link table.
     """
+
+    def __new__(
+        mcs,
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, object],
+        **kwargs: object,
+    ) -> type:
+        """Resolve ``Depends`` parameters of the class body's methods, so they need no decorator."""
+        resolved = {key: inject_annotated(value) for key, value in namespace.items()}
+        return super().__new__(mcs, name, bases, resolved, **kwargs)
 
     def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, object], **kwargs: object) -> None:
         """Build link tables once the owner's ``__table__`` has been created."""

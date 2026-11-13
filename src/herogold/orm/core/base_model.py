@@ -15,7 +15,6 @@ from herogold.log import LoggerMixin
 from herogold.orm.core.utils import ModelMeta, Relationship
 from herogold.typing.check import contains_sub_type
 from herogold.typing.classproperty import classproperty
-from herogold.typing.inject import inject
 
 from .binding import AUTO_SESSION, OwnedSession, use_session
 from .errors import AlreadyExistsError, NotFoundError
@@ -97,14 +96,12 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             if isinstance(info.annotation, type) and issubclass(info.annotation, _BaseModel)
         }
 
-    @inject
     def add(self, session: OwnedSession = AUTO_SESSION) -> None:
         """Add a record to Database."""
         self.logger.debug("Adding record: %s", self, extra={"record": self})
         self._validate_existing_record(session)
         self._create_record(session)
 
-    @inject
     def update(self, session: OwnedSession = AUTO_SESSION) -> None:
         """Create or update a record in Database.
 
@@ -118,7 +115,6 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             return self._update_record(session, known)
         return self._create_record(session)
 
-    @inject
     def delete(self, session: OwnedSession = AUTO_SESSION) -> None:
         """Delete a record from Database."""
         self.logger.debug("Deleting record: %s", self, extra={"record": self})
@@ -133,13 +129,11 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         return select(cls)
 
     @classmethod
-    @inject
     def count(cls, session: OwnedSession = AUTO_SESSION) -> int:
         """Return the total count of records in the model."""
         return session.exec(select(func.count(col(cls.id)))).one()
 
     @classmethod
-    @inject
     def get(cls, id_: int, session: OwnedSession = AUTO_SESSION, *, with_for_update: bool = False) -> Self:
         """Get a record from Database."""
         cls.logger.debug("Getting record: %s", id_, extra={"id": id_})
@@ -154,7 +148,6 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
         raise NotFoundError(msg)
 
     @classmethod
-    @inject
     def get_all(cls, session: OwnedSession = AUTO_SESSION) -> Sequence[Self]:
         """Get all records from Database."""
         cls.logger.debug("Getting all records: %s", cls.__name__, extra={"class": cls.__name__})

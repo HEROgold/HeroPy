@@ -1,23 +1,28 @@
 """Dependency injection through ``Annotated`` markers.
 
-Mark a parameter with ``Annotated[X, Depends(provider)]`` and wrap the function
-with ``@inject``. When the caller leaves that argument out or passes ``None``,
-``inject`` enters ``provider()`` and passes the yielded value.
+Mark a parameter with ``Annotated[X, Depends(provider)]``. When the caller leaves
+that argument out or passes ``None``, the provider's context manager is entered
+around the call and its value is passed in.
+
+Model methods need no decorator. ``ModelMeta`` calls :func:`inject_annotated` on
+each attribute of a model class body. ``inject`` stays for plain functions the
+ORM does not call, and is not part of the public API.
 """  # noqa: INP001
 
 from __future__ import annotations
 
 import inspect
-from contextlib import ExitStack
+from contextlib import ExitStack, suppress
 from dataclasses import dataclass
 from functools import wraps
-from typing import TYPE_CHECKING, Annotated, Any, get_args, get_origin, get_type_hints
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Annotated, Any, cast, get_args, get_origin, get_type_hints
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from contextlib import AbstractContextManager
 
-__all__ = ["Depends", "inject"]
+__all__ = ["Depends", "inject", "inject_annotated"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,8 +76,34 @@ def inject[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
     return wrapper
 
 
-def _find_dependencies(fn: Callable[..., Any]) -> dict[str, Depends[Any]]:
-    hints = get_type_hints(fn, include_extras=True)
+def inject_annotated(attr: object) -> object:
+    """Wrap a class attribute with :func:`inject` when it declares a ``Depends`` parameter.
+
+    Handles plain functions, ``classmethod`` and ``staticmethod``. Anything else, and
+    functions without a resolvable ``Depends`` annotation, come back unchanged.
+    """
+    if isinstance(attr, (classmethod, staticmethod)):
+        func = attr.__func__
+        wrapped = inject_annotated(func)
+        if wrapped is func:
+            return attr
+        return type(attr)(cast("Callable[..., Any]", wrapped))
+    if not inspect.isfunction(attr) or inspect.isgeneratorfunction(attr) or inspect.iscoroutinefunction(attr):
+        return attr
+    if inspect.isasyncgenfunction(attr) or not _find_dependencies(attr, strict=False):
+        return attr
+    return inject(attr)
+
+
+def _find_dependencies(fn: Callable[..., Any], *, strict: bool = True) -> dict[str, Depends[Any]]:
+    if strict:
+        hints = get_type_hints(fn, include_extras=True)
+    else:
+        hints = {}
+        for name, annotation in getattr(fn, "__annotations__", {}).items():
+            holder = SimpleNamespace(__annotations__={name: annotation})
+            with suppress(Exception):  # unresolvable names cannot be Depends aliases
+                hints.update(get_type_hints(holder, globalns=getattr(fn, "__globals__", None), include_extras=True))
     found: dict[str, Depends[Any]] = {}
     for name, hint in hints.items():
         if name == "return" or get_origin(hint) is not Annotated:
