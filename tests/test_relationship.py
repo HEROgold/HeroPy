@@ -55,10 +55,15 @@ def session() -> Iterator[Session]:
         engine.dispose()
 
 
-def test_class_access_returns_target() -> None:
-    assert HasRel.other is Other
-    assert HasOpt.other is Other
-    assert Node.parent is Node  # SELF resolves to the owner
+def test_class_access_returns_descriptor() -> None:
+    assert isinstance(HasRel.other, Relationship)
+    assert isinstance(Node.parent, Relationship)
+
+
+def test_target_returns_target_class() -> None:
+    assert HasRel.other.target(HasRel) is Other
+    assert HasOpt.other.target(HasOpt) is Other
+    assert Node.parent.target(Node) is Node  # SELF resolves to the owner
 
 
 def test_link_tables_registered() -> None:
@@ -125,7 +130,7 @@ def test_self_relationship_is_typed_as_owner(session: Session) -> None:
 
     parent = leaf.parent
     assert_type(parent, Tree | None)
-    assert_type(Tree.parent, type[Tree])
+    assert_type(Tree.parent, SelfRelationship)
     assert parent is not None
     assert parent.id == root.id
 
