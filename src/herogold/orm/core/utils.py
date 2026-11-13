@@ -7,7 +7,7 @@ import sys
 import types
 from typing import TYPE_CHECKING, Any, ForwardRef, NamedTuple, Self, TypeVar, Union, cast, get_args, get_origin, overload
 
-from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, and_
+from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, and_, inspect
 from sqlmodel import SQLModel, select
 
 from herogold.log import LoggerMixin
@@ -106,6 +106,7 @@ class Relationship[T](LoggerMixin):
         @overload
         def __new__[M: _BaseModel](
             cls, related_model: type[M], *, optional: bool = ..., inverse: object = ..., column: object = ...,
+            batched: bool = ...,
         ) -> _LegacyRelationship[M]: ...
         @overload
         def __new__(cls, *, optional: bool = ..., inverse: object = ..., column: object = ...) -> Self: ...
@@ -119,6 +120,7 @@ class Relationship[T](LoggerMixin):
         optional: bool = True,
         inverse: object = AUTO,
         column: object = None,
+        batched: bool = False,
     ) -> None:
         """Initialise the descriptor.
 
@@ -130,7 +132,12 @@ class Relationship[T](LoggerMixin):
         ``inverse`` is a relationship (or a lambda returning one) to pair with, or ``None`` to
         opt out of pairing. ``column`` is the foreign-key column name, or a lambda returning the
         mapped column, that a single-valued relationship stores.
+
+        ``batched`` applies to the original form only. It keeps the per-model link table that
+        :class:`ModelMeta` builds, but reads through the cohort loader (one query for every row that
+        one query returned) and writes on the owner's session without committing.
         """
+        self.batched = batched
         self.inverse = inverse
         self.column = column
         self.configured = False
@@ -201,6 +208,9 @@ class Relationship[T](LoggerMixin):
             check_readable(self)
             related.assign(self, instance, value)
             return
+        if self.batched:
+            self._set_batched(instance, value)
+            return
         target = cast("_BaseModel", value)
         instance.logger.debug("Setting relationship '%s' to %s", self.name, value, extra={"record": instance})
         info = self._links[type(instance)]
@@ -230,6 +240,9 @@ class Relationship[T](LoggerMixin):
         info = self._links.get(type(instance))
         if info is None:
             return
+        if self.batched:
+            self._set_batched(instance, None)
+            return
         session = type(instance).session
         session.exec(info.table.delete().where(info.owner_filter(instance)))
         session.commit()
@@ -251,6 +264,8 @@ class Relationship[T](LoggerMixin):
         info = self._links.get(type(instance))
         if info is None:
             return None
+        if self.batched:
+            return loading.load_typed(self, instance)
         session = type(instance).session
         query = select(info.target).join(info.table, info.target_join()).where(info.owner_filter(instance))
         return cast("T | None", session.exec(query).first())
@@ -271,7 +286,29 @@ class Relationship[T](LoggerMixin):
         table = owner.metadata.tables.get(link_name)
         if table is None:
             table = _create_link_table(link_name, owner, owner_cols, target, target_cols)
-        self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
+        info = self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
+        if self.batched:
+            loading.register_loader(owner, self.name, loading.LinkLoader(info))
+
+    def _set_batched(self, instance: Any, value: object) -> None:  # noqa: ANN401
+        """Replace the owner's link row on the owner's session. Nothing commits: the caller owns the transaction."""
+        info = self._links[type(instance)]
+        if instance.id is None:
+            msg = f"Owner must be persisted before setting relationship '{self.name}'."
+            raise ValueError(msg)
+        state = inspect(instance)
+        session = state.session or type(instance).session
+        target = cast("_BaseModel | None", value)
+        if target is not None and inspect(target).session is None:
+            session.add(target)
+        if target is not None and target.id is None:
+            session.flush()  # assigns the target's id, still inside the caller's transaction
+        related.settle(session)
+        conn = session.connection()
+        conn.execute(info.table.delete().where(info.owner_filter(instance)))
+        if target is not None:
+            conn.execute(info.table.insert().values(**info.owner_values(instance), **info.target_values(target)))
+        loading.store(state, self.name, target)
 
     def _resolve_target(self, owner: type[_BaseModel]) -> type[_BaseModel]:
         """Resolve ``SELF`` to the owner; otherwise return the declared target."""

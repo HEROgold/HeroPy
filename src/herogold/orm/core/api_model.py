@@ -6,6 +6,7 @@ from collections.abc import Callable, Generator, Iterable, Iterator
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypedDict, override
 
+from sqlalchemy import inspect
 from sqlalchemy.sql.elements import SQLCoreOperations
 from sqlmodel import Field, SQLModel, col, select
 
@@ -231,6 +232,8 @@ class CustomDataContainer[T: _BaseModel]:
         row = CustomData(data=self._data)
         row.add()
         self.item.custom_data = row
+        # The link no longer commits by itself; the API call owns its transaction, so it commits here.
+        (inspect(self.item).session or type(self.item).session).commit()
 
 
 class QueryResponse[T: _BaseModel](TypedDict):
