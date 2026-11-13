@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
     from pydantic import ConfigDict
+    from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Mapped
     from sqlmodel.sql.expression import SelectOfScalar
 
@@ -124,17 +125,26 @@ class _BaseModel(BaseSQLModel, ABC, metaclass=ModelMeta):
             raise NotFoundError(msg)
         self._delete_record(self._get_session(session))
 
+    @classmethod
+    def default_criteria(cls) -> list[ColumnElement[bool]]:
+        """Return the where criteria that `query` and `count` always apply.
+
+        Returns a list so a subclass can extend it with `[*super().default_criteria(), ...]`.
+        This base class applies none.
+        """
+        return []
+
     @classproperty
     def query(cls: type[Self]) -> SelectOfScalar[Self]:  # noqa: N805  # ty: ignore[invalid-type-form]
-        """Return a default query for the model."""
-        return select(cls)
+        """Return a default query for the model, filtered by `default_criteria`."""
+        return select(cls).where(*cls.default_criteria())
 
     @classmethod
     def count(cls) -> int:
         """Return the total count of records in the model."""
         if not cls.__count or cls.session.identity_map.check_modified():
             cls.__count = cls.session.exec(
-                select(func.count(col(cls.id))),
+                select(func.count(col(cls.id))).where(*cls.default_criteria()),
             ).one()
         return cls.__count
 
