@@ -725,4 +725,3 @@ def test_copying_an_fk_list_does_not_change_the_rows(db: Db) -> None:
         s.commit()
 
     assert db.players_of("t") == ["p"]
-
