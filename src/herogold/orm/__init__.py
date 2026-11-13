@@ -35,6 +35,7 @@ __all__ = [
     "get_foreign_key",
     "on_commit",
     "orm_session",
+    "transactional",
 ]
 
 _EXPORTS: dict[str, tuple[str, str]] = {
@@ -57,6 +58,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "bound": ("orm.scopes", "bound"),
     "on_commit": ("orm.scopes", "on_commit"),
     "orm_session": ("orm.scopes", "orm_session"),
+    "transactional": ("orm.transactions", "transactional"),
     "Configuration": ("orm.models.configuration", "Configuration"),
     "Email": ("orm.models.email", "Email"),
     "Password": ("orm.models.password", "Password"),
@@ -87,6 +89,7 @@ if TYPE_CHECKING:
     from herogold.orm.repository import QuerySet, Repository, Upserted
     from herogold.orm.scopes import NoEngineBoundError, Scoped, ScopeRolledBack, bind, bound, on_commit, orm_session
     from herogold.orm.testing import assert_statements, count_statements, forbid_unbatched_loads
+    from herogold.orm.transactions import transactional
 
 
 def __getattr__(name: str) -> object:
