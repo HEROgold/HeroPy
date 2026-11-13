@@ -2,6 +2,8 @@
 
 A single package containing personal utilities.
 
+Upgrading from herogold 6.x? See the [7.0.0 migration note](docs/migrations/7.0.0.md).
+
 ## Python 3.15
 
 Source: [What's new in Python 3.15](https://docs.python.org/3.15/whatsnew/3.15.html). The package supports Python 3.12 and newer, so 3.15 syntax cannot appear in any module that must import on 3.12.
