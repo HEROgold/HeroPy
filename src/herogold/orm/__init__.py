@@ -22,6 +22,7 @@ __all__ = [
     "UserRole",
     "assert_statements",
     "count_statements",
+    "forbid_unbatched_loads",
     "get_foreign_key",
 ]
 
@@ -33,6 +34,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "get_foreign_key": ("orm.core.utils", "get_foreign_key"),
     "assert_statements": ("orm.testing", "assert_statements"),
     "count_statements": ("orm.testing", "count_statements"),
+    "forbid_unbatched_loads": ("orm.testing", "forbid_unbatched_loads"),
     "Configuration": ("orm.models.configuration", "Configuration"),
     "Email": ("orm.models.email", "Email"),
     "Password": ("orm.models.password", "Password"),
@@ -59,7 +61,7 @@ if TYPE_CHECKING:
     from herogold.orm.models.user_email import UserEmail
     from herogold.orm.models.user_permission import UserPermission
     from herogold.orm.models.user_role import UserRole
-    from herogold.orm.testing import assert_statements, count_statements
+    from herogold.orm.testing import assert_statements, count_statements, forbid_unbatched_loads
 
 
 def __getattr__(name: str) -> object:
