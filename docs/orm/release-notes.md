@@ -10,10 +10,13 @@ This release adds typed relationships, batched loading, repositories and transac
 - `Repository` and `QuerySet`, with soft-delete aware queries, bulk `update`, `soft_delete` and `purge`, and `upsert`. See [Repository and QuerySet](repository.md).
 - Scopes: `orm_session()`, `Scoped.begin()`, `bind()`, `on_commit()` and the `@transactional` decorator. Nested scopes join the outer transaction in a SAVEPOINT. See [Scopes](scopes.md).
 - ADRs [0002](../adr/0002-pinning-a-column-on-a-plain-column-needs-a-migration-note.md) and [0003](../adr/0003-a-nested-begin-joins-the-outer-scope.md).
+- `custom_data` reads in batches and its writes no longer commit. See [custom_data](relationships.md#custom_data).
 
 ## Migration note
 
 Pinning `column=` on a column that already exists as a plain column attaches a foreign key to it. Alembic autogenerate proposes a new constraint for it. Before you apply that revision, check that no existing row holds a value with no matching row in the target table, because the constraint cannot be created while such rows exist. State in the revision that you checked. A relationship without `column=` never does this: it raises and asks you to choose.
+
+`custom_data` needs no migration: the `<table>_custom_data` link tables keep their names and columns. A write to `row.custom_data` used to commit at once. It now stays in the caller's transaction, so commit it yourself.
 
 Run `configure()` before `create_all` and before Alembic reads the metadata. Add it to `env.py`.
 

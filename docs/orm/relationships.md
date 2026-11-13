@@ -170,3 +170,15 @@ Reading the relationship first applies the queued writes, so the list you read m
 ### Link-only changes and flush
 
 A change that only touches a link table, such as `post.tags.append(tag)` on a session with no other dirty row, has nothing for `session.flush()` to write, so `flush()` alone does not apply it. A read of any typed relationship on the same session applies it, and so does `commit()`. A raw SQL read through `session.execute()` does not apply it. Read a typed relationship first, or commit, before you count link rows.
+
+## custom_data
+
+Every model has a `custom_data` attribute that links to one `CustomData` row. It is declared once on the base class with the original form, `Relationship(CustomData, batched=True)`, so `configure()` does not place it. `ModelMeta` builds the per-model link table `<table>_custom_data` when each model class is created, with the same name and columns as before (`<table>_<pk>` and `custom_data_id`). Existing databases need no migration.
+
+`batched=True` changes how the attribute behaves, not where it is stored.
+
+- A read goes through the cohort loader. `row.custom_data` for one row and for 50 rows from the same query costs one extra statement.
+- A write (`row.custom_data = data`, `del row.custom_data`) runs on the owner's session and never commits. It joins the caller's transaction, and a rollback discards it. If the owner is in no session, HeroPy's class-level session is used.
+- `CustomData` itself has no `custom_data` link table.
+
+`batched` is available on any original-form relationship. It is off by default, so the other original-form relationships keep their old behaviour. The private structure `_BaseModel.__dict__["custom_data"]._links[type(row)]` is unchanged.

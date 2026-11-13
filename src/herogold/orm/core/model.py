@@ -113,8 +113,9 @@ class BaseModel(_BaseModel):
 # Attach the shared ``custom_data`` relationship to the base now that its target
 # (CustomData) exists. Placed here rather than in the _BaseModel body because it
 # points at a subclass; CustomData was built above, so it never gains its own
-# ``custom_data`` link table (it stays a leaf).
-_custom_data = Relationship(CustomData)
+# ``custom_data`` link table (it stays a leaf). ``batched=True`` keeps the per-model
+# ``<table>_custom_data`` link tables and their columns, and reads through the cohort loader.
+_custom_data = Relationship(CustomData, batched=True)
 _custom_data.__set_name__(_BaseModel, "custom_data")
 _BaseModel.custom_data = _custom_data
 
