@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
+import ast
+import sys
+import types
+from typing import TYPE_CHECKING, Any, ForwardRef, NamedTuple, Self, TypeVar, Union, cast, get_args, get_origin, overload
 
 from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, and_
 from sqlmodel import SQLModel, select
@@ -11,17 +14,10 @@ from herogold.log import LoggerMixin
 from herogold.sentinel import create_sentinel
 
 if TYPE_CHECKING:
-    import sys
-
     from sqlalchemy import ColumnElement
 
-    if sys.version_info >= (3, 13):
-        from typing import TypeIs
-    else:
-        from typing_extensions import TypeIs
-
     # Imported for typing only: ``_BaseModel`` appears solely in (stringized)
-    # annotations and the lazily-evaluated PEP 695 bound ``Relationship[T: _BaseModel]``.
+    # annotations.
     # Importing it at runtime creates a circular import (model -> utils -> model).
     from herogold.orm.core.model import _BaseModel
 
@@ -67,8 +63,24 @@ class LinkInfo[T: _BaseModel](NamedTuple):
         ))
 
 
-class Relationship[T: _BaseModel](LoggerMixin):
+class Shape(NamedTuple):
+    """Whether a relationship holds one object or many, and whether it may be empty."""
+
+    many: bool
+    """True for ``list[Target]``, False for ``Target`` and ``Target | None``."""
+    optional: bool
+    """True when the declared type allows ``None``."""
+
+
+class Relationship[T](LoggerMixin):
     """Descriptor for a single-valued relationship backed by an association table.
+
+    Two call forms exist. ``Relationship(Target)`` is the original form and keeps its
+    link-table behaviour. ``Relationship[Optional["Target"]]()`` and
+    ``Relationship[list["Target"]]()`` are the typed form: the type argument declares the
+    :class:`Shape` and the target, and the target is resolved by :meth:`resolve` once every
+    model exists. Declare the typed form without an annotation, because SQLModel turns an
+    annotated class attribute into a column.
 
     Instead of adding a foreign-key column to the owner, each concrete
     ``table=True`` owner gets its own association (join) table linking the owner's
@@ -83,7 +95,18 @@ class Relationship[T: _BaseModel](LoggerMixin):
     on ``_BaseModel`` yields a distinct link table for every model.
     """
 
-    def __init__(self, related_model: type[T] = SELF, *, optional: bool = True) -> None:
+    if TYPE_CHECKING:
+        # Typing only: the call form picks the typing. ``Relationship(Target)`` is checked as
+        # ``_LegacyRelationship[Target]`` (instances ``Target | None``, class access ``type[Target]``).
+        # ``Relationship[T]()`` keeps ``Relationship[T]`` (instances ``T``, class access the descriptor).
+        @overload
+        def __new__[M: _BaseModel](cls, related_model: type[M], *, optional: bool = ...) -> _LegacyRelationship[M]: ...
+        @overload
+        def __new__(cls, *, optional: bool = ...) -> Self: ...
+        def __new__(cls, *args: object, **kwargs: object) -> Any:
+            """Typing-only signature; the runtime class is built by ``__init__``."""
+
+    def __init__(self, related_model: type[_BaseModel] = SELF, *, optional: bool = True) -> None:
         """Initialise the descriptor.
 
         ``related_model`` may be the ``SELF`` sentinel (self-referential) or a
@@ -92,29 +115,81 @@ class Relationship[T: _BaseModel](LoggerMixin):
         """
         self.optional = optional
         self.related_model = related_model
+        self._declared: bool = False
+        self._type_arg: object = None
+        self._declared_shape: Shape | None = None
+        self._owner: type | None = None
+        self._resolved: type | None = None
         # Per-owner registry: a single inherited descriptor serves many subclasses.
         self._links: dict[type, LinkInfo[_BaseModel]] = {}
 
     def __set_name__(self, owner: type[_BaseModel], name: str) -> None:
-        """Record the attribute name (link tables are built later, per subclass)."""
-        self.name = name
+        """Record the attribute name and, for the typed form, the shape and owner.
 
-    def __set__(self, instance: _BaseModel, value: T) -> None:
+        Link tables are built later, per subclass. ``__orig_class__`` exists by now
+        because Python sets it right after ``Relationship[...]()`` returns, which is
+        before the class body finishes.
+        """
+        self.name = name
+        orig = getattr(self, "__orig_class__", None)
+        if orig is not None:
+            (arg,) = get_args(orig)
+            self._declared = True
+            self._type_arg = arg
+            self._declared_shape = _shape_of(arg)
+            self._owner = owner
+
+    @property
+    def shape(self) -> Shape:
+        """Return whether this relationship is single or many valued, and optional or not."""
+        if self._declared_shape is not None:
+            return self._declared_shape
+        return Shape(many=False, optional=self.optional)
+
+    def resolve(self) -> type:
+        """Return the target class of the typed form, evaluating forward references.
+
+        Call this after every model exists. Raises ``NameError`` while the target is
+        still undefined, and ``TypeError`` for the original call form.
+        """
+        if not self._declared or self._owner is None:
+            msg = f"Relationship '{self.name}' was not declared with a type argument."
+            raise TypeError(msg)
+        if self._resolved is None:
+            self._resolved = _target_of(self._type_arg, self._owner)
+        return self._resolved
+
+    def __set__(self, instance: Any, value: T) -> None:  # noqa: ANN401
         """Persist ``value`` if needed and replace the owner's single link row."""
+        if self._declared:
+            msg = f"Assigning to the typed relationship '{self.name}' is not implemented yet."
+            raise NotImplementedError(msg)
+        target = cast("_BaseModel", value)
         instance.logger.debug("Setting relationship '%s' to %s", self.name, value, extra={"record": instance})
         info = self._links[type(instance)]
         if instance.id is None:
             msg = f"Owner must be persisted before setting relationship '{self.name}'."
             raise ValueError(msg)
-        if value.id is None:
-            value.add()
+        if target.id is None:
+            target.add()
         session = type(instance).session
         session.exec(info.table.delete().where(info.owner_filter(instance)))
-        session.exec(info.table.insert().values(**info.owner_values(instance), **info.target_values(value)))
+        session.exec(info.table.insert().values(**info.owner_values(instance), **info.target_values(target)))
         session.commit()
 
-    def __delete__(self, instance: _BaseModel) -> None:
-        """Remove the owner's link row(s)."""
+    def __delete__(self, instance: Any) -> None:  # noqa: ANN401
+        """Remove the owner's link row(s).
+
+        For the typed form, `del owner.rel` on a single-valued relationship is the same as
+        `owner.rel = None`. On a many-valued one it raises `TypeError`, because there is no single
+        value to clear; mutate the list instead.
+        """
+        if self._declared:
+            if self.shape.many:
+                msg = f"Cannot delete the many-valued relationship '{self.name}'; remove items from it instead."
+                raise TypeError(msg)
+            self.__set__(instance, cast("T", None))
+            return
         info = self._links.get(type(instance))
         if info is None:
             return
@@ -123,18 +198,17 @@ class Relationship[T: _BaseModel](LoggerMixin):
         session.commit()
 
     @overload
-    def __get__(self, instance: None, owner: type[_BaseModel]) -> type[T]: ...
+    def __get__(self, instance: None, owner: type) -> Self: ...
     @overload
-    def __get__(self, instance: _BaseModel, owner: type[_BaseModel]) -> T | None: ...
+    def __get__(self, instance: object, owner: type) -> T: ...
 
-    def __get__(self, instance: _BaseModel | None, owner: type[_BaseModel]) -> type[T] | T | None:
+    def __get__(self, instance: Any, owner: type) -> Any:
         """Class access returns the target class; instance access joins the link table."""
         if instance is None:
-            return self._resolve_target(owner)
+            return self if self._declared else self._resolve_target(cast("type[_BaseModel]", owner))
         info = self._links.get(type(instance))
         if info is None:
             return None
-        # pyrefly: ignore [missing-attribute]
         session = type(instance).session
         query = select(info.target).join(info.table, info.target_join()).where(info.owner_filter(instance))
         return cast("T | None", session.exec(query).first())
@@ -145,8 +219,8 @@ class Relationship[T: _BaseModel](LoggerMixin):
         Called from :class:`ModelMeta` for each concrete ``table=True`` subclass.
         Idempotent per owner and guarded against duplicate metadata registration.
         """
-        if owner in self._links:
-            return
+        if self._declared or owner in self._links:
+            return  # the typed form builds its storage in a later step
         target = self._resolve_target(owner)
         # Prefixes (owner tablename / attribute name) keep the self-referential case from colliding.
         owner_pk, owner_cols = _pk_columns(owner, prefix=str(owner.__tablename__))
@@ -157,15 +231,28 @@ class Relationship[T: _BaseModel](LoggerMixin):
             table = _create_link_table(link_name, owner, owner_cols, target, target_cols)
         self._links[owner] = LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
 
-    def _resolve_target(self, owner: type[_BaseModel]) -> type[T]:
+    def _resolve_target(self, owner: type[_BaseModel]) -> type[_BaseModel]:
         """Resolve ``SELF`` to the owner; otherwise return the declared target."""
         if self._is_self_referential(owner):
             return owner
         return self.related_model
 
-    def _is_self_referential(self, owner: type[_BaseModel]) -> TypeIs[type[T]]:
+    def _is_self_referential(self, owner: type[_BaseModel]) -> bool:
         """Return True if the relationship is self-referential for the given owner."""
         return self.related_model is SELF or owner is self.related_model
+
+
+if TYPE_CHECKING:
+
+    class _LegacyRelationship[M: _BaseModel](Relationship[M]):
+        """Typing-only result of ``Relationship(Target)``; the runtime class is :class:`Relationship`."""
+
+        @overload
+        def __get__(self, instance: None, owner: type) -> type[M]: ...
+        @overload
+        def __get__(self, instance: object, owner: type) -> M | None: ...
+        def __get__(self, instance: Any, owner: type) -> Any:  # ty: ignore[incompatible-method-override]
+            """Typing-only signature; the runtime ``__get__`` is inherited from :class:`Relationship`."""
 
 
 class SelfRelationship(Relationship[Any]):
@@ -186,7 +273,7 @@ class SelfRelationship(Relationship[Any]):
         def __get__[O: _BaseModel](self, instance: None, owner: type[O]) -> type[O]: ...
         @overload
         def __get__[O: _BaseModel](self, instance: O, owner: type[O]) -> O | None: ...
-        def __get__(self, instance: _BaseModel | None, owner: type[_BaseModel]) -> Any:
+        def __get__(self, instance: _BaseModel | None, owner: type[_BaseModel]) -> Any:  # ty: ignore[incompatible-method-override]
             """Typing-only signature; the runtime ``__get__`` is inherited from :class:`Relationship`."""
 
 
@@ -213,6 +300,74 @@ class ModelMeta(type(SQLModel)):
                 if isinstance(attr, Relationship):
                     # pyrefly: ignore [bad-argument-type]
                     attr.build_link_for(cls)
+
+
+def _shape_of(arg: object) -> Shape:
+    """Return the :class:`Shape` that the type argument ``arg`` declares."""
+    if isinstance(arg, ForwardRef):
+        arg = arg.__forward_arg__
+    if isinstance(arg, str):
+        return _shape_of_node(ast.parse(arg, mode="eval").body)
+    origin = get_origin(arg)
+    if origin is Union or origin is types.UnionType:
+        inner = [a for a in get_args(arg) if a is not type(None)]
+        if len(inner) != 1:
+            msg = f"A relationship type argument must be one type or None, got {arg!r}."
+            raise TypeError(msg)
+        return Shape(many=_shape_of(inner[0]).many, optional=len(inner) != len(get_args(arg)))
+    return Shape(many=origin is list, optional=False)
+
+
+def _shape_of_node(node: ast.expr) -> Shape:
+    """Return the :class:`Shape` of a quoted type argument such as ``"Team | None"``."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        sides = [node.left, node.right]
+        inner = [s for s in sides if not (isinstance(s, ast.Constant) and s.value is None)]
+        if len(inner) != 1 or len(inner) == len(sides):
+            msg = "A quoted relationship type argument must be one type or None."
+            raise TypeError(msg)
+        return Shape(many=_shape_of_node(inner[0]).many, optional=True)
+    if isinstance(node, ast.Subscript):
+        name = _node_name(node.value)
+        if name == "Optional":
+            return Shape(many=_shape_of_node(node.slice).many, optional=True)
+        if name == "Union":
+            members = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+            inner = [m for m in members if not (isinstance(m, ast.Constant) and m.value is None)]
+            if len(inner) != 1:
+                msg = "A quoted relationship type argument must be one type or None."
+                raise TypeError(msg)
+            return Shape(many=_shape_of_node(inner[0]).many, optional=len(inner) != len(members))
+        return Shape(many=name in {"list", "List"}, optional=False)
+    return Shape(many=False, optional=False)
+
+
+def _node_name(node: ast.expr) -> str | None:
+    """Return the last name of ``Name`` or ``module.Name`` (such as ``typing.Optional``), else None."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return None
+
+
+def _target_of(arg: object, owner: type) -> type:
+    """Evaluate forward references in ``arg`` and unwrap ``list[...]`` and ``... | None`` to the target class."""
+    namespace = dict(vars(sys.modules[owner.__module__]))
+    namespace.update(vars(owner))
+    while True:
+        if isinstance(arg, ForwardRef):
+            arg = arg.__forward_arg__
+        if isinstance(arg, str):
+            arg = eval(arg, namespace)  # noqa: S307  # quoted type argument written by the model author
+            continue
+        origin = get_origin(arg)
+        if origin is Union or origin is types.UnionType:
+            arg = next(a for a in get_args(arg) if a is not type(None))
+        elif origin is list:
+            (arg,) = get_args(arg)
+        else:
+            return cast("type", arg)
 
 
 def get_foreign_key[M: SQLModel](table: type[M], column: str = "id") -> str:
