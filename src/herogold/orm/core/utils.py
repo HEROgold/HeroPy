@@ -19,11 +19,15 @@ if TYPE_CHECKING:
     # Imported for typing only: ``_BaseModel`` appears solely in (stringized)
     # annotations.
     # Importing it at runtime creates a circular import (model -> utils -> model).
+    from herogold.orm.core.configure import Placement
     from herogold.orm.core.model import _BaseModel
 
 SELF = create_sentinel()
 """Sentinel value for self-referential relationships in SQLModel classes."""
 
+
+AUTO = create_sentinel()
+"""Default of ``inverse=``: find the pair by introspection in ``configure()``."""
 
 T = TypeVar("T", bound=SQLModel)
 
@@ -100,19 +104,41 @@ class Relationship[T](LoggerMixin):
         # ``_LegacyRelationship[Target]`` (instances ``Target | None``, class access ``type[Target]``).
         # ``Relationship[T]()`` keeps ``Relationship[T]`` (instances ``T``, class access the descriptor).
         @overload
-        def __new__[M: _BaseModel](cls, related_model: type[M], *, optional: bool = ...) -> _LegacyRelationship[M]: ...
+        def __new__[M: _BaseModel](
+            cls, related_model: type[M], *, optional: bool = ..., inverse: object = ..., column: object = ...,
+        ) -> _LegacyRelationship[M]: ...
         @overload
-        def __new__(cls, *, optional: bool = ...) -> Self: ...
+        def __new__(cls, *, optional: bool = ..., inverse: object = ..., column: object = ...) -> Self: ...
         def __new__(cls, *args: object, **kwargs: object) -> Any:
             """Typing-only signature; the runtime class is built by ``__init__``."""
 
-    def __init__(self, related_model: type[_BaseModel] = SELF, *, optional: bool = True) -> None:
+    def __init__(
+        self,
+        related_model: type[_BaseModel] = SELF,
+        *,
+        optional: bool = True,
+        inverse: object = AUTO,
+        column: object = None,
+    ) -> None:
         """Initialise the descriptor.
 
         ``related_model`` may be the ``SELF`` sentinel (self-referential) or a
         concrete ``table=True`` model. ``optional`` is accepted for API symmetry;
         access always returns ``None`` when there is no link.
+
+        ``inverse`` and ``column`` apply to the typed form and are read by ``configure()``.
+        ``inverse`` is a relationship (or a lambda returning one) to pair with, or ``None`` to
+        opt out of pairing. ``column`` is the foreign-key column name, or a lambda returning the
+        mapped column, that a single-valued relationship stores.
         """
+        self.inverse = inverse
+        self.column = column
+        self.configured = False
+        """True once ``configure()`` has chosen where this relationship is stored."""
+        self.error: str | None = None
+        """Why ``configure()`` refused this relationship; reading it raises this message."""
+        self.placement: Placement | None = None
+        self.pair: Relationship[Any] | None = None
         self.optional = optional
         self.related_model = related_model
         self._declared: bool = False
@@ -138,6 +164,14 @@ class Relationship[T](LoggerMixin):
             self._type_arg = arg
             self._declared_shape = _shape_of(arg)
             self._owner = owner
+            from herogold.orm.core.configure import register  # noqa: PLC0415  # configure imports this module
+
+            register(self)
+
+    @property
+    def owner(self) -> type | None:
+        """Return the class that declares this typed relationship."""
+        return self._owner
 
     @property
     def shape(self) -> Shape:
@@ -207,6 +241,9 @@ class Relationship[T](LoggerMixin):
         if instance is None:
             return self if self._declared else self._resolve_target(cast("type[_BaseModel]", owner))
         if self._declared:
+            from herogold.orm.core.configure import check_readable  # noqa: PLC0415  # configure imports this module
+
+            check_readable(self)
             return loading.load_typed(self, instance)
         info = self._links.get(type(instance))
         if info is None:
@@ -287,6 +324,16 @@ class ModelMeta(type(SQLModel)):
     For every concrete ``table=True`` subclass it scans the MRO for
     :class:`Relationship` descriptors and asks each to build its link table.
     """
+
+    def __getattr__(cls, name: str) -> Any:  # noqa: ANN401
+        """Explain a missing ``<name>_id`` that ``configure()`` would have generated."""
+        try:
+            return super().__getattr__(name)  # ty: ignore[missing-attribute]
+        except AttributeError:
+            from herogold.orm.core.configure import missing_column_hint  # noqa: PLC0415  # configure imports this module
+
+            missing_column_hint(cls, name)
+            raise
 
     def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict[str, object], **kwargs: object) -> None:
         """Build link tables once the owner's ``__table__`` has been created."""

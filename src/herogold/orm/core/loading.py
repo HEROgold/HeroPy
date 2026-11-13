@@ -5,8 +5,9 @@ cohort member loads it for every live member of that cohort with one ``IN`` quer
 on the session the rows belong to. Loaded values are cached on the instances and dropped
 again on commit and rollback.
 
-Storage sits behind :class:`Loader`. This module ships the link-table loader; foreign-key
-storage plugs in by registering another :class:`Loader` with :func:`register_loader`.
+Storage sits behind :class:`Loader`. This module ships the link-table loader and the
+foreign-key loader. ``configure()`` registers the right one for each relationship with
+:func:`register_loader`.
 """
 
 from __future__ import annotations
@@ -15,13 +16,11 @@ import contextvars
 import weakref
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, Protocol
 
-from sqlalchemy import Column, ForeignKey, Index, Table, UniqueConstraint, event, inspect, select, tuple_
+from sqlalchemy import event, inspect, select, tuple_
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
-
-from herogold.orm.core.utils import LinkInfo, Relationship, _fk_columns, _pk_columns
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -29,21 +28,21 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import InstanceState
 
     from herogold.orm.core.model import _BaseModel
+    from herogold.orm.core.utils import LinkInfo, Relationship
 
 __all__ = [
     "CHUNK_SIZE",
     "AsyncLoadError",
     "Cohort",
+    "FkLoader",
     "LinkLoader",
     "Loader",
     "UnbatchedLoadError",
-    "build_links",
     "forbid_unbatched",
     "forget_cached",
     "forget_cached_name",
     "internal_write",
     "is_internal_write",
-    "link_for",
     "load_typed",
     "register_loader",
 ]
@@ -115,6 +114,73 @@ class LinkLoader:
             store(state, relationship.name, found if shape.many else (found[0] if found else None))
 
 
+class FkLoader:
+    """Loader for relationships stored in a foreign-key column, on the owner or on the target."""
+
+    def __init__(self, owner: type[_BaseModel], target: type[_BaseModel], column: str, *, on_owner: bool) -> None:
+        """Keep the models and the foreign-key column name, which sits on ``owner`` when ``on_owner`` else on ``target``."""
+        self.owner = owner
+        self.target = target
+        self.column = column
+        self.on_owner = on_owner
+
+    def load_for(self, cohort: Cohort, relationship: Relationship[Any]) -> None:
+        """Load ``relationship`` for every member of ``cohort`` with ``IN`` queries on the cohort's session."""
+        if self.on_owner:
+            self._load_by_owner_column(cohort, relationship)
+        else:
+            self._load_by_target_column(cohort, relationship)
+
+    def _load_by_owner_column(self, cohort: Cohort, relationship: Relationship[Any]) -> None:
+        """Many-to-one: select the targets whose key is among the cohort's foreign-key values."""
+        table = self.owner.__table__
+        column = table.c[self.column]
+        attr = self.owner.__mapper__.get_property_by_column(column).key
+        owner_pk = next(iter(table.primary_key.columns))
+        values: dict[InstanceState[Any], object] = {}
+        missing: dict[object, InstanceState[Any]] = {}
+        for state in cohort.states:
+            if attr in state.dict:
+                values[state] = state.dict[attr]
+            else:  # expired by a commit: read the whole cohort's keys in one query instead of one refresh per row
+                missing[state.identity[0] if state.identity else None] = state
+        keys = list(missing)
+        for chunk in _chunks(keys):
+            for key, value in cohort.session.execute(select(owner_pk, column).where(owner_pk.in_(chunk))):
+                values[missing[key]] = value
+        target_pk = next(iter(self.target.__table__.primary_key.columns))
+        target_attr = self.target.__mapper__.get_property_by_column(target_pk).key
+        wanted = list({v for v in values.values() if v is not None})
+        found: dict[object, Any] = {}
+        for chunk in _chunks(wanted):
+            query = select(self.target).where(target_pk.in_(chunk), *self.target.default_criteria())
+            for row in cohort.session.execute(query).scalars():
+                found[getattr(row, target_attr)] = row
+        for state in cohort.states:
+            store(state, relationship.name, found.get(values.get(state)))
+
+    def _load_by_target_column(self, cohort: Cohort, relationship: Relationship[Any]) -> None:
+        """One-to-many: select the targets whose foreign-key column holds one of the cohort's ids."""
+        column = self.target.__table__.c[self.column]
+        attr = self.target.__mapper__.get_property_by_column(column).key
+        target_pk = next(iter(self.target.__table__.primary_key.columns))
+        grouped: dict[object, list[Any]] = {state.identity[0]: [] for state in cohort.states if state.identity}
+        for chunk in _chunks(list(grouped)):
+            query = select(self.target).where(column.in_(chunk), *self.target.default_criteria()).order_by(target_pk)
+            for row in cohort.session.execute(query).scalars():
+                grouped[getattr(row, attr)].append(row)
+        many = relationship.shape.many
+        for state in cohort.states:
+            found = grouped.get(state.identity[0] if state.identity else None, [])
+            store(state, relationship.name, found if many else (found[0] if found else None))
+
+
+def _chunks(values: list[Any]) -> Generator[list[Any]]:
+    """Split ``values`` into lists of at most ``CHUNK_SIZE``."""
+    for start in range(0, len(values), CHUNK_SIZE):
+        yield values[start : start + CHUNK_SIZE]
+
+
 def register_loader(owner: type, name: str, loader: Loader) -> None:
     """Use ``loader`` for the typed relationship ``name`` on ``owner`` and its subclasses."""
     _LOADERS[owner, name] = loader
@@ -123,32 +189,6 @@ def register_loader(owner: type, name: str, loader: Loader) -> None:
 def store(state: InstanceState[Any], name: str, value: object) -> None:
     """Cache ``value`` as the loaded relationship ``name`` of ``state``'s instance."""
     state.info.setdefault(_CACHE_KEY, {})[name] = value
-
-
-def link_for(owner: type, name: str) -> LinkInfo[Any]:
-    """Return the link table description of the link-table relationship ``name`` on ``owner``."""
-    loader = _find_loader(owner, name)
-    if not isinstance(loader, LinkLoader):
-        msg = f"{owner.__name__}.{name} is not stored in a link table."
-        raise TypeError(msg)
-    return loader.info
-
-
-def build_links(*models: type[_BaseModel]) -> None:
-    """Create link tables for the typed relationships of ``models`` and register their loaders.
-
-    Call this once every model exists and before ``create_all``. Foreign-key storage
-    replaces this step for relationships that can use a column.
-    """
-    for model in models:
-        seen: set[str] = set()
-        for cls in model.__mro__:
-            for name, attr in vars(cls).items():
-                if name in seen:
-                    continue
-                seen.add(name)
-                if isinstance(attr, Relationship) and attr._declared:  # noqa: SLF001
-                    register_loader(model, name, LinkLoader(_build_link_table(model, attr)))
 
 
 def load_typed(relationship: Relationship[Any], instance: _BaseModel) -> object:
@@ -187,35 +227,13 @@ def forbid_unbatched() -> Generator[None]:
         _forbid_unbatched.reset(token)
 
 
-def _build_link_table(owner: type[_BaseModel], relationship: Relationship[Any]) -> LinkInfo[Any]:
-    """Return the link table of ``relationship`` on ``owner``, creating it in the metadata when missing."""
-    target = cast("type[_BaseModel]", relationship.resolve())
-    owner_pk, owner_cols = _pk_columns(owner, prefix=str(owner.__tablename__))
-    target_pk, target_cols = _pk_columns(target, prefix=relationship.name)
-    name = f"{owner.__tablename__}_{relationship.name}"
-    table = owner.metadata.tables.get(name)
-    if table is None:
-        constraints: list[Column[Any] | Index | UniqueConstraint | ForeignKey] = []
-        if not relationship.shape.many:
-            constraints.append(UniqueConstraint(*owner_cols, name=f"uq_{name}"))
-        table = Table(
-            name,
-            owner.metadata,
-            *_fk_columns(owner, owner_cols),
-            *_fk_columns(target, target_cols),
-            *constraints,
-            Index(f"ix_{name}_tgt", *target_cols),
-        )
-    return LinkInfo(table, owner_pk, owner_cols, target_pk, target_cols, target)
-
-
 def _find_loader(owner: type, name: str) -> Loader:
     """Return the loader registered for ``name`` on ``owner`` or the nearest base class."""
     for cls in owner.__mro__:
         loader = _LOADERS.get((cls, name))
         if loader is not None:
             return loader
-    msg = f"{owner.__name__}.{name} has no storage yet. Call build_links({owner.__name__}) after all models exist."
+    msg = f"{owner.__name__}.{name} has no storage yet. Call herogold.orm.configure() after all models exist."
     raise LookupError(msg)
 
 

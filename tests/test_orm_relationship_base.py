@@ -95,10 +95,11 @@ def test_old_call_form_has_no_declared_shape() -> None:
     assert Relationship(RbTeam, optional=False).shape == Shape(many=False, optional=False)
 
 
-def test_new_form_instance_access_without_loading_returns_none(session: Session) -> None:
+def test_new_form_instance_access_before_configure_warns_and_raises(session: Session) -> None:
     player = RbPlayer(name="p")
 
-    assert player.team is None
+    with pytest.warns(UserWarning, match="configure"), pytest.raises(RuntimeError, match="configure"):
+        player.team  # noqa: B018
 
 
 def test_new_form_class_access_returns_the_descriptor() -> None:
