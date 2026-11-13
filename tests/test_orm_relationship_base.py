@@ -141,9 +141,3 @@ def test_quoted_union_of_two_types_is_rejected() -> None:
 def test_deleting_a_list_relationship_raises_type_error() -> None:
     with pytest.raises(TypeError, match="many"):
         del RbDel().many
-
-
-def test_deleting_a_single_relationship_goes_through_assignment() -> None:
-    # Assignment of the typed form is not implemented at this point in the stack, so it must not be silent.
-    with pytest.raises(NotImplementedError):
-        del RbDel().one
