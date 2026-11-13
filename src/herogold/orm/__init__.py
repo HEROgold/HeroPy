@@ -10,6 +10,7 @@ __all__ = [
     "BaseModel",
     "Configuration",
     "Email",
+    "NoEngineBoundError",
     "Password",
     "Permission",
     "QuerySet",
@@ -17,6 +18,8 @@ __all__ = [
     "Repository",
     "Role",
     "RolePermission",
+    "ScopeRolledBack",
+    "Scoped",
     "SelfRelationship",
     "Upserted",
     "User",
@@ -24,10 +27,14 @@ __all__ = [
     "UserPermission",
     "UserRole",
     "assert_statements",
+    "bind",
+    "bound",
     "configure",
     "count_statements",
     "forbid_unbatched_loads",
     "get_foreign_key",
+    "on_commit",
+    "orm_session",
 ]
 
 _EXPORTS: dict[str, tuple[str, str]] = {
@@ -43,6 +50,13 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "QuerySet": ("orm.repository", "QuerySet"),
     "Repository": ("orm.repository", "Repository"),
     "Upserted": ("orm.repository", "Upserted"),
+    "NoEngineBoundError": ("orm.scopes", "NoEngineBoundError"),
+    "ScopeRolledBack": ("orm.scopes", "ScopeRolledBack"),
+    "Scoped": ("orm.scopes", "Scoped"),
+    "bind": ("orm.scopes", "bind"),
+    "bound": ("orm.scopes", "bound"),
+    "on_commit": ("orm.scopes", "on_commit"),
+    "orm_session": ("orm.scopes", "orm_session"),
     "Configuration": ("orm.models.configuration", "Configuration"),
     "Email": ("orm.models.email", "Email"),
     "Password": ("orm.models.password", "Password"),
@@ -71,6 +85,7 @@ if TYPE_CHECKING:
     from herogold.orm.models.user_permission import UserPermission
     from herogold.orm.models.user_role import UserRole
     from herogold.orm.repository import QuerySet, Repository, Upserted
+    from herogold.orm.scopes import NoEngineBoundError, Scoped, ScopeRolledBack, bind, bound, on_commit, orm_session
     from herogold.orm.testing import assert_statements, count_statements, forbid_unbatched_loads
 
 
