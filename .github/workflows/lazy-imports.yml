@@ -7,12 +7,19 @@ on:
     branches: [master]
   workflow_dispatch:
 
+concurrency:
+  # One group per PR, so a new push cancels the runs it replaces.
+  # Pushes to master keep one group per commit and are never cancelled.
+  group: lazy-imports-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
 jobs:
   lazy-fix:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
     - uses: actions/checkout@v4
 

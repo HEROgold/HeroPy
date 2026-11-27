@@ -8,7 +8,11 @@ on:
   workflow_dispatch:
   workflow_call:
 
-concurrency: lint-${{ github.sha }}
+concurrency:
+  # One group per PR, so a new push cancels the runs it replaces.
+  # Pushes to master keep one group per commit and are never cancelled.
+  group: lint-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -16,6 +20,7 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
