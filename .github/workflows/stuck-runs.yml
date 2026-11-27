@@ -1,0 +1,54 @@
+name: Stuck runs
+
+# Hosted jobs time out after their timeout-minutes, so any run still active
+# after 6 hours is stuck. GitHub can lose a run before it creates any jobs.
+# Such a run stays "queued" for good and the API refuses to cancel or delete it.
+# This job cancels what it can and fails on the rest, and GitHub emails
+# the owner when a scheduled run fails. It only looks at runs between 6 and
+# 30 hours old, so a run that can't be cleared alerts about four times and
+# then stops.
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Cancel or report stuck runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MIN_HOURS: "6"
+          MAX_HOURS: "30"
+        run: |
+          now=$(date -u +%s)
+          stuck=0
+          for status in queued in_progress waiting requested pending; do
+            gh api "repos/$REPO/actions/runs?status=$status&per_page=100" --paginate \
+              --jq '.workflow_runs[] | [.id, .created_at, .name, .head_branch] | @tsv'
+          done | sort -u > runs.tsv
+
+          while IFS=$'\t' read -r id created name branch; do
+            age=$(( (now - $(date -u -d "$created" +%s)) / 3600 ))
+            if [ "$age" -lt "$MIN_HOURS" ] || [ "$age" -gt "$MAX_HOURS" ]; then
+              continue
+            fi
+            jobs=$(gh api "repos/$REPO/actions/runs/$id/jobs" --jq '.total_count')
+            if gh api -X POST "repos/$REPO/actions/runs/$id/cancel" --silent 2>/dev/null \
+              || gh api -X POST "repos/$REPO/actions/runs/$id/force-cancel" --silent 2>/dev/null; then
+              echo "Cancelled run $id ($name on $branch, ${age}h old, $jobs jobs)" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::Run $id ($name on $branch) is ${age}h old with $jobs jobs and GitHub refuses to cancel it. Ask GitHub Support to clear it."
+              echo "Stuck: run $id ($name on $branch, ${age}h old, $jobs jobs)" >> "$GITHUB_STEP_SUMMARY"
+              stuck=1
+            fi
+          done < runs.tsv
+
+          exit "$stuck"
